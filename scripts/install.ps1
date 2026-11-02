@@ -193,7 +193,7 @@ function Build-Agent([string] $RepoRoot) {
     Remove-DirectoryWithRetry $out
     $proj = Join-Path $RepoRoot 'agent\Alamida.Calendar.Agent\Alamida.Calendar.Agent.csproj'
     Write-Info "Baue Agent (dauert beim ersten Mal 1-3 Minuten)..."
-    & $dotnet publish $proj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o $out | Out-Host
+    & $dotnet publish $proj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false --disable-build-servers -o $out | Out-Host
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $out $ExeName))) {
         throw "Build fehlgeschlagen (dotnet publish, Exit-Code $LASTEXITCODE)."
     }

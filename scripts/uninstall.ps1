@@ -37,6 +37,10 @@ if (-not $Silent) {
 }
 
 Get-Process -Name 'AlamidaCalendarAgent' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+# Noch laufende Prozesse des heruntergeladenen .NET SDK (z.B. MSBuild-Knoten) sperren sonst den Arbeitsordner
+Get-Process -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path -and $_.Path.StartsWith($WorkDir + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) } |
+    Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 1
 
 Remove-ItemProperty -Path $RunKey -Name 'AlamidaCalendarAgent' -ErrorAction SilentlyContinue
