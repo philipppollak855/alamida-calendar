@@ -386,7 +386,7 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .m-kopf > div { min-width: 0; }
 
 /* Bereitschaft */
-.bereitschaft-seite { min-height: 100vh; }
+.planung.bereitschaft-seite { display: block; min-height: 100vh; }
 .bereitschaft-seite .inhalt { max-width: 860px; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
 .bereitschaft-kopf { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
 .pille-wahl { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--text-2); cursor: pointer; }
