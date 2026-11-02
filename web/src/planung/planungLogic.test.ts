@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ausGoogleEvent, fahrten, nachGruppe, sterbefaelle, termineAmTag, warnungen, type GoogleEvent } from './planungLogic';
+import { ausGoogleEvent, checkliste, countdown, fahrten, mapsLink, nachGruppe, orte, sterbefaelle, suche, termineAmTag, warnungen, type GoogleEvent } from './planungLogic';
 
 const ev = (id: string, kat: string, start: string, end: string, fall = '260087 | Anton Schellmann'): GoogleEvent => ({
   id,
@@ -74,5 +74,31 @@ describe('planungLogic', () => {
       jetzt,
     );
     expect(w.map((x) => x.art).sort()).toEqual(['ohneUhrzeit', 'reihenfolge', 'ueberschneidung']);
+  });
+
+  it('liest strukturierte Details und erzeugt Navigation', () => {
+    const e = ev('a', 'Abholung', '2026-05-21T07:30:00+02:00', '2026-05-21T08:30:00+02:00');
+    e.extendedProperties!.private = { ...e.extendedProperties!.private, von: 'UK Neunkirchen', nach: 'Kühlr. Grafenbach', verstorbener: 'Anton S.' };
+    const x = t(e);
+    expect(x.verstorbener).toBe('Anton S.');
+    expect(mapsLink(x)).toContain('origin=UK%20Neunkirchen');
+    expect(suche([x], 'neunkirchen anton')).toHaveLength(1);
+    expect(suche([x], 'wien')).toHaveLength(0);
+  });
+
+  it('Checkliste richtet sich nach der Bestattungsart', () => {
+    const e = ev('a', 'Beisetzung', '2026-05-28', '2026-05-29');
+    e.extendedProperties!.private!.bestattungsart = 'Feuerbestattung';
+    const c = checkliste([t(e)]);
+    expect(c.map((p) => p.label)).toEqual(['Abholung', 'Trauergespräch', 'Trauerfeier', 'Kremation', 'Urnenbeisetzung']);
+    expect(c.filter((p) => p.erledigt).map((p) => p.label)).toEqual(['Urnenbeisetzung']);
+  });
+
+  it('gruppiert Orte und zeigt Countdown', () => {
+    const a = t(ev('a', 'Beisetzung', '2026-05-20T09:00:00+02:00', '2026-05-20T10:00:00+02:00'));
+    a.ort = 'Friedhof Ternitz';
+    expect(orte([a], jetzt)[0].ort).toBe('Friedhof Ternitz');
+    expect(countdown(a, new Date(a.start.getTime() - 25 * 60000))).toBe('in 25 Min.');
+    expect(countdown(a, new Date(a.start.getTime() + 60000))).toBe('läuft');
   });
 });

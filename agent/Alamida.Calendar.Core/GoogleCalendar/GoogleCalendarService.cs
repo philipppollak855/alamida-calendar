@@ -108,16 +108,20 @@ public class GoogleCalendarService
             ColorId = string.IsNullOrWhiteSpace(colorId) ? null : colorId.Trim(),
             Start = ToEventDateTime(ev.Start, ev.IsAllDay),
             End = ToEventDateTime(end, ev.IsAllDay),
-            ExtendedProperties = new Event.ExtendedPropertiesData
-            {
-                Private__ = new Dictionary<string, string>
-                {
-                    ["alamidaKey"] = ev.Id,
-                    ["sterbefallId"] = ev.SterbefallId,
-                    ["kategorie"] = ev.Category.ToString(),
-                },
-            },
+            ExtendedProperties = new Event.ExtendedPropertiesData { Private__ = PrivateProperties(ev) },
         };
+    }
+
+    private static Dictionary<string, string> PrivateProperties(CalendarEvent ev)
+    {
+        // Google begrenzt Schluessel+Wert auf 1024 Zeichen.
+        var props = ev.Details
+            .Where(kv => !string.IsNullOrWhiteSpace(kv.Value))
+            .ToDictionary(kv => kv.Key, kv => kv.Value.Length > 900 ? kv.Value[..900] : kv.Value);
+        props["alamidaKey"] = ev.Id;
+        props["sterbefallId"] = ev.SterbefallId;
+        props["kategorie"] = ev.Category.ToString();
+        return props;
     }
 
     private static EventDateTime ToEventDateTime(DateTime value, bool allDay)

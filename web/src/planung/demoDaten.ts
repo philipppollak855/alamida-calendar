@@ -40,7 +40,20 @@ export function demoTermine(jetzt = new Date()): Termin[] {
       location: ort,
       start: dauer === null ? { date: iso(start) } : { dateTime: start.toISOString() },
       end: dauer === null ? { date: iso(plusTage(start, 1)) } : { dateTime: new Date(start.getTime() + dauer * 60_000).toISOString() },
-      extendedProperties: { private: { kategorie: kat, sterbefallId: id } },
+      extendedProperties: {
+        private: {
+          kategorie: kat,
+          sterbefallId: id,
+          verstorbener: name,
+          art: kat === 'Trauergespraech' ? 'Trauergespräch' : kat === 'Ueberfuehrung' ? 'Überführung' : kat,
+          ort,
+          ...(route ? { route, von: route.split(' → ')[0], nach: route.split(' → ')[1] } : {}),
+          sterbedatum: iso(plusTage(heute, -2 - fall)).split('-').reverse().join('.'),
+          sterbeort: ['UK Neunkirchen', 'Pflegeheim Gloggnitz', 'zu Hause, Ternitz', 'LK Wiener Neustadt'][fall],
+          bestattungsart: ['Erdbestattung', 'Feuerbestattung', 'Erdbestattung', 'Feuerbestattung'][fall],
+          kuehlraum: 'Grafenbach / ' + (fall + 1),
+        },
+      },
     };
   });
   return events.map((e) => ausGoogleEvent(e, 'demo', 'Beispieldaten')!);

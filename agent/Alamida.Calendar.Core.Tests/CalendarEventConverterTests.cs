@@ -125,4 +125,34 @@ public class TryParseStartTests
         Assert.True(hatZeit);
         Assert.Equal(new DateTime(2026, 5, 28, 9, 30, 0), start);
     }
+
+    [Fact]
+    public void Beschreibung_EnthaeltFalldatenUndAlleTermine()
+    {
+        var s = new DetailSnapshot { SterbefallId = "260087", VerstorbenerName = "Anton Schellmann" } with
+        {
+            Sterbedatum = "20.05.2026", Sterbeort = "UK Neunkirchen", Bestattungsart = "Erdbestattung",
+            Kuehlraum = "Grafenbach", Kuehlplatz = "3", Endziel = "Friedhof Ternitz",
+            TrauerfeierDatum = "28.05.2026", TrauerfeierZeit = "13:00", TrauerfeierOrt = "Pfarrkirche Ternitz",
+            BeisetzungsDatum = "28.05.2026", ImAnschluss = true,
+            Schritte = [new UeberfuehrungSchritt { Zeile = 1, SchrittTyp = "abholung", VonOrt = "UK Neunkirchen", NachOrt = "Kühlr. Grafenbach", TerminAm = "21.05.2026 07:30" }],
+        };
+        var events = CalendarEventConverter.ConvertToCalendarEvents(s).ToDictionary(e => e.Id);
+        var b = events["260087|beisetzung"];
+
+        Assert.Contains("Sterbefall: 260087 | Anton Schellmann", b.Description);
+        Assert.Contains("im Anschluss an die Trauerfeier", b.Description);
+        Assert.Contains("Bestattungsart: Erdbestattung", b.Description);
+        Assert.Contains("Kühlraum: Grafenbach / 3", b.Description);
+        Assert.Contains("▶", b.Description);
+        Assert.Contains("Abholung: UK Neunkirchen → Kühlr. Grafenbach", b.Description);
+        Assert.Contains("Trauerfeier: Pfarrkirche Ternitz", b.Description);
+        Assert.Equal("1", b.Details["imAnschluss"]);
+        Assert.Equal("Anton Schellmann", b.Details["verstorbener"]);
+
+        var a = events["260087|schritt1"];
+        Assert.Equal("UK Neunkirchen", a.Details["von"]);
+        Assert.Equal("Kühlr. Grafenbach", a.Details["nach"]);
+        Assert.Equal("20.05.2026", a.Details["sterbedatum"]);
+    }
 }

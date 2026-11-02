@@ -37,6 +37,8 @@ export interface Termin {
   verstorbener?: string;
   beschreibung: string;
   link?: string;
+  /** Strukturierte Daten des Agents (extendedProperties.private): art, ort, route, von, nach, sterbedatum, ... */
+  details: Record<string, string>;
 }
 
 /** Ausschnitt aus der Google Calendar API (events.list). */
@@ -87,6 +89,7 @@ export function ausGoogleEvent(ev: GoogleEvent, kalenderId: string, kalenderName
   const ende = parseDatum(ev.end)?.wert ?? new Date(start.wert.getTime() + 3600_000);
   const beschreibung = ev.description ?? '';
   const fall = /Sterbefall:\s*([^|\n]+?)\s*(?:\|\s*([^\n]+))?$/m.exec(beschreibung);
+  const details = { ...(ev.extendedProperties?.private ?? {}) };
   return {
     id: `${kalenderId}/${ev.id}`,
     kalenderId,
@@ -97,10 +100,11 @@ export function ausGoogleEvent(ev: GoogleEvent, kalenderId: string, kalenderName
     ganztaegig: start.ganztaegig,
     ort: ev.location ?? '',
     kategorie: kategorieAus(ev),
-    sterbefallId: ev.extendedProperties?.private?.sterbefallId || fall?.[1]?.trim() || undefined,
-    verstorbener: fall?.[2]?.trim() || undefined,
+    sterbefallId: details.sterbefallId || fall?.[1]?.trim() || undefined,
+    verstorbener: details.verstorbener || fall?.[2]?.trim() || undefined,
     beschreibung,
     link: ev.htmlLink,
+    details,
   };
 }
 
@@ -228,4 +232,78 @@ export function warnungen(termine: Termin[], jetzt: Date): Warnung[] {
   }
 
   return result;
+}
+
+export function suche(termine: Termin[], text: string): Termin[] {
+  const woerter = text.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!woerter.length) return termine;
+  return termine.filter((t) => {
+    const heu = [t.titel, t.ort, t.verstorbener, t.sterbefallId, KATEGORIEN[t.kategorie].label, ...Object.values(t.details)]
+      .join(' ')
+      .toLowerCase();
+    return woerter.every((w) => heu.includes(w));
+  });
+}
+
+export function fallDaten(termine: Termin[]): Record<string, string> {
+  const r: Record<string, string> = {};
+  for (const t of termine) for (const [k, v] of Object.entries(t.details)) if (v && !(k in r)) r[k] = v;
+  return r;
+}
+
+export interface CheckPunkt {
+  label: string;
+  erledigt: boolean;
+}
+
+/** Was fuer einen Sterbefall typischerweise geplant sein muss. */
+export function checkliste(termine: Termin[]): CheckPunkt[] {
+  const hat = (k: Kategorie) => termine.some((t) => t.kategorie === k);
+  const art = (fallDaten(termine).bestattungsart ?? '').toLowerCase();
+  const feuer = /feuer|krem|urne/.test(art) || hat('Kremation');
+  const punkte: CheckPunkt[] = [
+    { label: 'Abholung', erledigt: hat('Abholung') },
+    { label: 'Trauergespräch', erledigt: hat('Trauergespraech') },
+    { label: 'Trauerfeier', erledigt: hat('Trauerfeier') },
+  ];
+  if (feuer) punkte.push({ label: 'Kremation', erledigt: hat('Kremation') });
+  punkte.push({ label: feuer ? 'Urnenbeisetzung' : 'Beisetzung', erledigt: hat('Beisetzung') });
+  return punkte;
+}
+
+export interface OrtBelegung {
+  ort: string;
+  termine: Termin[];
+}
+
+export function orte(termine: Termin[], ab: Date, tage = 14): OrtBelegung[] {
+  const von = startDesTages(ab);
+  const bis = plusTage(von, tage);
+  const map = new Map<string, Termin[]>();
+  for (const t of termine) {
+    if (!t.ort || t.ende <= von || t.start >= bis) continue;
+    map.set(t.ort, [...(map.get(t.ort) ?? []), t]);
+  }
+  return [...map.entries()]
+    .map(([ort, ts]) => ({ ort, termine: ts.sort((a, b) => a.start.getTime() - b.start.getTime()) }))
+    .sort((a, b) => b.termine.length - a.termine.length || a.ort.localeCompare(b.ort, 'de'));
+}
+
+export function mapsLink(t: Termin): string | null {
+  const von = t.details.von;
+  const nach = t.details.nach;
+  if (von && nach) {
+    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(von)}&destination=${encodeURIComponent(nach)}`;
+  }
+  const ziel = t.ort || nach || von;
+  return ziel ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ziel)}` : null;
+}
+
+/** "läuft", "in 25 Min." oder null (nur heute, bis 3 Std. vorher). */
+export function countdown(t: Termin, jetzt: Date): string | null {
+  if (t.ganztaegig) return null;
+  if (t.start <= jetzt && t.ende > jetzt) return 'läuft';
+  const min = Math.round((t.start.getTime() - jetzt.getTime()) / 60000);
+  if (min <= 0 || min > 180) return null;
+  return min < 60 ? `in ${min} Min.` : `in ${Math.floor(min / 60)} Std. ${min % 60} Min.`;
 }
