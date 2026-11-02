@@ -15,9 +15,22 @@ export interface AdminDaten {
 }
 
 const LS_CACHE = 'alamida.termineCache';
+/** Sitzung aus der Hub-Anmeldung (eingebettet im Hub werden Cookies blockiert, daher Bearer). */
+const SS_HUB = 'alamida.hubSitzung';
+
+function hubSitzung(): string | null {
+  try {
+    return sessionStorage.getItem(SS_HUB);
+  } catch {
+    return null;
+  }
+}
 
 async function holen<T>(pfad: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(pfad, { credentials: 'same-origin', ...init });
+  const headers = new Headers(init?.headers);
+  const hub = hubSitzung();
+  if (hub) headers.set('authorization', `Bearer ${hub}`);
+  const res = await fetch(pfad, { credentials: 'same-origin', ...init, headers });
   const daten = (await res.json().catch(() => ({}))) as T & { fehler?: string };
   if (!res.ok) throw new Error(daten.fehler ?? `Fehler ${res.status}`);
   return daten;
@@ -32,6 +45,20 @@ export async function anmeldungAbschliessen(code: string, state: string): Promis
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ code, state }),
   });
+}
+
+/** Anmeldung mit dem Ticket, das der Bestattung Stranz HUB beim Öffnen mitgibt (#hub_ticket=…). */
+export async function hubAnmelden(ticket: string): Promise<void> {
+  const r = await holen<{ sitzung: string }>('/api/auth/hub', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ticket }),
+  });
+  try {
+    sessionStorage.setItem(SS_HUB, r.sitzung);
+  } catch {
+    /* ohne sessionStorage bleibt nur das Cookie */
+  }
 }
 
 export async function termineLaden(): Promise<{ termine: Termin[]; fehler: string[] }> {
@@ -60,6 +87,11 @@ export function termineAusCache(): { zeit: Date; termine: Termin[] } | null {
 
 export async function abmelden(): Promise<void> {
   localStorage.removeItem(LS_CACHE);
+  try {
+    sessionStorage.removeItem(SS_HUB);
+  } catch {
+    /* egal */
+  }
   await fetch('/api/auth/logout', { method: 'POST' });
 }
 

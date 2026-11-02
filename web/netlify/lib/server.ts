@@ -1,4 +1,4 @@
-import { createHmac, createSign, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHmac, createPublicKey, createSign, randomBytes, timingSafeEqual, verify } from 'node:crypto';
 import { getStore } from '@netlify/blobs';
 import { STANDARD_KONFIG, konfigPruefen, rechteFuer, type Konfiguration, type Rechte } from '../../src/shared/rechte';
 
@@ -79,11 +79,31 @@ export async function konfigSpeichern(k: Konfiguration): Promise<void> {
   await store().setJSON('konfiguration', k);
 }
 
+/** Sitzung aus dem Cookie oder – eingebettet im Hub, wo fremde Cookies blockiert werden – aus „Authorization: Bearer“. */
 export async function angemeldet(req: Request): Promise<{ sitzung: Sitzung; rechte: Rechte; konfig: Konfiguration } | null> {
-  const sitzung = sitzungPruefen(cookies(req)[SESSION_COOKIE]);
+  const bearer = /^Bearer (.+)$/.exec(req.headers.get('authorization') ?? '')?.[1];
+  const sitzung = sitzungPruefen(bearer ?? cookies(req)[SESSION_COOKIE]);
   if (!sitzung) return null;
   const konfig = await konfigLaden();
   return { sitzung, konfig, rechte: rechteFuer(sitzung.email, konfig, adminEmails()) };
+}
+
+/* ── Anmeldung über den Bestattung Stranz HUB ── */
+
+/**
+ * Prüft ein Hub-Ticket (Ed25519, 60 s gültig, an diese App gebunden).
+ * HUB_SSO_PUBLIC_KEY = öffentlicher Schlüssel des Hubs (https://bestattung-stranz-hub.netlify.app/api/sso/schluessel).
+ */
+export function hubTicketPruefen(ticket: string, origin: string, jetzt = Date.now()): Omit<Sitzung, 'exp'> | null {
+  const pem = env('HUB_SSO_PUBLIC_KEY').replace(/\\n/g, '\n');
+  if (!pem.includes('PUBLIC KEY')) throw new Error('HUB_SSO_PUBLIC_KEY fehlt');
+  const [daten, sig] = ticket.split('.');
+  if (!daten || !sig) return null;
+  if (!verify(null, Buffer.from(daten), createPublicKey(pem), Buffer.from(sig, 'base64url'))) return null;
+  const p = JSON.parse(Buffer.from(daten, 'base64url').toString()) as { iss?: string; aud?: string; email?: string; name?: string; bild?: string; exp?: number };
+  if (p.iss !== 'bestattung-stranz-hub' || p.aud !== origin || typeof p.email !== 'string' || !p.email.includes('@')) return null;
+  if (typeof p.exp !== 'number' || p.exp <= jetzt) return null;
+  return { email: p.email.toLowerCase(), name: p.name, bild: p.bild };
 }
 
 /* ── Service Account ── */
