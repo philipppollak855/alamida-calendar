@@ -76,6 +76,7 @@ public static class ConfigLoader
             if (!Enum.TryParse<EventCategory>(child.Key, ignoreCase: true, out var kategorie)) continue;
             var k = kategorien[kategorie];
             if (!string.IsNullOrWhiteSpace(child["Name"])) k.Name = child["Name"]!.Trim();
+            if (child["Symbol"] != null) k.Symbol = child["Symbol"]!.Trim();
             if (child["CalendarId"] != null) k.CalendarId = child["CalendarId"]!.Trim();
             if (child["ColorId"] != null) k.ColorId = child["ColorId"]!.Trim();
             if (int.TryParse(child["DauerMinuten"], out var dauer) && dauer > 0) k.DauerMinuten = dauer;
