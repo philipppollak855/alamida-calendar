@@ -11,12 +11,12 @@ public sealed class AutoUpdateConfig
 
     public string GitHubOwner { get; set; } = "philipppollak855";
 
-    public string GitHubRepo { get; set; } = "Alamida-Monitoring";
+    public string GitHubRepo { get; set; } = "alamida-calendar";
 
-    public string AssetFileName { get; set; } = "AlamidaMonitoringAgent-win-x64.zip";
+    public string AssetFileName { get; set; } = "AlamidaCalendarAgent-win-x64.zip";
 
     /// <summary>Nur Mode=git: leer = .git automatisch suchen.</summary>
     public string RepoRoot { get; set; } = "";
 
-    public string Branch { get; set; } = "main";
+    public string Branch { get; set; } = "master";
 }

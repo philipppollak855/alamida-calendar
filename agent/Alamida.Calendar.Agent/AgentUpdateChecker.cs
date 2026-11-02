@@ -14,7 +14,7 @@ public sealed class AgentUpdateChecker
     {
         DefaultRequestHeaders =
         {
-            { "User-Agent", "AlamidaMonitoring-Agent" },
+            { "User-Agent", "AlamidaCalendar-Agent" },
             { "Accept", "application/vnd.github+json" },
         },
     };

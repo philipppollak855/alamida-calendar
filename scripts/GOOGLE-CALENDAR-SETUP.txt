@@ -14,34 +14,15 @@
    - Rolle: "Calendar Editor" oder "Editor"
    - "Create and Continue"
    - Service Account Key als JSON herunterladen
-5. JSON-Datei speichern:
-   - Pfad: %AppData%\AlamidaCalendar\service-account.json
-   - Beispiel: C:\Users\<Benutzer>\AppData\Roaming\AlamidaCalendar\service-account.json
-6. Kalender freigeben:
+5. JSON-Datei neben INSTALLIEREN.bat legen (oder im Download-Ordner lassen)
+   und INSTALLIEREN.bat doppelklicken - der Installer findet die Datei und kopiert sie nach
+   %AppData%\AlamidaCalendar\service-account.json
+6. Kalender freigeben (der Installer oeffnet Google Kalender und kopiert die Adresse in die Zwischenablage):
    - Google Calendar öffnen (https://calendar.google.com)
-   - Kalender-Einstellungen → Mit Personen teilen
-   - Service Account E-Mail hinzufügen (aus JSON-Datei)
-   - Berechtigung: "Verwalten"
+   - Kalender-Einstellungen → Für bestimmte Personen freigeben
+   - Service Account E-Mail hinzufügen (client_email aus der JSON-Datei)
+   - Berechtigung: "Änderungen an Terminen vornehmen"
+7. Kalender-ID (Einstellungen → "Kalender integrieren") im Installer eintragen.
+   Nicht "primary" verwenden - das ist der eigene, unsichtbare Kalender des Service Accounts.
 
-## App konfigurieren
-
-Editieren Sie `agent/Alamida.Calendar.Agent/appsettings.json`:
-
-```json
-{
-  "CalendarId": "primary",
-  "ServiceAccountPath": "%AppData%\\AlamidaCalendar\\service-account.json",
-  "WorkstationId": "PC-NAME",
-  "PollIntervalMs": 5000,
-  "FieldMappingPath": "docs/field-mapping-9.2.1.json"
-}
-```
-
-## Testen
-
-```powershell
-cd agent
-dotnet run
-```
-
-Tray-Icon erscheint → Rechtsklick → Status anzeigen
+Die Konfiguration liegt danach in %AppData%\AlamidaCalendar\appsettings.json.
