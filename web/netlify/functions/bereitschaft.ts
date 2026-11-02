@@ -25,10 +25,10 @@ export default async (req: Request) => {
     const name = person?.name ?? (email === ich ? a.sitzung.name : undefined);
     const e: Einsatz = { id: randomBytes(9).toString('base64url'), ...neu, ...(name ? { name } : {}), eingetragenVon: ich, erstellt: Date.now() };
     await einsatzSpeichern(e);
-    // Gleichzeitige Anfragen: erneut prüfen, nur gegen früher erstellte Einträge; bei Konflikt den eigenen zurücknehmen.
+    // Gleichzeitige Anfragen: nach dem Speichern gegen alle anderen Einträge erneut prüfen und bei Konflikt den eigenen
+    // zurücknehmen. Im ungünstigsten Fall werden beide abgelehnt, aber nie mehr als erlaubt eingetragen.
     liste = await bereitschaftLaden(ab);
-    const frueher = liste.filter((x) => x.id !== e.id && (x.erstellt ?? 0) <= (e.erstellt ?? 0));
-    const konflikt = einsatzFehler(frueher, neu);
+    const konflikt = einsatzFehler(liste.filter((x) => x.id !== e.id), neu);
     if (konflikt) {
       await einsatzLoeschen(e);
       return json({ fehler: konflikt }, 409);
