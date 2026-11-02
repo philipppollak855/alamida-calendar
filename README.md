@@ -93,14 +93,29 @@ Mit `-ServiceAccountPath` wird der Schlüssel mitgeliefert – das ZIP dann nur 
 Siehe `scripts/GOOGLE-CALENDAR-SETUP.txt`: Calendar API aktivieren, Service Account anlegen, JSON-Schlüssel herunterladen, Kalender für die Service-Account-Adresse freigeben („Änderungen an Terminen vornehmen“).
 Als Kalender-ID die ID des freigegebenen Kalenders verwenden (Google Kalender → Einstellungen → „Kalender integrieren“). `primary` wäre der eigene, für niemanden sichtbare Kalender des Service Accounts.
 
-### Web-UI starten
+### Web-UI (Planung)
 
-```powershell
+Eigene Planungsoberfläche in `web/`, liest die Termine direkt aus Google Kalender (nur Lesen, Anmeldung mit dem eigenen Google-Konto):
+
+- **Tagesplan**: Spalten Zeremonien / Fahrten / Gespräche
+- **Woche / Monat**: Kalenderansicht in Kategorie-Farben
+- **Sterbefälle**: alle Termine eines Falls als Zeitleiste, sortiert nach nächstem Termin
+- **Fahrten**: Abholungen, Überführungen, Kremationen der nächsten 14 Tage
+- **Hinweise**: Überschneidungen von Zeremonien, Zeremonien ohne Uhrzeit, Termine nach der Beisetzung
+
+Ohne Anmeldung zeigt die Seite Beispieldaten.
+
+Einrichtung (einmalig):
+1. Google Cloud Console (gleiches Projekt wie der Service Account) → „APIs & Dienste“ → „Anmeldedaten“ → „OAuth-Client-ID erstellen“ → Typ **Webanwendung**; unter „Autorisierte JavaScript-Quellen“ die Adresse der Seite eintragen (z. B. `https://<name>.netlify.app`, lokal `http://localhost:5173`).
+2. Client-ID als `VITE_GOOGLE_CLIENT_ID` beim Build setzen oder in der Seite unter ⚙ eintragen.
+3. Wer die Seite nutzt, braucht Lesezugriff auf die Kalender; unter ⚙ lassen sich die anzuzeigenden Kalender auswählen.
+
+```bash
 cd web
-npm run dev
+npm ci
+npm run dev      # http://localhost:5173
+npm run build    # dist/ (Netlify: netlify.toml)
 ```
-
-Öffnen Sie http://localhost:5173 für die Kalenderansicht.
 
 ## Kategorien
 
