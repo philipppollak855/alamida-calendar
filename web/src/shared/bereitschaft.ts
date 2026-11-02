@@ -118,3 +118,42 @@ export function darfPlanen(r: Rechte, k: Konfiguration): boolean {
   const g = k.bereitschaftGruppen ?? [];
   return r.freigeschaltet && (g.includes(ALLE) || r.gruppen.some((x) => g.includes(x)));
 }
+
+export interface PersonStatistik {
+  email: string;
+  name?: string;
+  einsaetze: number;
+  wochenenden: number;
+  feiertage: number;
+  stunden: number;
+  naechster?: Einsatz;
+}
+
+/** Jahresübersicht pro Person: Einsätze, Wochenenden, Feiertage und Stunden im Jahr (aufs Jahr begrenzt) und der nächste Einsatz. */
+export function jahresUebersicht(eintraege: Einsatz[], jahr: number, jetzt: string): PersonStatistik[] {
+  const jahrVon = `${jahr}-01-01T00:00`;
+  const jahrBis = `${jahr + 1}-01-01T00:00`;
+  const ds = dienste(new Date(jahr, 0, 1), new Date(jahr, 11, 31));
+  const m = new Map<string, PersonStatistik & { dienstIds: Set<string> }>();
+  for (const e of eintraege) {
+    let p = m.get(e.email);
+    if (!p) m.set(e.email, (p = { email: e.email, einsaetze: 0, wochenenden: 0, feiertage: 0, stunden: 0, dienstIds: new Set() }));
+    if (!p.name && e.name) p.name = e.name;
+    if (e.bis > jetzt && (!p.naechster || e.von < p.naechster.von)) p.naechster = e;
+    if (!ueberschneidet(e, { von: jahrVon, bis: jahrBis })) continue;
+    p.einsaetze++;
+    const a = e.von > jahrVon ? e.von : jahrVon;
+    const b = e.bis < jahrBis ? e.bis : jahrBis;
+    p.stunden += (ausText(b).getTime() - ausText(a).getTime()) / 3_600_000;
+    for (const d of ds) {
+      if (!ueberschneidet(e, d) || p.dienstIds.has(d.id)) continue;
+      p.dienstIds.add(d.id);
+      if (d.art === 'wochenende') p.wochenenden++;
+      else p.feiertage++;
+    }
+  }
+  return [...m.values()]
+    .map(({ dienstIds: _d, ...p }) => ({ ...p, stunden: Math.round(p.stunden * 10) / 10 }))
+    .filter((p) => p.einsaetze > 0 || p.naechster)
+    .sort((a, b) => b.stunden - a.stunden || (a.name ?? a.email).localeCompare(b.name ?? b.email));
+}

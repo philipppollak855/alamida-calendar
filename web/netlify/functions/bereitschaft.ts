@@ -10,7 +10,10 @@ export default async (req: Request) => {
   if (!a.rechte.freigeschaltet) return json({ fehler: 'keine Freigabe' }, 403);
   const planer = darfPlanen(a.rechte, a.konfig);
   const ich = a.sitzung.email.toLowerCase();
-  const ab = datumText(plusTage(new Date(), -31));
+  // Standard: ab 31 Tagen zurück; mit ?von=JJJJ-MM-TT (Kalender, Jahresübersicht) bis zu gut 2 Jahre zurück.
+  const standardAb = datumText(plusTage(new Date(), -31));
+  const vonParam = new URL(req.url).searchParams.get('von') ?? '';
+  const ab = /^\d{4}-\d{2}-\d{2}$/.test(vonParam) && vonParam < standardAb ? (vonParam > datumText(plusTage(new Date(), -800)) ? vonParam : datumText(plusTage(new Date(), -800))) : standardAb;
   let liste = await bereitschaftLaden(ab);
 
   if (req.method === 'POST') {

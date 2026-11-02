@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { darfPlanen, dienste, einsatzFehler, feiertage, gleichzeitig, ostersonntag, type Einsatz } from './bereitschaft';
+import { darfPlanen, dienste, einsatzFehler, feiertage, gleichzeitig, jahresUebersicht, ostersonntag, type Einsatz } from './bereitschaft';
 import { STANDARD_KONFIG, rechteFuer } from './rechte';
 
 const e = (email: string, von: string, bis: string): Einsatz => ({ id: email + von, email, von, bis, eingetragenVon: email });
@@ -56,5 +56,26 @@ describe('Einteilung', () => {
     expect(darfPlanen(rechteFuer('b@x.at', k), k)).toBe(true);
     expect(darfPlanen(rechteFuer('f@x.at', k), k)).toBe(false);
     expect(darfPlanen(rechteFuer('chef@x.at', k, ['chef@x.at']), k)).toBe(true);
+  });
+});
+
+describe('jahresUebersicht', () => {
+  const liste: Einsatz[] = [
+    { ...e('a@x.at', '2026-01-02T00:00', '2026-01-05T00:00'), name: 'Anna' },
+    e('a@x.at', '2026-04-06T00:00', '2026-04-07T00:00'),
+    e('b@x.at', '2026-01-03T08:00', '2026-01-03T20:00'),
+    e('b@x.at', '2025-12-26T00:00', '2025-12-29T00:00'),
+    e('a@x.at', '2026-12-31T00:00', '2027-01-01T00:00'),
+  ];
+  const u = jahresUebersicht(liste, 2026, '2026-06-01T00:00');
+  it('zählt Einsätze, Wochenenden, Feiertage und Stunden im Jahr', () => {
+    const a = u.find((p) => p.email === 'a@x.at')!;
+    expect(a).toMatchObject({ name: 'Anna', einsaetze: 3, wochenenden: 1, feiertage: 1, stunden: 72 + 24 + 24 });
+    expect(a.naechster?.von).toBe('2026-12-31T00:00');
+  });
+  it('lässt Einsätze aus anderen Jahren weg und sortiert nach Stunden', () => {
+    expect(u.map((p) => p.email)).toEqual(['a@x.at', 'b@x.at']);
+    expect(u[1]).toMatchObject({ einsaetze: 1, wochenenden: 1, feiertage: 0, stunden: 12 });
+    expect(u[1].naechster).toBeUndefined();
   });
 });
