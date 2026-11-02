@@ -439,7 +439,7 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .bs-spalten { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 0.9rem; align-items: start; }
 .bs-block { padding: 1rem; display: grid; gap: 0.6rem; }
 .bs-block h3 { margin: 0; font-size: 1rem; }
-.bs-block-kopf { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.bs-block-kopf { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; position: sticky; left: 0; }
 .bs-tabelle { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .bs-tabelle th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rand); }
 .bs-tabelle td { padding: 0.55rem 0.5rem; border-bottom: 1px solid var(--rand); white-space: nowrap; }
