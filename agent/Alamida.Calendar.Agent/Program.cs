@@ -54,6 +54,13 @@ internal static class Program
         try
         {
             profile = FieldMappingProfile.Load(config.FieldMappingPath);
+            if (!profile.Vorsorge.Aktiv)
+            {
+                // Ältere Mapping-Kopie in %AppData% ohne Vorsorge-Abschnitt: mitgelieferte Datei nutzen.
+                var mitgeliefert = Path.Combine(AppContext.BaseDirectory, "field-mapping-9.2.1.json");
+                try { if (File.Exists(mitgeliefert)) profile.Vorsorge = FieldMappingProfile.Load(mitgeliefert).Vorsorge; }
+                catch (Exception ex) { LogAgentStartup($"Vorsorge-Mapping nicht geladen: {ex.Message}"); }
+            }
         }
         catch (Exception ex)
         {
