@@ -83,7 +83,7 @@ internal static class Program
                 Path.Combine(Path.GetDirectoryName(config.FieldMappingPath)!, "inspector-dump.txt"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlamidaCalendar", "inspector-dump.txt"),
             };
-            var outPath = outCandidates.First();
+            var outPath = outCandidates.FirstOrDefault(p => Directory.Exists(Path.GetDirectoryName(p))) ?? outCandidates[^1];
             Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
             var utf8NoBom = new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
             File.WriteAllText(outPath, dump, utf8NoBom);

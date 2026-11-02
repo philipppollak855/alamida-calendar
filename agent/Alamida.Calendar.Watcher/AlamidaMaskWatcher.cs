@@ -44,7 +44,7 @@ public sealed class AlamidaMaskWatcher
         {
             _letzteMaske = MaskKind.VorsorgeTermine;
             LetzteErfassungMs = sw.ElapsedMilliseconds;
-            return VorsorgeSnapshot(elements, vorsorge, out debugLog);
+            return VorsorgeSnapshot(window, elements, vorsorge, out debugLog);
         }
 
         var maske = MaskDetector.Detect(elements);
@@ -120,13 +120,25 @@ public sealed class AlamidaMaskWatcher
         return null;
     }
 
-    private static DetailSnapshot? VorsorgeSnapshot(UiaElementInfo[] elements, VorsorgeMaskConfig cfg, out string? debugLog)
+    private string? _letzterVorsorgeKopf;
+
+    private DetailSnapshot? VorsorgeSnapshot(
+        FlaUI.Core.AutomationElements.AutomationElement window, UiaElementInfo[] elements, VorsorgeMaskConfig cfg, out string? debugLog)
     {
-        var kopf = UiaFieldExtractor.ExtractFields(elements, new Dictionary<string, FieldLocator> { ["kopf"] = cfg.Kopf })
+        var kopfText = UiaFieldExtractor.ExtractFields(elements, new Dictionary<string, FieldLocator> { ["kopf"] = cfg.Kopf })
             .GetValueOrDefault("kopf");
-        var (nr, name) = AlamidaFieldParser.ParseSterbefallHeader(kopf);
+        var kopf = VorsorgeKopf.Parse(kopfText);
+        var quelle = "uia";
+        if (kopf == null)
+        {
+            quelle = "ocr";
+            try { kopfText = KopfzeilenOcr.LeseKopfleiste(window); }
+            catch (Exception ex) { kopfText = "OCR-Fehler: " + ex.Message; }
+            kopf = VorsorgeKopf.Parse(kopfText);
+        }
+
         var termine = new List<VorsorgeTermin>();
-        var debug = new List<string> { $"Maske={MaskKind.VorsorgeTermine}", $"kopf={kopf ?? "(leer)"}" };
+        var debug = new List<string> { $"Maske={MaskKind.VorsorgeTermine}", $"kopf({quelle})={kopfText ?? "(leer)"}" };
         for (var n = 1; n <= Math.Max(1, cfg.MaxTermine); n++)
         {
             var f = UiaFieldExtractor.ExtractFields(elements, cfg.FelderFuer(n));
@@ -141,11 +153,17 @@ public sealed class AlamidaMaskWatcher
             });
         }
         debugLog = string.Join(Environment.NewLine, debug);
-        if (string.IsNullOrWhiteSpace(nr)) return null;
+
+        // Texterkennung: erst übernehmen, wenn zwei Abfragen hintereinander dieselbe Nummer liefern.
+        var schluessel = kopf == null ? null : $"{kopf.Value.Nummer}|{kopf.Value.Name}";
+        var bestaetigt = schluessel != null && (quelle == "uia" || schluessel == _letzterVorsorgeKopf);
+        _letzterVorsorgeKopf = schluessel;
+        if (!bestaetigt) return null;
+
         return new DetailSnapshot
         {
-            SterbefallId = "V" + nr.Trim(),
-            VerstorbenerName = name == null ? null : System.Text.RegularExpressions.Regex.Replace(name, @"\s*\(\d{4}\)\s*$", ""),
+            SterbefallId = "V" + kopf!.Value.Nummer,
+            VerstorbenerName = kopf.Value.Name,
             QuelleMaske = "vorsorge_termine",
             ErfassungsPhase = "detail",
             VorsorgeTermine = termine,
