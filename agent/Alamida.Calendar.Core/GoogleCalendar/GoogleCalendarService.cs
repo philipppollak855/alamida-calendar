@@ -45,16 +45,29 @@ public class GoogleCalendarService
         "alamida" + Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(schluessel))).ToLowerInvariant();
 
     /// <summary>Legt den Termin an oder aktualisiert ihn (gleiche ID = gleicher Termin, keine Duplikate).</summary>
-    public async Task UpsertAsync(string calendarId, CalendarEvent calendarEvent, string? colorId, CancellationToken ct = default)
+    public async Task UpsertAsync(string calendarId, CalendarEvent calendarEvent, string? colorId,
+        bool vermutlichVorhanden = false, CancellationToken ct = default)
     {
         var googleEvent = ToGoogleEvent(calendarEvent, colorId);
+        googleEvent.Status = "confirmed";
+        if (vermutlichVorhanden)
+        {
+            try
+            {
+                await _calendarService.Events.Update(googleEvent, calendarId, googleEvent.Id).ExecuteAsync(ct);
+                return;
+            }
+            catch (GoogleApiException ex) when (ex.HttpStatusCode is HttpStatusCode.NotFound or HttpStatusCode.Gone)
+            {
+            }
+        }
+
         try
         {
             await _calendarService.Events.Insert(googleEvent, calendarId).ExecuteAsync(ct);
         }
         catch (GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.Conflict)
         {
-            googleEvent.Status = "confirmed";
             await _calendarService.Events.Update(googleEvent, calendarId, googleEvent.Id).ExecuteAsync(ct);
         }
     }

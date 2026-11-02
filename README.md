@@ -128,6 +128,7 @@ Einstellungen in `%AppData%\AlamidaCalendar\appsettings.json`, Abschnitt `Katego
 - `CalendarId` leer = Standard-Kalender (`CalendarId` oben). So können beliebig viele Kalender genutzt werden, z. B. ein eigener Kalender für Überführungen.
 - Jeder Kalender muss für die Service-Account-Adresse mit „Änderungen an Terminen vornehmen“ freigegeben sein.
 - `ColorId` 1–11 (Google-Terminfarben), leer = Kalenderfarbe; `Aktiv: false` überträgt die Kategorie nicht.
+- Der Agent liest die Maske jede Sekunde (`PollIntervalMs`); neue und geänderte Termine gehen sofort an Google, gelöschte nach der nächsten Abfrage (Schutz vor Lesefehlern). Nur geänderte Termine werden übertragen.
 - Termine ohne Uhrzeit werden ganztägig eingetragen. Jeder Termin hat eine feste ID aus Sterbefall-Nummer und Termin-Art: Änderungen in Alamida aktualisieren den Termin, gelöschte Daten entfernen ihn, es entstehen keine Duplikate. Termine werden erst eingetragen, wenn der Sterbefall eine Nummer hat.
 
 ## Web-UI starten
@@ -169,7 +170,7 @@ Datei: `%APPDATA%\\AlamidaCalendar\\appsettings.json` (wird vom Installer angele
   "CalendarId": "primary",
   "ServiceAccountPath": "%AppData%\\AlamidaCalendar\\service-account.json",
   "WorkstationId": "",
-  "PollIntervalMs": 5000,
+  "PollIntervalMs": 1000,
   "FieldMappingPath": "docs/field-mapping-9.2.1.json",
   "AutoUpdate": {
     "Enabled": true,

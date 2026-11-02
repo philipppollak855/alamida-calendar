@@ -34,9 +34,14 @@ public sealed class SyncState
     {
         public string Hash { get; set; } = "";
 
-        /// <summary>Termin-Schluessel -> Kalender-ID.</summary>
-        public Dictionary<string, string> Termine { get; set; } = new();
+        public Dictionary<string, TerminEintrag> Termine { get; set; } = new();
 
         public DateTime Aktualisiert { get; set; }
+    }
+
+    public sealed class TerminEintrag
+    {
+        public string CalendarId { get; set; } = "";
+        public string Hash { get; set; } = "";
     }
 }

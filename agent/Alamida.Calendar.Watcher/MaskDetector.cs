@@ -1,5 +1,4 @@
 using Alamida.Calendar.Profiles;
-using FlaUI.Core.AutomationElements;
 
 namespace Alamida.Calendar.Watcher;
 
@@ -27,12 +26,12 @@ public static class MaskDetector
 
     public static bool LooksLikeSterbefallHeader(string? text) => LooksLikeOpenSterbefallHeader(text);
 
-    public static bool WindowHasOpenSterbefallHeader(AutomationElement window)
+    public static bool WindowHasOpenSterbefallHeader(IReadOnlyList<UiaElementInfo> elements)
     {
-        foreach (var el in window.FindAllDescendants())
+        foreach (var el in elements)
         {
-            var name = UiaValueReader.SafeGet(() => el.Name) ?? "";
-            var value = UiaValueReader.Read(el);
+            var name = el.Name;
+            var value = el.Value;
             if (LooksLikeOpenSterbefallHeader(name) || LooksLikeOpenSterbefallHeader(value))
                 return true;
         }
@@ -40,18 +39,18 @@ public static class MaskDetector
         return false;
     }
 
-    public static MaskKind Detect(AutomationElement window)
+    public static MaskKind Detect(IReadOnlyList<UiaElementInfo> elements)
     {
         var scoreDetail = 0;
         var scoreNeu = 0;
         var hatUeberfuehrung1 = false;
         var hatOffenenSterbefall = false;
 
-        foreach (var el in window.FindAllDescendants())
+        foreach (var el in elements)
         {
-            var aid = UiaValueReader.SafeGet(() => el.AutomationId) ?? "";
-            var name = UiaValueReader.SafeGet(() => el.Name) ?? "";
-            var value = UiaValueReader.Read(el);
+            var aid = el.AutomationId;
+            var name = el.Name;
+            var value = el.Value;
 
             if (aid.Contains("Termin_Überführung1_Text", StringComparison.OrdinalIgnoreCase)
                 || aid.Contains("Field: sfl 2::Termin_Überführung1_Text", StringComparison.OrdinalIgnoreCase))

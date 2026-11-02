@@ -89,7 +89,7 @@ public static class ConfigLoader
             WorkstationId = string.IsNullOrWhiteSpace(config["WorkstationId"])
                 ? Environment.MachineName
                 : config["WorkstationId"]!,
-            PollIntervalMs = int.TryParse(config["PollIntervalMs"], out var ms) ? ms : 2000,
+            PollIntervalMs = int.TryParse(config["PollIntervalMs"], out var ms) ? Math.Clamp(ms, 300, 60_000) : 1000,
             FieldMappingPath = string.IsNullOrWhiteSpace(config["FieldMappingPath"])
                 ? defaultMapping
                 : ExpandPath(config["FieldMappingPath"]!, appData),

@@ -7,7 +7,7 @@ public sealed class AgentConfig
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "AlamidaCalendar", "service-account.json");
     public string WorkstationId { get; set; } = Environment.MachineName;
-    public int PollIntervalMs { get; set; } = 1500;
+    public int PollIntervalMs { get; set; } = 1000;
     public string FieldMappingPath { get; set; } = "";
     public AutoUpdateConfig AutoUpdate { get; set; } = new();
     public Dictionary<EventCategory, KategorieSettings> Kategorien { get; set; } = KategorieSettings.Defaults();

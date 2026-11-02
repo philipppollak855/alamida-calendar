@@ -345,7 +345,9 @@ try {
     Set-JsonProperty $settings 'FieldMappingPath' '%AppData%\AlamidaCalendar\field-mapping.json'
     $ws = Get-JsonProperty $settings 'WorkstationId'
     if (-not $ws -or $ws -eq 'PC-ALAMIDA') { Set-JsonProperty $settings 'WorkstationId' $env:COMPUTERNAME }
-    if (-not (Get-JsonProperty $settings 'PollIntervalMs')) { Set-JsonProperty $settings 'PollIntervalMs' 5000 }
+    # Frueherer Standard 5000 ms war zu langsam - Termine sollen sofort im Kalender stehen
+    $poll = Get-JsonProperty $settings 'PollIntervalMs'
+    if (-not $poll -or [int]$poll -ge 5000) { Set-JsonProperty $settings 'PollIntervalMs' 1000 }
     $au = Get-JsonProperty $settings 'AutoUpdate'
     if (-not $au) { $au = New-Object PSObject; Set-JsonProperty $settings 'AutoUpdate' $au }
     Set-JsonProperty $au 'Mode' 'release'

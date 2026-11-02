@@ -81,6 +81,9 @@ public static class CalendarEventConverter
             return false;
         }
 
+        // Halb eingetippte Jahreszahlen ("28.05.202") nicht als Termin uebernehmen.
+        if (start.Year is < 2000 or > 2100) return false;
+
         hatUhrzeit = start.TimeOfDay != TimeSpan.Zero;
         if (!hatUhrzeit && !string.IsNullOrWhiteSpace(zeit))
         {
