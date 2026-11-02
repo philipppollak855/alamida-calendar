@@ -58,6 +58,10 @@ public sealed record DetailSnapshot
     public IReadOnlyList<UeberfuehrungSchritt> Schritte { get; init; } = [];
     public IReadOnlyList<PositionEintrag> Verlauf { get; init; } = [];
     public IReadOnlyList<AusstehendeUeberfuehrung> Ausstehend { get; init; } = [];
+    /// <summary>Nur bei QuelleMaske „vorsorge_termine“; SterbefallId ist dann „V“ + Vorsorgenummer.</summary>
+    public IReadOnlyList<VorsorgeTermin> VorsorgeTermine { get; init; } = [];
+
+    public bool IsVorsorge => string.Equals(QuelleMaske, "vorsorge_termine", StringComparison.Ordinal);
 
     public string ContentHash()
     {

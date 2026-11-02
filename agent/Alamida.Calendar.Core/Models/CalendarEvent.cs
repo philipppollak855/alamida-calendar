@@ -26,4 +26,5 @@ public enum EventCategory
     Abholung,
     Ueberfuehrung,
     Kremation,
+    Vorsorge,
 }

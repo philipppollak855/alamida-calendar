@@ -155,4 +155,32 @@ public class TryParseStartTests
         Assert.Equal("Kühlr. Grafenbach", a.Details["nach"]);
         Assert.Equal("20.05.2026", a.Details["sterbedatum"]);
     }
+
+    [Fact]
+    public void VorsorgeTermine_WerdenMitEigenerKategorieEingetragen()
+    {
+        var s = new DetailSnapshot
+        {
+            SterbefallId = "V26426",
+            VerstorbenerName = "Oberger",
+            QuelleMaske = "vorsorge_termine",
+            VorsorgeTermine =
+            [
+                new VorsorgeTermin { Nummer = 1, Datum = "Mi., 04.11.2026", Zeit = "11:00 Uhr", Ort = "Zentrale - Grafenbach", Notiz = "Unterlagen mitbringen" },
+                new VorsorgeTermin { Nummer = 2, Datum = "10.11.2026" },
+                new VorsorgeTermin { Nummer = 3 },
+            ],
+        };
+        var events = CalendarEventConverter.ConvertToCalendarEvents(s);
+        Assert.Equal(2, events.Count);
+        var e = events[0];
+        Assert.Equal("V26426|vorsorge1", e.Id);
+        Assert.Equal(EventCategory.Vorsorge, e.Category);
+        Assert.Equal(new DateTime(2026, 11, 4, 11, 0, 0), e.Start);
+        Assert.False(e.IsAllDay);
+        Assert.Equal("📝 Vorsorge Oberger – Zentrale - Grafenbach", e.Title);
+        Assert.Equal("26426", e.Details["vorsorgeNr"]);
+        Assert.Contains("Unterlagen mitbringen", e.Description);
+        Assert.True(events[1].IsAllDay);
+    }
 }

@@ -25,6 +25,7 @@ public static class CalendarEventConverter
         if (fallId == null) return events;
 
         var name = string.IsNullOrWhiteSpace(snapshot.VerstorbenerName) ? fallId : snapshot.VerstorbenerName.Trim();
+        if (snapshot.IsVorsorge) return VorsorgeTermine(snapshot, kategorien, fallId, name);
         var ctx = new Kontext(events, new List<CalendarEvent>(), kategorien, snapshot, fallId, name);
 
         var trauerfeier = ctx.Add("trauerfeier", EventCategory.Trauerfeier, null,
@@ -67,6 +68,48 @@ public static class CalendarEventConverter
         }
 
         foreach (var ev in ctx.Alle) ev.Description = Beschreibung(ev, ctx);
+        return events;
+    }
+
+    /// <summary>Vorsorge-Termine (Slots 1–4): Titel „📝 Vorsorge Oberger – Zentrale - Grafenbach“, Notiz in der Beschreibung.</summary>
+    private static List<CalendarEvent> VorsorgeTermine(
+        DetailSnapshot snapshot, IReadOnlyDictionary<EventCategory, KategorieSettings> kategorien, string fallId, string name)
+    {
+        var k = kategorien.TryGetValue(EventCategory.Vorsorge, out var ks) ? ks : KategorieSettings.Defaults()[EventCategory.Vorsorge];
+        var events = new List<CalendarEvent>();
+        if (!k.Aktiv) return events;
+        var nummer = fallId.TrimStart('V', 'v');
+        foreach (var t in snapshot.VorsorgeTermine.OrderBy(t => t.Nummer))
+        {
+            if (!TryParseStart(t.Datum, t.Zeit, out var start, out var hatUhrzeit)) continue;
+            var ort = t.Ort?.Trim() ?? string.Empty;
+            var titel = $"{k.Name} {name}";
+            if (!string.IsNullOrWhiteSpace(k.Symbol)) titel = $"{k.Symbol.Trim()} {titel}";
+            if (ort.Length > 0) titel += $" – {ort}";
+            var ev = new CalendarEvent
+            {
+                Id = $"{fallId}|vorsorge{t.Nummer}",
+                SterbefallId = fallId,
+                Title = titel,
+                Category = EventCategory.Vorsorge,
+                Location = ort,
+                IsAllDay = !hatUhrzeit,
+                Start = hatUhrzeit ? start : start.Date,
+                End = hatUhrzeit ? start.AddMinutes(Math.Max(15, k.DauerMinuten)) : start.Date.AddDays(1),
+            };
+            Setze(ev.Details, "art", k.Name);
+            Setze(ev.Details, "verstorbener", name);
+            Setze(ev.Details, "ort", ort);
+            Setze(ev.Details, "vorsorgeNr", nummer);
+            Setze(ev.Details, "notiz", t.Notiz);
+            var zeilen = new List<string> { $"Vorsorge: {nummer} | {name}", Zeitpunkt(ev, false) };
+            if (ort.Length > 0) zeilen.Add($"Ort: {ort}");
+            if (!string.IsNullOrWhiteSpace(t.Notiz)) { zeilen.Add(""); zeilen.Add(t.Notiz.Trim()); }
+            zeilen.Add("");
+            zeilen.Add($"Kategorie: {k.Name}");
+            ev.Description = string.Join("\n", zeilen);
+            events.Add(ev);
+        }
         return events;
     }
 
@@ -130,7 +173,8 @@ public static class CalendarEventConverter
         hatUhrzeit = false;
         if (string.IsNullOrWhiteSpace(datum)) return false;
 
-        var s = Regex.Replace(datum.Trim(), @"\s+", " ");
+        // "Mi., 04.11.2026" (Vorsorge-Maske): Wochentag vorne entfernen.
+        var s = Regex.Replace(Regex.Replace(datum.Trim(), @"^[A-Za-zÄÖÜäöü]{2,10}\.?,?\s+(?=\d)", ""), @"\s+", " ");
         if (!DateTime.TryParseExact(s, DatumFormate, CultureInfo.InvariantCulture, DateTimeStyles.None, out start)
             && !DateTime.TryParse(s, CultureInfo.GetCultureInfo("de-AT"), DateTimeStyles.None, out start))
         {
