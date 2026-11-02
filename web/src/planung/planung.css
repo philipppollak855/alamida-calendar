@@ -454,3 +454,6 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
   .bs-umschalter button { flex: 1; }
   .bs-tabelle th:nth-child(5), .bs-tabelle td:nth-child(5) { display: none; }
 }
+.bereitschaft > *, .bs-uebersicht > *, .bs-spalten > * { min-width: 0; }
+.bs-block { overflow-x: auto; }
+@media (max-width: 600px) { .bs-tabelle { font-size: 0.82rem; } .bs-tabelle td, .bs-tabelle th { padding-left: 0.3rem; padding-right: 0.3rem; } .bs-balken-zelle { min-width: 70px; } }
