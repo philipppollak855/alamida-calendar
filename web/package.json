@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@netlify/blobs": "^8.2.0",
     "date-fns": "^3.6.0",
     "react": "^18.3.1",
     "react-big-calendar": "^1.20.0",
@@ -18,6 +19,8 @@
     "react-router-dom": "^6.28.0"
   },
   "devDependencies": {
+    "@netlify/functions": "^3.1.10",
+    "@types/node": "^20.19.43",
     "@types/react": "^18.3.12",
     "@types/react-big-calendar": "^1.16.3",
     "@types/react-dom": "^18.3.1",

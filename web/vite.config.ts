@@ -24,10 +24,11 @@ export default defineConfig({
           'Tagesplan, Sterbefälle und Fahrten aus dem Alamida Google Kalender.',
         lang: 'de',
         dir: 'ltr',
-        theme_color: '#0a0c10',
-        background_color: '#0a0c10',
+        theme_color: '#0b0d12',
+        background_color: '#0b0d12',
         display: 'standalone',
         orientation: 'any',
+        id: '/',
         scope: '/',
         start_url: '/',
         categories: ['business', 'medical', 'productivity'],
@@ -59,6 +60,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,woff,webmanifest}'],
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//, /^\/\.netlify\//],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
       devOptions: {

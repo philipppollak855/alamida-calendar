@@ -4,13 +4,15 @@ import { format, parse, startOfWeek, getDay, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './planung.css';
-import { anmelden, kalenderListe, termineLaden, type KalenderInfo } from './googleCalendar';
+import { abmelden, anmeldungAbschliessen, ichLaden, termineAusCache, termineLaden, type Ich } from './api';
+import AdminAnsicht from './AdminAnsicht';
+import MobileAnsicht from './MobileAnsicht';
+import { useInstallieren } from './useInstallieren';
 import { demoTermine } from './demoDaten';
 import TerminDetail from './TerminDetail';
 import {
   GRUPPEN,
   KATEGORIEN,
-  ausGoogleEvent,
   checkliste,
   countdown,
   fahrten,
@@ -29,13 +31,9 @@ import {
 
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek: (d: Date) => startOfWeek(d, { weekStartsOn: 1 }), getDay, locales: { de } });
 
-type Tab = 'tag' | 'kalender' | 'faelle' | 'fahrten' | 'orte' | 'hinweise';
+type Tab = 'tag' | 'kalender' | 'faelle' | 'fahrten' | 'orte' | 'hinweise' | 'admin';
 type Theme = 'dunkel' | 'hell';
-const LS_CLIENT = 'alamida.clientId';
-const LS_KALENDER = 'alamida.kalender';
 const LS_THEME = 'alamida.theme';
-const SS_TOKEN = 'alamida.token';
-const ENV_CLIENT = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? '';
 
 const TABS: { id: Tab; label: string; icon: string; taste: string }[] = [
   { id: 'tag', label: 'Tagesplan', icon: '◐', taste: '1' },
@@ -49,16 +47,19 @@ const GRUPPEN_ICON: Record<Gruppe, string> = { Zeremonien: '🕯️', Fahrten: '
 
 const uhrzeit = (d: Date) => format(d, 'HH:mm');
 
-function gespeichertesToken(): { token: string; gueltigBis: number } | null {
-  try {
-    const t = JSON.parse(sessionStorage.getItem(SS_TOKEN) ?? 'null');
-    return t && t.gueltigBis > Date.now() + 60_000 ? t : null;
-  } catch {
-    return null;
-  }
+function useMobil(): boolean {
+  const abfrage = '(max-width: 860px)';
+  const [mobil, setMobil] = useState(() => window.matchMedia(abfrage).matches);
+  useEffect(() => {
+    const m = window.matchMedia(abfrage);
+    const onChange = () => setMobil(m.matches);
+    m.addEventListener('change', onChange);
+    return () => m.removeEventListener('change', onChange);
+  }, []);
+  return mobil;
 }
 
-function TerminKarte({ t, mitDatum = false, onOeffnen }: { t: Termin; mitDatum?: boolean; onOeffnen: (t: Termin) => void }) {
+export function TerminKarte({ t, mitDatum = false, onOeffnen }: { t: Termin; mitDatum?: boolean; onOeffnen: (t: Termin) => void }) {
   const k = KATEGORIEN[t.kategorie];
   const cd = countdown(t, new Date());
   return (
@@ -152,26 +153,25 @@ function Palette({ eintraege, onSchliessen }: { eintraege: (q: string) => Palett
 }
 
 export default function PlanungPage() {
-  const gespeichert = gespeichertesToken();
-  const [clientId, setClientId] = useState(() => localStorage.getItem(LS_CLIENT) || ENV_CLIENT);
-  const [token, setToken] = useState<string | null>(gespeichert?.token ?? null);
-  const [kalender, setKalender] = useState<KalenderInfo[]>([]);
-  const [auswahl, setAuswahl] = useState<string[]>(() => JSON.parse(localStorage.getItem(LS_KALENDER) ?? '[]'));
-  const [termine, setTermine] = useState<Termin[]>(() => demoTermine());
-  const [fehler, setFehler] = useState<string | null>(null);
+  const cache = termineAusCache();
+  const [ich, setIch] = useState<Ich | null>(null);
+  const [termine, setTermine] = useState<Termin[]>(() => cache?.termine ?? demoTermine());
+  const [fehler, setFehler] = useState<string | null>(() => new URLSearchParams(location.search).get('fehler'));
   const [laedt, setLaedt] = useState(false);
-  const [stand, setStand] = useState<Date | null>(null);
+  const [stand, setStand] = useState<Date | null>(cache?.zeit ?? null);
   const [tab, setTab] = useState<Tab>('tag');
   const [tag, setTag] = useState(() => startDesTages(new Date()));
   const [kalView, setKalView] = useState<View>(Views.WEEK);
   const [kalDatum, setKalDatum] = useState(new Date());
   const [aus, setAus] = useState<Kategorie[]>([]);
-  const [einstellungen, setEinstellungen] = useState(false);
   const [suchtext, setSuchtext] = useState('');
   const [offen, setOffen] = useState<Termin | null>(null);
   const [palette, setPalette] = useState(false);
   const [hilfe, setHilfe] = useState(false);
-  const [echteDaten, setEchteDaten] = useState(false);
+  const [echteDaten, setEchteDaten] = useState(!!cache);
+  const mobil = useMobil();
+  const install = useInstallieren();
+  const [iosHilfe, setIosHilfe] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(LS_THEME) as Theme) || 'dunkel');
   const [jetzt, setJetzt] = useState(() => new Date());
 
@@ -185,80 +185,75 @@ export default function PlanungPage() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dunkel' ? '#0b0d12' : '#f6f3ec');
   }, [theme]);
 
-  const kalenderHolen = useCallback(async (tok: string) => {
-    try {
-      setKalender(await kalenderListe(tok));
-    } catch (e) {
-      setFehler((e as Error).message);
-      if ((e as Error).message === 'Anmeldung abgelaufen') setToken(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (gespeichert) void kalenderHolen(gespeichert.token);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const freigeschaltet = !!ich?.rechte?.freigeschaltet;
+  const tabs = useMemo(
+    () => (ich?.rechte?.admin ? [...TABS, { id: 'admin' as Tab, label: 'Rechte', icon: '⚿', taste: '7' }] : TABS),
+    [ich],
+  );
 
   const laden = useCallback(async () => {
-    if (!token || kalender.length === 0) return;
+    if (!freigeschaltet) return;
     setLaedt(true);
     try {
-      const ids = auswahl.length ? auswahl : kalender.map((k) => k.id);
-      const von = plusTage(startDesTages(new Date()), -60);
-      const bis = plusTage(von, 240);
-      const listen = await Promise.all(
-        ids.map(async (id) => {
-          const name = kalender.find((k) => k.id === id)?.name ?? id;
-          return (await termineLaden(token, id, von, bis)).map((e) => ausGoogleEvent(e, id, name));
-        }),
-      );
-      setTermine(listen.flat().filter((t): t is Termin => t !== null));
+      const r = await termineLaden();
+      setTermine(r.termine);
       setEchteDaten(true);
       setStand(new Date());
-      setFehler(null);
+      setFehler(r.fehler.length ? r.fehler.join(' · ') : null);
     } catch (e) {
-      setFehler((e as Error).message);
-      if ((e as Error).message === 'Anmeldung abgelaufen') {
-        setToken(null);
-        sessionStorage.removeItem(SS_TOKEN);
-      }
+      setFehler(navigator.onLine ? (e as Error).message : 'Offline – angezeigt wird der zuletzt geladene Stand.');
+      if ((e as Error).message === 'nicht angemeldet') setIch({ angemeldet: false });
     } finally {
       setLaedt(false);
     }
-  }, [token, auswahl, kalender]);
+  }, [freigeschaltet]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+    if (location.search) history.replaceState(null, '', '/');
+    (code && state ? anmeldungAbschliessen(code, state).catch((e: Error) => setFehler(e.message)) : Promise.resolve())
+      .then(() => ichLaden())
+      .then((i) => {
+        setIch(i);
+        if (!i.angemeldet || !i.rechte?.freigeschaltet) {
+          setEchteDaten(false);
+          setTermine(demoTermine());
+        }
+      })
+      .catch(() => setIch({ angemeldet: false }));
+  }, []);
 
   useEffect(() => {
     void laden();
-    if (!token) return;
+    if (!freigeschaltet) return;
     const timer = setInterval(() => void laden(), 60_000);
     const onFocus = () => void laden();
     window.addEventListener('focus', onFocus);
+    window.addEventListener('online', onFocus);
     return () => {
       clearInterval(timer);
       window.removeEventListener('focus', onFocus);
+      window.removeEventListener('online', onFocus);
     };
-  }, [laden, token]);
+  }, [laden, freigeschaltet]);
 
-  async function onAnmelden() {
-    if (!clientId) {
-      setEinstellungen(true);
-      return;
-    }
-    try {
-      const r = await anmelden(clientId);
-      sessionStorage.setItem(SS_TOKEN, JSON.stringify(r));
-      setToken(r.token);
-      await kalenderHolen(r.token);
-      setTimeout(() => setToken(null), r.gueltigBis - Date.now() - 60_000);
-    } catch (e) {
-      setFehler((e as Error).message);
-    }
+  const anmelden = () => {
+    window.location.href = '/api/auth/login';
+  };
+
+  async function onAbmelden() {
+    await abmelden();
+    setIch({ angemeldet: false });
+    setEchteDaten(false);
+    setTermine(demoTermine());
+    setStand(null);
   }
 
-  function toggleKalender(id: string) {
-    const neu = auswahl.includes(id) ? auswahl.filter((x) => x !== id) : [...auswahl, id];
-    setAuswahl(neu);
-    localStorage.setItem(LS_KALENDER, JSON.stringify(neu));
+  async function onInstallieren() {
+    if (install.ios) setIosHilfe(true);
+    else await install.installieren();
   }
 
   const vollbild = () =>
@@ -278,7 +273,7 @@ export default function PlanungPage() {
       }
       const ziel = e.target as HTMLElement;
       if (offen || palette || ['INPUT', 'TEXTAREA', 'SELECT'].includes(ziel.tagName) || e.ctrlKey || e.metaKey || e.altKey) return;
-      const tabTaste = TABS.find((x) => x.taste === e.key);
+      const tabTaste = tabs.find((x) => x.taste === e.key);
       if (tabTaste) setTab(tabTaste.id);
       else if (e.key === '/') {
         e.preventDefault();
@@ -297,7 +292,7 @@ export default function PlanungPage() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [offen, palette, tab, laden]);
+  }, [offen, palette, tab, laden, tabs]);
 
   const gefiltert = useMemo(() => suche(termine.filter((t) => !aus.includes(t.kategorie)), suchtext), [termine, aus, suchtext]);
   const hinweise = useMemo(() => warnungen(gefiltert, new Date()), [gefiltert]);
@@ -321,7 +316,7 @@ export default function PlanungPage() {
 
   const paletteEintraege = (q: string): PaletteEintrag[] => {
     const befehle: PaletteEintrag[] = [
-      ...TABS.map((x) => ({ id: `tab-${x.id}`, icon: x.icon, text: `Gehe zu ${x.label}`, sub: x.taste, aktion: () => setTab(x.id) })),
+      ...tabs.map((x) => ({ id: `tab-${x.id}`, icon: x.icon, text: `Gehe zu ${x.label}`, sub: x.taste, aktion: () => setTab(x.id) })),
       { id: 'heute', icon: '◉', text: 'Heute', sub: 'T', aktion: () => { setTag(startDesTages(new Date())); setTab('tag'); } },
       { id: 'morgen', icon: '→', text: 'Morgen', aktion: () => { setTag(plusTage(startDesTages(new Date()), 1)); setTab('tag'); } },
       { id: 'drucken', icon: '🖨', text: 'Tagesplan drucken', sub: 'P', aktion: () => { setTab('tag'); setTimeout(() => window.print(), 100); } },
@@ -348,6 +343,50 @@ export default function PlanungPage() {
 
   const begruessung = jetzt.getHours() < 11 ? 'Guten Morgen' : jetzt.getHours() < 18 ? 'Guten Tag' : 'Guten Abend';
 
+  const detail = offen && (
+    <TerminDetail termin={offen} alle={termine} hinweise={hinweise} onWaehlen={setOffen} onSchliessen={() => setOffen(null)} />
+  );
+  const iosDialog = iosHilfe && (
+    <div className="modal-hintergrund" onClick={() => setIosHilfe(false)}>
+      <div className="hilfe glas" onClick={(e) => e.stopPropagation()}>
+        <h2>App installieren</h2>
+        <ol className="ios-schritte">
+          <li>Unten in Safari auf <strong>Teilen</strong> (□↑) tippen</li>
+          <li><strong>„Zum Home-Bildschirm“</strong> wählen</li>
+          <li><strong>Hinzufügen</strong> tippen</li>
+        </ol>
+        <button className="knopf primaer" onClick={() => setIosHilfe(false)}>Verstanden</button>
+      </div>
+    </div>
+  );
+
+  if (mobil) {
+    return (
+      <div className={`planung mobil theme-${theme}`}>
+        <MobileAnsicht
+          termine={gefiltert}
+          alle={termine}
+          hinweise={hinweise}
+          ich={ich}
+          stand={stand}
+          laedt={laedt}
+          fehler={fehler}
+          demo={!echteDaten}
+          theme={theme}
+          installMoeglich={install.moeglich}
+          onTheme={() => setTheme(theme === 'dunkel' ? 'hell' : 'dunkel')}
+          onLaden={() => void laden()}
+          onAnmelden={anmelden}
+          onAbmelden={onAbmelden}
+          onInstallieren={onInstallieren}
+          onOeffnen={setOffen}
+        />
+        {detail}
+        {iosDialog}
+      </div>
+    );
+  }
+
   return (
     <div className={`planung theme-${theme}`}>
       <aside className="seitenleiste">
@@ -359,7 +398,7 @@ export default function PlanungPage() {
           </div>
         </div>
         <nav>
-          {TABS.map((x) => (
+          {tabs.map((x) => (
             <button key={x.id} className={tab === x.id ? 'aktiv' : ''} onClick={() => setTab(x.id)} title={`${x.label} (${x.taste})`}>
               <span className="nav-icon">{x.icon}</span>
               <span className="nav-label">{x.label}</span>
@@ -373,8 +412,20 @@ export default function PlanungPage() {
           </button>
           <button onClick={vollbild} title="Vollbild (F)">⛶</button>
           <button onClick={() => setHilfe(true)} title="Tastenkürzel (?)">⌨</button>
-          <button onClick={() => setEinstellungen((x) => !x)} title="Einstellungen">⚙</button>
+          {install.moeglich && (
+            <button onClick={onInstallieren} title="Als App installieren">⤓</button>
+          )}
         </div>
+        {ich?.angemeldet && (
+          <div className="konto">
+            {ich.benutzer?.bild ? <img src={ich.benutzer.bild} alt="" referrerPolicy="no-referrer" /> : <div className="avatar klein-avatar">{(ich.benutzer?.name ?? ich.benutzer?.email ?? '?')[0]}</div>}
+            <div className="konto-text">
+              <div>{ich.benutzer?.name ?? ich.benutzer?.email}</div>
+              <div className="klein">{ich.rechte?.admin ? 'Administrator' : (ich.gruppenNamen ?? []).join(', ') || 'ohne Gruppe'}</div>
+            </div>
+            <button onClick={onAbmelden} title="Abmelden">⏻</button>
+          </div>
+        )}
       </aside>
 
       <main className="hauptbereich">
@@ -390,52 +441,32 @@ export default function PlanungPage() {
           </button>
           <div className="kopf-aktionen">
             {stand && <span className="stand">● Live · {uhrzeit(stand)}</span>}
-            {token === null ? (
-              <button className="knopf primaer" onClick={onAnmelden}>
-                {echteDaten ? 'Erneut anmelden' : 'Mit Google anmelden'}
+            {install.moeglich && (
+              <button className="knopf" onClick={onInstallieren}>
+                ⤓ App installieren
+              </button>
+            )}
+            {!ich?.angemeldet ? (
+              <button className="knopf primaer" onClick={anmelden}>
+                Mit Google anmelden
               </button>
             ) : (
-              <button className="knopf" onClick={() => void laden()} disabled={laedt}>
-                <span className={laedt ? 'dreht' : ''}>↻</span> Aktualisieren
-              </button>
+              freigeschaltet && (
+                <button className="knopf" onClick={() => void laden()} disabled={laedt}>
+                  <span className={laedt ? 'dreht' : ''}>↻</span> Aktualisieren
+                </button>
+              )
             )}
           </div>
         </header>
 
-        {!echteDaten && <div className="banner">Beispieldaten – nach der Google-Anmeldung erscheinen eure echten Termine.</div>}
-        {echteDaten && token === null && (
-          <div className="banner">Anmeldung abgelaufen – angezeigt wird der Stand von {stand ? uhrzeit(stand) : '–'}.</div>
+        {ich?.angemeldet && !freigeschaltet && (
+          <div className="banner">
+            Angemeldet als <strong>{ich.benutzer?.email}</strong> – noch keine Freigabe. Bitte einen Administrator, dich unter „Rechte“ einer Gruppe zuzuordnen.
+          </div>
         )}
+        {ich && !ich.angemeldet && <div className="banner">Beispieldaten – nach der Anmeldung erscheinen eure echten Termine.</div>}
         {fehler && <div className="banner fehler">{fehler}</div>}
-
-        {einstellungen && (
-          <section className="einstellungen glas">
-            <label>
-              Google OAuth-Client-ID
-              <input
-                value={clientId}
-                placeholder="…apps.googleusercontent.com"
-                onChange={(e) => {
-                  setClientId(e.target.value.trim());
-                  localStorage.setItem(LS_CLIENT, e.target.value.trim());
-                }}
-              />
-            </label>
-            {kalender.length > 0 ? (
-              <fieldset>
-                <legend>Angezeigte Kalender (keine Auswahl = alle)</legend>
-                {kalender.map((k) => (
-                  <label key={k.id} className="check">
-                    <input type="checkbox" checked={auswahl.includes(k.id)} onChange={() => toggleKalender(k.id)} />
-                    <span className="punkt" style={{ background: k.farbe }} /> {k.name}
-                  </label>
-                ))}
-              </fieldset>
-            ) : (
-              <p className="leer">Nach der Anmeldung lassen sich hier die Kalender auswählen.</p>
-            )}
-          </section>
-        )}
 
         <section className="kennzahlen">
           <div className="kachel glas">
@@ -705,6 +736,8 @@ export default function PlanungPage() {
           </section>
         )}
 
+        {tab === 'admin' && ich?.rechte?.admin && <AdminAnsicht />}
+
         {tab === 'hinweise' && (
           <section className="ansicht liste">
             <h2>Hinweise</h2>
@@ -720,7 +753,8 @@ export default function PlanungPage() {
         )}
       </main>
 
-      {offen && <TerminDetail termin={offen} alle={termine} hinweise={hinweise} onWaehlen={setOffen} onSchliessen={() => setOffen(null)} />}
+      {detail}
+      {iosDialog}
       {palette && <Palette eintraege={paletteEintraege} onSchliessen={() => setPalette(false)} />}
       {hilfe && (
         <div className="modal-hintergrund" onClick={() => setHilfe(false)}>
