@@ -149,10 +149,24 @@ Eigene Planungsoberfläche in `web/`, liest die Termine direkt aus Google Kalend
 
 Ohne Anmeldung zeigt die Seite Beispieldaten.
 
+Anmeldung und Rechte laufen über Netlify Functions (`web/netlify/functions`): einmal mit Google anmelden, die Sitzung bleibt 90 Tage gespeichert. Die Termine liest der Server mit dem Service Account und gibt jedem Benutzer nur die Kalender und Kategorien seiner Gruppen aus. Admins verwalten Benutzer, Gruppen, Domains und Kalender in der Ansicht „Rechte“.
+
 Einrichtung (einmalig):
-1. Google Cloud Console (gleiches Projekt wie der Service Account) → „APIs & Dienste“ → „Anmeldedaten“ → „OAuth-Client-ID erstellen“ → Typ **Webanwendung**; unter „Autorisierte JavaScript-Quellen“ die Adresse der Seite eintragen (z. B. `https://<name>.netlify.app`, lokal `http://localhost:5173`).
-2. Client-ID als `VITE_GOOGLE_CLIENT_ID` beim Build setzen oder in der Seite unter ⚙ eintragen.
-3. Wer die Seite nutzt, braucht Lesezugriff auf die Kalender; unter ⚙ lassen sich die anzuzeigenden Kalender auswählen.
+1. Google Cloud Console → „APIs & Dienste“ → „Anmeldedaten“ → OAuth-Client (Webanwendung):
+   - Autorisierte JavaScript-Quellen: `https://<name>.netlify.app`
+   - Autorisierte Weiterleitungs-URIs: `https://<name>.netlify.app/api/auth/callback`
+2. Netlify → Site configuration → Environment variables:
+   | Variable | Inhalt |
+   |---|---|
+   | `GOOGLE_CLIENT_ID` | OAuth-Client-ID |
+   | `GOOGLE_CLIENT_SECRET` | OAuth-Clientschlüssel |
+   | `GOOGLE_SERVICE_ACCOUNT_JSON` | Inhalt der Service-Account-JSON (oder Base64) |
+   | `SESSION_SECRET` | zufällige Zeichenkette, mind. 32 Zeichen |
+   | `ADMIN_EMAILS` | Google-Adressen der Administratoren, kommagetrennt |
+   | `CALENDAR_IDS` | optional: Kalender-IDs, die immer gelesen werden |
+3. Kalender für die Service-Account-Adresse freigeben (wie für den Agent).
+
+Die Seite lässt sich als App installieren (Knopf „App installieren“, am iPhone über Teilen → „Zum Home-Bildschirm“). Auf Handys erscheint automatisch eine eigene Ansicht. Ohne Anmeldung zeigt die Seite Beispieldaten.
 
 ```bash
 cd web
