@@ -107,8 +107,9 @@ export interface BereitschaftDaten {
   personen: { email: string; name?: string }[];
 }
 
-export const bereitschaftLaden = () => holen<BereitschaftDaten>('/api/bereitschaft');
-export const bereitschaftEintragen = (e: { email?: string; von: string; bis: string }) =>
-  holen<BereitschaftDaten>('/api/bereitschaft', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(e) });
-export const bereitschaftAustragen = (id: string) =>
-  holen<BereitschaftDaten>(`/api/bereitschaft?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+const mitVon = (pfad: string, von?: string) => (von ? `${pfad}${pfad.includes('?') ? '&' : '?'}von=${von}` : pfad);
+export const bereitschaftLaden = (von?: string) => holen<BereitschaftDaten>(mitVon('/api/bereitschaft', von));
+export const bereitschaftEintragen = (e: { email?: string; von: string; bis: string }, ab?: string) =>
+  holen<BereitschaftDaten>(mitVon('/api/bereitschaft', ab), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(e) });
+export const bereitschaftAustragen = (id: string, ab?: string) =>
+  holen<BereitschaftDaten>(mitVon(`/api/bereitschaft?id=${encodeURIComponent(id)}`, ab), { method: 'DELETE' });

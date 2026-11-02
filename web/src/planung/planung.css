@@ -387,7 +387,7 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 
 /* Bereitschaft */
 .planung.bereitschaft-seite { display: block; min-height: 100vh; }
-.bereitschaft-seite .inhalt { max-width: 860px; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
+.bereitschaft-seite .inhalt { max-width: 1280px; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
 .bereitschaft-kopf { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
 .pille-wahl { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--text-2); cursor: pointer; }
 .dienst { padding: 0.9rem 1rem; display: grid; gap: 0.6rem; }
@@ -409,3 +409,48 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .dienst-fehler { margin: 0; color: var(--rot); font-size: 0.85rem; }
 .bereitschaft-hinweis { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-2); }
 .bereitschaft-hinweis .pille { cursor: default; }
+/* Bereitschaft: Planung / Übersicht */
+.bereitschaft { display: grid; gap: 0.9rem; }
+.bereitschaft .bereitschaft-kopf { align-items: flex-end; flex-wrap: wrap; }
+.bereitschaft .bereitschaft-kopf h2 { margin: 0 0 0.2rem; }
+.bereitschaft .bereitschaft-kopf .klein { margin: 0; }
+.bs-liste { margin: 0 auto; width: 100%; }
+.bs-modus-planung .kalender-ansicht, .bs-uebersicht { width: 100%; }
+.planung .rbc-day-bg.bs-dienst-tag { background: color-mix(in srgb, var(--akzent) 7%, transparent); }
+.planung .rbc-day-bg.bs-feiertag { background: color-mix(in srgb, var(--rot) 9%, transparent); }
+.planung .rbc-event.bs-offen { background: transparent; border: 1px dashed color-mix(in srgb, var(--warn) 70%, transparent); color: var(--warn); }
+.bs-kalender .rbc-day-bg { cursor: pointer; }
+.bs-legende { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; margin-top: 0.7rem; color: var(--text-2); }
+.bs-legende span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.bs-punkt { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 50%; vertical-align: middle; }
+.bs-punkt.dienst { background: color-mix(in srgb, var(--akzent) 45%, transparent); }
+.bs-punkt.feiertag { background: color-mix(in srgb, var(--rot) 55%, transparent); }
+.bs-punkt.offen { border: 1px dashed var(--warn); }
+.bs-modal { position: relative; width: min(560px, 100%); padding: 0.4rem; }
+.bs-modal .dienst { box-shadow: none; border: none; background: transparent; }
+.bs-schliessen { position: absolute; top: 0.6rem; right: 0.7rem; z-index: 1; border: none; background: transparent; color: var(--text-2); font-size: 1rem; }
+.bs-modal .dienst-kopf { padding-right: 2rem; }
+.bs-kacheln { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.9rem; }
+.kachel-wert small { font-size: 0.55em; color: var(--text-3); }
+.kachel-wert.bs-klein { font-size: 1.35rem; }
+.kachel-wert.bs-warn { color: var(--warn); }
+.kachel-wert.bs-ok { color: var(--gruen); }
+.bs-uebersicht { display: grid; gap: 0.9rem; }
+.bs-spalten { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 0.9rem; align-items: start; }
+.bs-block { padding: 1rem; display: grid; gap: 0.6rem; }
+.bs-block h3 { margin: 0; font-size: 1rem; }
+.bs-block-kopf { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.bs-tabelle { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.bs-tabelle th { text-align: left; font-weight: 500; color: var(--text-3); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rand); }
+.bs-tabelle td { padding: 0.55rem 0.5rem; border-bottom: 1px solid var(--rand); white-space: nowrap; }
+.bs-tabelle tr.ich td:first-child { color: var(--akzent); font-weight: 600; }
+.bs-balken-zelle { position: relative; min-width: 120px; }
+.bs-balken { position: absolute; left: 0.5rem; top: 50%; height: 6px; margin-top: 8px; border-radius: 999px; opacity: 0.7; max-width: calc(100% - 1rem); }
+.bs-offen-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.bs-offen-liste .warnung { width: 100%; }
+@media (max-width: 900px) {
+  .bs-spalten, .bs-kacheln { grid-template-columns: 1fr; }
+  .bs-umschalter { width: 100%; }
+  .bs-umschalter button { flex: 1; }
+  .bs-tabelle th:nth-child(5), .bs-tabelle td:nth-child(5) { display: none; }
+}
