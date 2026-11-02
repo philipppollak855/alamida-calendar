@@ -37,6 +37,16 @@ public sealed class AlamidaMaskWatcher
             return null;
         }
 
+        // Vorsorge zuerst: ihr Kopf „26426 | Name (2025)“ sieht aus wie ein Sterbefall-Kopf.
+        var vorsorge = _profile.Vorsorge;
+        if (vorsorge.Aktiv && elements.Any(el => vorsorge.DetectAutomationIdContains.Any(m =>
+                el.AutomationId.Contains(m, StringComparison.OrdinalIgnoreCase))))
+        {
+            _letzteMaske = MaskKind.VorsorgeTermine;
+            LetzteErfassungMs = sw.ElapsedMilliseconds;
+            return VorsorgeSnapshot(elements, vorsorge, out debugLog);
+        }
+
         var maske = MaskDetector.Detect(elements);
         if (maske == MaskKind.Unbekannt && MaskDetector.WindowHasOpenSterbefallHeader(elements))
             maske = MaskKind.DetailUeberfuehrung;
@@ -108,6 +118,38 @@ public sealed class AlamidaMaskWatcher
         }
 
         return null;
+    }
+
+    private static DetailSnapshot? VorsorgeSnapshot(UiaElementInfo[] elements, VorsorgeMaskConfig cfg, out string? debugLog)
+    {
+        var kopf = UiaFieldExtractor.ExtractFields(elements, new Dictionary<string, FieldLocator> { ["kopf"] = cfg.Kopf })
+            .GetValueOrDefault("kopf");
+        var (nr, name) = AlamidaFieldParser.ParseSterbefallHeader(kopf);
+        var termine = new List<VorsorgeTermin>();
+        var debug = new List<string> { $"Maske={MaskKind.VorsorgeTermine}", $"kopf={kopf ?? "(leer)"}" };
+        for (var n = 1; n <= Math.Max(1, cfg.MaxTermine); n++)
+        {
+            var f = UiaFieldExtractor.ExtractFields(elements, cfg.FelderFuer(n));
+            debug.AddRange(f.Select(kv => $"{n}.{kv.Key}={kv.Value ?? "(leer)"}"));
+            termine.Add(new VorsorgeTermin
+            {
+                Nummer = n,
+                Datum = f.GetValueOrDefault("datum"),
+                Zeit = f.GetValueOrDefault("zeit"),
+                Ort = f.GetValueOrDefault("ort"),
+                Notiz = f.GetValueOrDefault("notiz"),
+            });
+        }
+        debugLog = string.Join(Environment.NewLine, debug);
+        if (string.IsNullOrWhiteSpace(nr)) return null;
+        return new DetailSnapshot
+        {
+            SterbefallId = "V" + nr.Trim(),
+            VerstorbenerName = name == null ? null : System.Text.RegularExpressions.Regex.Replace(name, @"\s*\(\d{4}\)\s*$", ""),
+            QuelleMaske = "vorsorge_termine",
+            ErfassungsPhase = "detail",
+            VorsorgeTermine = termine,
+        };
     }
 
     private static void NormalizeTerminFelder(Dictionary<string, string?> fields)
