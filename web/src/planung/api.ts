@@ -1,4 +1,5 @@
 import type { Konfiguration, KalenderEintrag, Rechte } from '../shared/rechte';
+import type { Einsatz } from '../shared/bereitschaft';
 import { ausGoogleEvent, type GoogleEvent, type Termin } from './planungLogic';
 
 export interface Ich {
@@ -98,3 +99,16 @@ export async function abmelden(): Promise<void> {
 export const adminLaden = () => holen<AdminDaten>('/api/admin');
 export const adminSpeichern = (konfig: Konfiguration) =>
   holen<{ konfig: Konfiguration }>('/api/admin', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(konfig) });
+
+export interface BereitschaftDaten {
+  eintraege: Einsatz[];
+  darfPlanen: boolean;
+  ich: { email: string; name?: string };
+  personen: { email: string; name?: string }[];
+}
+
+export const bereitschaftLaden = () => holen<BereitschaftDaten>('/api/bereitschaft');
+export const bereitschaftEintragen = (e: { email?: string; von: string; bis: string }) =>
+  holen<BereitschaftDaten>('/api/bereitschaft', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(e) });
+export const bereitschaftAustragen = (id: string) =>
+  holen<BereitschaftDaten>(`/api/bereitschaft?id=${encodeURIComponent(id)}`, { method: 'DELETE' });

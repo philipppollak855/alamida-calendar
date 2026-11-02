@@ -1,6 +1,7 @@
 import { createHmac, createPublicKey, createSign, randomBytes, timingSafeEqual, verify } from 'node:crypto';
 import { getStore } from '@netlify/blobs';
 import { STANDARD_KONFIG, konfigPruefen, rechteFuer, type Konfiguration, type Rechte } from '../../src/shared/rechte';
+import type { Einsatz } from '../../src/shared/bereitschaft';
 
 export const SESSION_COOKIE = 'alamida_session';
 export const SESSION_TAGE = 90;
@@ -78,6 +79,21 @@ export async function konfigLaden(): Promise<Konfiguration> {
 export async function konfigSpeichern(k: Konfiguration): Promise<void> {
   await store().setJSON('konfiguration', k);
 }
+
+/* Bereitschaft: ein Blob je Eintrag („bereitschaft/<Enddatum>/<id>“), damit gleichzeitige Änderungen sich nicht überschreiben. */
+const einsatzSchluessel = (e: Pick<Einsatz, 'id' | 'bis'>) => `bereitschaft/${e.bis.slice(0, 10)}/${e.id}`;
+
+/** Alle Einträge, die am Tag `ab` (JJJJ-MM-TT) oder später enden. */
+export async function bereitschaftLaden(ab: string): Promise<Einsatz[]> {
+  const s = store();
+  const { blobs } = await s.list({ prefix: 'bereitschaft/' });
+  const keys = blobs.map((b) => b.key).filter((k) => k.split('/')[1] >= ab);
+  const l = await Promise.all(keys.map((k) => s.get(k, { type: 'json' }) as Promise<Einsatz | null>));
+  return l.filter((e): e is Einsatz => !!e).sort((a, b) => a.von.localeCompare(b.von));
+}
+
+export const einsatzSpeichern = (e: Einsatz) => store().setJSON(einsatzSchluessel(e), e);
+export const einsatzLoeschen = (e: Einsatz) => store().delete(einsatzSchluessel(e));
 
 /** Sitzung aus dem Cookie oder – eingebettet im Hub, wo fremde Cookies blockiert werden – aus „Authorization: Bearer“. */
 export async function angemeldet(req: Request): Promise<{ sitzung: Sitzung; rechte: Rechte; konfig: Konfiguration } | null> {

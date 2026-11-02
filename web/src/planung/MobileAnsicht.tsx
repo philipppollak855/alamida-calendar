@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { format, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import type { Ich } from './api';
+import type { Einsatz } from '../shared/bereitschaft';
+import { BereitschaftZeile, bereitschaftAm } from './BereitschaftAnsicht';
 import {
   KATEGORIEN,
   checkliste,
@@ -35,6 +37,7 @@ interface Props {
   onAbmelden: () => void;
   onInstallieren: () => void;
   onOeffnen: (t: Termin) => void;
+  bereitschaft: Einsatz[];
 }
 
 function Zeile({ t, onOeffnen, mitDatum = false }: { t: Termin; onOeffnen: (t: Termin) => void; mitDatum?: boolean }) {
@@ -145,6 +148,7 @@ export default function MobileAnsicht(p: Props) {
               <h2>{isSameDay(tag, jetzt) ? 'Heute' : format(tag, 'EEEE, d. MMMM', { locale: de })}</h2>
               <span className="klein">{tagListe.length} Termine · wischen für Tag ←→</span>
             </div>
+            <BereitschaftZeile eintraege={bereitschaftAm(p.bereitschaft, tag)} />
             <div className="m-liste" {...wischen}>
               {tagListe.length === 0 && <div className="m-leer">Keine Termine 🌿</div>}
               {tagListe.map((t, n) => (
@@ -228,6 +232,7 @@ export default function MobileAnsicht(p: Props) {
             ) : (
               <button className="knopf primaer gross" onClick={p.onAnmelden}>Mit Google anmelden</button>
             )}
+            {p.ich?.rechte?.freigeschaltet && <a className="knopf gross" href="/bereitschaft">🛡 Bereitschaft planen</a>}
             {p.installMoeglich && <button className="knopf gross" onClick={p.onInstallieren}>⤓ Als App installieren</button>}
             <button className="knopf gross" onClick={p.onTheme}>{p.theme === 'dunkel' ? '☀ Helles Design' : '☾ Dunkles Design'}</button>
             {p.stand && <p className="klein">Stand {format(p.stand, 'HH:mm')} · aktualisiert sich jede Minute</p>}
