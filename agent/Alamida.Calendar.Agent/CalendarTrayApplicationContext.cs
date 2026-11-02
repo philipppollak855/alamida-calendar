@@ -14,7 +14,13 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
     private readonly FieldMappingProfile _profile;
     private readonly Core.Models.AgentConfig _config;
     private readonly ToolStripMenuItem _statusZeile;
-    private readonly Dictionary<string, string> _eventToGoogleIdMap = new();
+    private readonly SemaphoreSlim _syncLock = new(1, 1);
+    private readonly string _statePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlamidaCalendar", "sync-state.json");
+    private readonly SyncState _state;
+    private SynchronizationContext? _ui;
+    private string? _kandidatHash;
+    private DateTime _pauseBis = DateTime.MinValue;
     private bool _isRunning = true;
 
     public CalendarTrayApplicationContext(Core.Models.AgentConfig config, FieldMappingProfile profile)
@@ -24,7 +30,8 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
         
         // Initialize Google Calendar Service
         var credentialsPath = Environment.ExpandEnvironmentVariables(config.ServiceAccountPath);
-        _calendarService = new GoogleCalendarService(credentialsPath, config.CalendarId ?? "primary");
+        _calendarService = new GoogleCalendarService(credentialsPath);
+        _state = SyncState.Load(_statePath);
         
         // Initialize Watcher
         _watcher = new AlamidaMaskWatcher(profile);
@@ -38,6 +45,7 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
             Text = "Alamida Kalender",
         };
         _tray.ContextMenuStrip = BuildMenu();
+        _ui = SynchronizationContext.Current;
         _tray.DoubleClick += (_, _) => ZeigeStatusDialog();
 
         StartWatching();
@@ -70,37 +78,90 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
         });
     }
 
-    private async Task SyncSnapshotAsync(DetailSnapshot snapshot)
+    private async Task SyncSnapshotAsync(DetailSnapshot snapshot, bool sofort = false)
     {
+        var fallId = CalendarEventConverter.FallSchluessel(snapshot);
+        if (fallId == null) return;
+
+        var termine = CalendarEventConverter.ConvertToCalendarEvents(snapshot, _config.Kategorien)
+            .Select(e => (Event: e, CalendarId: _config.CalendarIdFuer(e.Category), ColorId: _config.KategorieFuer(e.Category).ColorId))
+            .ToList();
+        var hash = BerechneHash(termine);
+
+        if (!sofort)
+        {
+            // Erst uebertragen, wenn die Maske zweimal hintereinander gleich gelesen wurde (Eingabe abgeschlossen).
+            if (hash != _kandidatHash) { _kandidatHash = hash; return; }
+            if (DateTime.Now < _pauseBis) return;
+        }
+
+        await _syncLock.WaitAsync();
         try
         {
-            var events = CalendarEventConverter.ConvertToCalendarEvents(snapshot);
-            
-            foreach (var calendarEvent in events)
+            _state.Faelle.TryGetValue(fallId, out var alt);
+            if (!sofort && alt?.Hash == hash) return;
+
+            var aktuellerKalender = _config.CalendarId;
+            try
             {
-                if (_eventToGoogleIdMap.TryGetValue(calendarEvent.Id, out var existingGoogleId))
+                foreach (var (ev, calendarId, colorId) in termine)
                 {
-                    await _calendarService.UpdateEventAsync(existingGoogleId, calendarEvent);
+                    aktuellerKalender = calendarId;
+                    if (alt != null && alt.Termine.TryGetValue(ev.Id, out var alterKalender) && alterKalender != calendarId)
+                        await _calendarService.DeleteAsync(alterKalender, ev.Id);
+                    await _calendarService.UpsertAsync(calendarId, ev, colorId);
                 }
-                else
+
+                if (alt != null)
                 {
-                    var googleId = await _calendarService.CreateEventAsync(calendarEvent);
-                    _eventToGoogleIdMap[calendarEvent.Id] = googleId;
+                    var neu = termine.Select(t => t.Event.Id).ToHashSet();
+                    foreach (var (schluessel, alterKalender) in alt.Termine.Where(t => !neu.Contains(t.Key)))
+                    {
+                        aktuellerKalender = alterKalender;
+                        await _calendarService.DeleteAsync(alterKalender, schluessel);
+                    }
                 }
             }
-            
-            UpdateStatusLine($"Status: {DateTime.Now:HH:mm:ss} - Sync ok");
+            catch (Exception ex)
+            {
+                _pauseBis = DateTime.Now.AddMinutes(1);
+                var meldung = _calendarService.BeschreibeFehler(ex, aktuellerKalender);
+                Console.WriteLine($"Fehler beim Synchronisieren: {meldung}");
+                UpdateStatusLine($"Status: Fehler - {meldung}");
+                return;
+            }
+
+            _state.Faelle[fallId] = new SyncState.FallEintrag
+            {
+                Hash = hash,
+                Termine = termine.ToDictionary(t => t.Event.Id, t => t.CalendarId),
+                Aktualisiert = DateTime.Now,
+            };
+            try { _state.Save(_statePath); }
+            catch (Exception ex) { Console.WriteLine($"Sync-Status nicht gespeichert: {ex.Message}"); }
+
+            _pauseBis = DateTime.MinValue;
+            UpdateStatusLine($"Status: {DateTime.Now:HH:mm:ss} - {fallId}: {termine.Count} Termine synchronisiert");
         }
-        catch (Exception ex)
+        finally
         {
-            Console.WriteLine($"Error syncing to Google Calendar: {ex.Message}");
-            UpdateStatusLine($"Status: Fehler - {ex.Message}");
+            _syncLock.Release();
         }
     }
 
+    private static string BerechneHash(IEnumerable<(CalendarEvent Event, string CalendarId, string ColorId)> termine) =>
+        string.Join("\n", termine.Select(t =>
+            $"{t.Event.Id}|{t.CalendarId}|{t.ColorId}|{t.Event.Title}|{t.Event.Start:O}|{t.Event.End:O}|{t.Event.IsAllDay}|{t.Event.Location}|{t.Event.Description}"));
+
     private void UpdateStatusLine(string text)
     {
-        _statusZeile.Text = text;
+        void Apply()
+        {
+            _statusZeile.Text = text.Length > 200 ? text[..200] + "..." : text;
+            AktualisiereTrayText();
+        }
+        if (_ui != null) _ui.Post(_ => Apply(), null);
+        else Apply();
     }
 
     private ContextMenuStrip BuildMenu()
@@ -134,16 +195,21 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
 
     private void AktualisiereTrayText()
     {
-        _tray.Text = $"Alamida Kalender - {_eventToGoogleIdMap.Count} Termine synchronisiert";
+        var text = $"Alamida Kalender - {_state.AnzahlTermine} Termine synchronisiert";
+        _tray.Text = text.Length > 63 ? text[..63] : text;
     }
 
     private void ZeigeStatusDialog()
     {
         var msg = $"Alamida Kalender Agent\n\n" +
-                  $"Synchronisierte Termine: {_eventToGoogleIdMap.Count}\n" +
+                  $"Synchronisierte Termine: {_state.AnzahlTermine}\n" +
                   $"Workspace ID: {_config.WorkstationId}\n" +
                   $"Poll-Intervall: {_config.PollIntervalMs}ms\n" +
-                  $"Calendar ID: {_config.CalendarId}";
+                  $"Standard-Kalender: {_config.CalendarId}\n" +
+                  string.Join("\n", _config.Kategorien
+                      .Where(k => k.Value.Aktiv && !string.IsNullOrWhiteSpace(k.Value.CalendarId))
+                      .Select(k => $"{k.Value.Name}: {k.Value.CalendarId}")) +
+                  $"\n\nStatus: {_statusZeile.Text}";
         
         MessageBox.Show(msg, "Status", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
@@ -154,8 +220,8 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
         var snapshot = _watcher.TryCaptureSnapshot();
         if (snapshot != null)
         {
-            await SyncSnapshotAsync(snapshot);
-            ShowBalloon("Synchronisation abgeschlossen", ToolTipIcon.Info);
+            await SyncSnapshotAsync(snapshot, sofort: true);
+            ShowBalloon(_statusZeile.Text, ToolTipIcon.Info);
         }
         else
         {

@@ -104,6 +104,43 @@ npm run dev
 
 ## Kategorien
 
+Jeder Termin aus der Maske (Tab „Termine“) wird einer Kategorie zugeordnet und bekommt deren Farbe:
+
+| Kategorie (Schlüssel) | Quelle in Alamida | Farbe (ColorId) |
+|---|---|---|
+| Beisetzung | Bestattung Datum/Zeit, „im Anschluss“ → nach der Trauerfeier | 8 Graphit |
+| Trauerfeier | Trauerfeier 1 und 2 | 3 Weintraube |
+| Rosenkranz | Rosenkranz | 1 Lavendel |
+| Trauergespraech | Trauergespräch / Aufnahme | 5 Banane |
+| Abholung | Überführungszeile 1 (Abholung) | 11 Tomate |
+| Ueberfuehrung | weitere Überführungszeilen | 9 Heidelbeere |
+| Kremation | Überführung ins Krematorium | 6 Mandarine |
+
+Einstellungen in `%AppData%\AlamidaCalendar\appsettings.json`, Abschnitt `Kategorien`:
+
+```json
+"CalendarId": "standard-kalender@group.calendar.google.com",
+"Kategorien": {
+  "Ueberfuehrung": { "Name": "Überführung", "CalendarId": "fahrten@group.calendar.google.com", "ColorId": "9", "DauerMinuten": 120, "Aktiv": true }
+}
+```
+
+- `CalendarId` leer = Standard-Kalender (`CalendarId` oben). So können beliebig viele Kalender genutzt werden, z. B. ein eigener Kalender für Überführungen.
+- Jeder Kalender muss für die Service-Account-Adresse mit „Änderungen an Terminen vornehmen“ freigegeben sein.
+- `ColorId` 1–11 (Google-Terminfarben), leer = Kalenderfarbe; `Aktiv: false` überträgt die Kategorie nicht.
+- Termine ohne Uhrzeit werden ganztägig eingetragen. Jeder Termin hat eine feste ID aus Sterbefall-Nummer und Termin-Art: Änderungen in Alamida aktualisieren den Termin, gelöschte Daten entfernen ihn, es entstehen keine Duplikate. Termine werden erst eingetragen, wenn der Sterbefall eine Nummer hat.
+
+## Web-UI starten
+
+```powershell
+cd web
+npm run dev
+```
+
+Öffnen Sie http://localhost:5173 für die Kalenderansicht.
+
+## Kategorien
+
 Der Agent erstellt Calendar Events für folgende Termine:
 
 - **Begraebnis**: Beisetzungen, Trauerfeiern, Rosenkränze

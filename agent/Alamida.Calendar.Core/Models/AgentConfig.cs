@@ -10,4 +10,14 @@ public sealed class AgentConfig
     public int PollIntervalMs { get; set; } = 1500;
     public string FieldMappingPath { get; set; } = "";
     public AutoUpdateConfig AutoUpdate { get; set; } = new();
+    public Dictionary<EventCategory, KategorieSettings> Kategorien { get; set; } = KategorieSettings.Defaults();
+
+    public KategorieSettings KategorieFuer(EventCategory kategorie) =>
+        Kategorien.TryGetValue(kategorie, out var k) ? k : KategorieSettings.Defaults()[kategorie];
+
+    public string CalendarIdFuer(EventCategory kategorie)
+    {
+        var eigene = KategorieFuer(kategorie).CalendarId;
+        return string.IsNullOrWhiteSpace(eigene) ? CalendarId : eigene.Trim();
+    }
 }

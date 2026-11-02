@@ -1,179 +1,144 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using Alamida.Calendar.Core.Models;
 
 namespace Alamida.Calendar.Core.GoogleCalendar;
 
 public static class CalendarEventConverter
 {
-    public static List<CalendarEvent> ConvertToCalendarEvents(DetailSnapshot snapshot)
+    private static readonly string[] DatumFormate =
+    [
+        "dd.MM.yyyy HH:mm", "d.M.yyyy H:mm", "dd.MM.yyyy HH:mm:ss", "dd.MM.yyyy", "d.M.yyyy", "dd.MM.yy", "yyyy-MM-dd",
+    ];
+
+    /// <summary>Termine werden erst mit vergebener Sterbefall-Nummer eingetragen (sonst entstehen Duplikate).</summary>
+    public static string? FallSchluessel(DetailSnapshot snapshot) =>
+        string.IsNullOrWhiteSpace(snapshot.SterbefallId) ? null : snapshot.SterbefallId.Trim();
+
+    public static List<CalendarEvent> ConvertToCalendarEvents(
+        DetailSnapshot snapshot,
+        IReadOnlyDictionary<EventCategory, KategorieSettings>? kategorien = null)
     {
+        kategorien ??= KategorieSettings.Defaults();
         var events = new List<CalendarEvent>();
-        var baseId = snapshot.SterbefallId ?? snapshot.VerstorbenerName ?? Guid.NewGuid().ToString();
+        var fallId = FallSchluessel(snapshot);
+        if (fallId == null) return events;
 
-        // Beisetzung / Begräbnis
-        if (!string.IsNullOrEmpty(snapshot.BeisetzungsDatum))
+        var name = string.IsNullOrWhiteSpace(snapshot.VerstorbenerName) ? fallId : snapshot.VerstorbenerName.Trim();
+        var ctx = new Kontext(events, kategorien, snapshot, fallId, name);
+
+        var trauerfeier = ctx.Add("trauerfeier", EventCategory.Trauerfeier, null,
+            snapshot.TrauerfeierDatum, snapshot.TrauerfeierZeit, snapshot.TrauerfeierOrt);
+        ctx.Add("trauerfeier2", EventCategory.Trauerfeier, "Trauerfeier 2",
+            snapshot.Trauerfeier2Datum, snapshot.Trauerfeier2Zeit, snapshot.Trauerfeier2Ort);
+        ctx.Add("rosenkranz", EventCategory.Rosenkranz, null,
+            snapshot.RosenkranzDatum, snapshot.RosenkranzZeit, snapshot.RosenkranzOrt);
+        ctx.Add("aufnahme", EventCategory.Trauergespraech, null,
+            snapshot.AufnahmeDatum, snapshot.AufnahmeZeit, snapshot.AufnahmeOrt);
+
+        var beisetzung = ctx.Add("beisetzung", EventCategory.Beisetzung, null,
+            snapshot.BeisetzungsDatum, snapshot.BeisetzungsZeit, snapshot.Endziel);
+        var imAnschluss = snapshot.ImAnschluss
+            || (snapshot.BeisetzungsZeit?.Contains("anschluss", StringComparison.OrdinalIgnoreCase) ?? false);
+        if (beisetzung is { IsAllDay: true } && trauerfeier is { IsAllDay: false } && imAnschluss
+            && beisetzung.Start.Date == trauerfeier.Start.Date)
         {
-            if (DateTime.TryParse(snapshot.BeisetzungsDatum, out var beisetzungDatum))
-            {
-                var beisetzungStart = beisetzungDatum;
-                if (!string.IsNullOrEmpty(snapshot.BeisetzungsZeit) && 
-                    TimeSpan.TryParse(snapshot.BeisetzungsZeit, out var beisetzungZeit))
-                {
-                    beisetzungStart = beisetzungDatum.Date + beisetzungZeit;
-                }
-
-                events.Add(new CalendarEvent
-                {
-                    Id = $"{baseId}-beisetzung",
-                    Title = $"Beisetzung: {snapshot.VerstorbenerName}",
-                    Start = beisetzungStart,
-                    End = beisetzungStart.AddHours(1),
-                    Location = snapshot.Endziel ?? string.Empty,
-                    Category = EventCategory.Begraebnis,
-                    Standort = snapshot.Endziel ?? string.Empty,
-                    Description = $"Begräbnis von {snapshot.VerstorbenerName}",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                });
-            }
+            var dauer = ctx.Settings(EventCategory.Beisetzung).DauerMinuten;
+            beisetzung.IsAllDay = false;
+            beisetzung.Start = trauerfeier.End ?? trauerfeier.Start.AddHours(1);
+            beisetzung.End = beisetzung.Start.AddMinutes(Math.Max(15, dauer));
+            beisetzung.Description += "\nIm Anschluss an die Trauerfeier";
         }
 
-        // Trauerfeier
-        if (!string.IsNullOrEmpty(snapshot.TrauerfeierDatum))
+        foreach (var schritt in snapshot.Schritte.OrderBy(s => s.Zeile))
         {
-            if (DateTime.TryParse(snapshot.TrauerfeierDatum, out var trauerDatum))
+            var kategorie = schritt.SchrittTyp switch
             {
-                var trauerStart = trauerDatum;
-                if (!string.IsNullOrEmpty(snapshot.TrauerfeierZeit) && 
-                    TimeSpan.TryParse(snapshot.TrauerfeierZeit, out var trauerZeit))
-                {
-                    trauerStart = trauerDatum.Date + trauerZeit;
-                }
-
-                events.Add(new CalendarEvent
-                {
-                    Id = $"{baseId}-trauerfeier",
-                    Title = $"Trauerfeier: {snapshot.VerstorbenerName}",
-                    Start = trauerStart,
-                    End = trauerStart.AddHours(1),
-                    Location = snapshot.TrauerfeierOrt ?? string.Empty,
-                    Category = EventCategory.Begraebnis,
-                    Standort = snapshot.TrauerfeierOrt ?? string.Empty,
-                    Description = $"Trauerfeier für {snapshot.VerstorbenerName}",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                });
-            }
-        }
-
-        // Trauerfeier 2
-        if (!string.IsNullOrEmpty(snapshot.Trauerfeier2Datum))
-        {
-            if (DateTime.TryParse(snapshot.Trauerfeier2Datum, out var trauer2Datum))
-            {
-                var trauer2Start = trauer2Datum;
-                if (!string.IsNullOrEmpty(snapshot.Trauerfeier2Zeit) && 
-                    TimeSpan.TryParse(snapshot.Trauerfeier2Zeit, out var trauer2Zeit))
-                {
-                    trauer2Start = trauer2Datum.Date + trauer2Zeit;
-                }
-
-                events.Add(new CalendarEvent
-                {
-                    Id = $"{baseId}-trauerfeier2",
-                    Title = $"Trauerfeier 2: {snapshot.VerstorbenerName}",
-                    Start = trauer2Start,
-                    End = trauer2Start.AddHours(1),
-                    Location = snapshot.Trauerfeier2Ort ?? string.Empty,
-                    Category = EventCategory.Begraebnis,
-                    Standort = snapshot.Trauerfeier2Ort ?? string.Empty,
-                    Description = $"Zweite Trauerfeier für {snapshot.VerstorbenerName}",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                });
-            }
-        }
-
-        // Rosenkranz
-        if (!string.IsNullOrEmpty(snapshot.RosenkranzDatum))
-        {
-            if (DateTime.TryParse(snapshot.RosenkranzDatum, out var rosenkranzDatum))
-            {
-                var rosenkranzStart = rosenkranzDatum;
-                if (!string.IsNullOrEmpty(snapshot.RosenkranzZeit) && 
-                    TimeSpan.TryParse(snapshot.RosenkranzZeit, out var rosenkranzZeit))
-                {
-                    rosenkranzStart = rosenkranzDatum.Date + rosenkranzZeit;
-                }
-
-                events.Add(new CalendarEvent
-                {
-                    Id = $"{baseId}-rosenkranz",
-                    Title = $"Rosenkranz: {snapshot.VerstorbenerName}",
-                    Start = rosenkranzStart,
-                    End = rosenkranzStart.AddHours(1),
-                    Location = snapshot.RosenkranzOrt ?? string.Empty,
-                    Category = EventCategory.Begraebnis,
-                    Standort = snapshot.RosenkranzOrt ?? string.Empty,
-                    Description = $"Rosenkranz für {snapshot.VerstorbenerName}",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                });
-            }
-        }
-
-        // Aufnahme / Trauergespräch
-        if (!string.IsNullOrEmpty(snapshot.AufnahmeDatum))
-        {
-            if (DateTime.TryParse(snapshot.AufnahmeDatum, out var aufnahmeDatum))
-            {
-                var aufnahmeStart = aufnahmeDatum;
-                if (!string.IsNullOrEmpty(snapshot.AufnahmeZeit) && 
-                    TimeSpan.TryParse(snapshot.AufnahmeZeit, out var aufnahmeZeit))
-                {
-                    aufnahmeStart = aufnahmeDatum.Date + aufnahmeZeit;
-                }
-
-                events.Add(new CalendarEvent
-                {
-                    Id = $"{baseId}-aufnahme",
-                    Title = $"Aufnahme: {snapshot.VerstorbenerName}",
-                    Start = aufnahmeStart,
-                    End = aufnahmeStart.AddHours(1),
-                    Location = snapshot.AufnahmeOrt ?? string.Empty,
-                    Category = EventCategory.Aufnahme,
-                    Standort = snapshot.AufnahmeOrt ?? string.Empty,
-                    Description = $"Trauergespräch / Aufnahme für {snapshot.VerstorbenerName}",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                });
-            }
-        }
-
-        // Überführungen (als Termine)
-        if (snapshot.Schritte != null)
-        {
-            foreach (var schritt in snapshot.Schritte)
-            {
-                if (!string.IsNullOrEmpty(schritt.TerminAm) && 
-                    DateTime.TryParse(schritt.TerminAm, out var terminDatum))
-                {
-                    events.Add(new CalendarEvent
-                    {
-                        Id = $"{baseId}-ueberfuehrung-{schritt.Zeile}",
-                        Title = $"Überführung: {snapshot.VerstorbenerName}",
-                        Start = terminDatum,
-                        End = terminDatum.AddHours(2),
-                        Location = $"{schritt.VonOrt} → {schritt.NachOrt}",
-                        Category = EventCategory.Begraebnis,
-                        Standort = schritt.NachOrt ?? string.Empty,
-                        Description = $"Überführung von {schritt.VonOrt} nach {schritt.NachOrt}",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    });
-                }
-            }
+                "abholung" => EventCategory.Abholung,
+                "kremation" => EventCategory.Kremation,
+                _ => EventCategory.Ueberfuehrung,
+            };
+            var route = string.Join(" → ",
+                new[] { schritt.VonOrt, schritt.NachOrt }.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim()));
+            ctx.Add($"schritt{schritt.Zeile}", kategorie, null, schritt.TerminAm, null,
+                kategorie == EventCategory.Abholung ? schritt.VonOrt : schritt.NachOrt,
+                string.IsNullOrWhiteSpace(route) ? null : route);
         }
 
         return events;
+    }
+
+    public static bool TryParseStart(string? datum, string? zeit, out DateTime start, out bool hatUhrzeit)
+    {
+        start = default;
+        hatUhrzeit = false;
+        if (string.IsNullOrWhiteSpace(datum)) return false;
+
+        var s = Regex.Replace(datum.Trim(), @"\s+", " ");
+        if (!DateTime.TryParseExact(s, DatumFormate, CultureInfo.InvariantCulture, DateTimeStyles.None, out start)
+            && !DateTime.TryParse(s, CultureInfo.GetCultureInfo("de-AT"), DateTimeStyles.None, out start))
+        {
+            return false;
+        }
+
+        hatUhrzeit = start.TimeOfDay != TimeSpan.Zero;
+        if (!hatUhrzeit && !string.IsNullOrWhiteSpace(zeit))
+        {
+            var m = Regex.Match(zeit.Trim(), @"^(\d{1,2})[:\.](\d{2})");
+            if (m.Success)
+            {
+                var h = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+                var min = int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
+                if (h is >= 0 and < 24 && min is >= 0 and < 60)
+                {
+                    start = start.Date.AddHours(h).AddMinutes(min);
+                    hatUhrzeit = true;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private sealed record Kontext(
+        List<CalendarEvent> Events,
+        IReadOnlyDictionary<EventCategory, KategorieSettings> Kategorien,
+        DetailSnapshot Snapshot,
+        string FallId,
+        string Name)
+    {
+        public KategorieSettings Settings(EventCategory kategorie) =>
+            Kategorien.TryGetValue(kategorie, out var k) ? k : KategorieSettings.Defaults()[kategorie];
+
+        public CalendarEvent? Add(string art, EventCategory kategorie, string? label,
+            string? datum, string? zeit, string? ort, string? zusatz = null)
+        {
+            if (!TryParseStart(datum, zeit, out var start, out var hatUhrzeit)) return null;
+
+            var k = Settings(kategorie);
+            var titel = $"{label ?? k.Name}: {Name}";
+            if (!string.IsNullOrWhiteSpace(zusatz)) titel += $" ({zusatz})";
+
+            var beschreibung = new List<string> { $"Sterbefall: {FallId} | {Name}" };
+            if (!string.IsNullOrWhiteSpace(zusatz)) beschreibung.Add($"Route: {zusatz}");
+            if (!string.IsNullOrWhiteSpace(ort)) beschreibung.Add($"Ort: {ort.Trim()}");
+            if (!string.IsNullOrWhiteSpace(Snapshot.Bestattungsart)) beschreibung.Add($"Bestattungsart: {Snapshot.Bestattungsart}");
+            beschreibung.Add($"Kategorie: {k.Name}");
+
+            var ev = new CalendarEvent
+            {
+                Id = $"{FallId}|{art}",
+                SterbefallId = FallId,
+                Title = titel,
+                Category = kategorie,
+                Location = ort?.Trim() ?? string.Empty,
+                IsAllDay = !hatUhrzeit,
+                Start = hatUhrzeit ? start : start.Date,
+                End = hatUhrzeit ? start.AddMinutes(Math.Max(15, k.DauerMinuten)) : start.Date.AddDays(1),
+                Description = string.Join("\n", beschreibung),
+            };
+            if (k.Aktiv) Events.Add(ev);
+            return ev;
+        }
     }
 }

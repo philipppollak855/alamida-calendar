@@ -70,6 +70,18 @@ public static class ConfigLoader
                 autoUpdate.AssetFileName = autoSection["AssetFileName"]!;
         }
 
+        var kategorien = KategorieSettings.Defaults();
+        foreach (var child in config.GetSection("Kategorien").GetChildren())
+        {
+            if (!Enum.TryParse<EventCategory>(child.Key, ignoreCase: true, out var kategorie)) continue;
+            var k = kategorien[kategorie];
+            if (!string.IsNullOrWhiteSpace(child["Name"])) k.Name = child["Name"]!.Trim();
+            if (child["CalendarId"] != null) k.CalendarId = child["CalendarId"]!.Trim();
+            if (child["ColorId"] != null) k.ColorId = child["ColorId"]!.Trim();
+            if (int.TryParse(child["DauerMinuten"], out var dauer) && dauer > 0) k.DauerMinuten = dauer;
+            if (bool.TryParse(child["Aktiv"], out var aktiv)) k.Aktiv = aktiv;
+        }
+
         return new AgentConfig
         {
             CalendarId = config["CalendarId"] ?? "primary",
@@ -82,6 +94,7 @@ public static class ConfigLoader
                 ? defaultMapping
                 : ExpandPath(config["FieldMappingPath"]!, appData),
             AutoUpdate = autoUpdate,
+            Kategorien = kategorien,
         };
     }
 
