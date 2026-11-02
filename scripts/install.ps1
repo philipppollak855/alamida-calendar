@@ -356,6 +356,14 @@ try {
     if ($null -eq (Get-JsonProperty $au 'Enabled')) { Set-JsonProperty $au 'Enabled' $true }
     if ($null -eq (Get-JsonProperty $au 'CheckOnStartup')) { Set-JsonProperty $au 'CheckOnStartup' $true }
 
+    if (-not (Get-JsonProperty $settings 'Kategorien')) {
+        try {
+            $defaults = Get-Content -LiteralPath (Join-Path $InstallDir 'appsettings.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+            $kat = Get-JsonProperty $defaults 'Kategorien'
+            if ($kat) { Set-JsonProperty $settings 'Kategorien' $kat }
+        } catch { Write-Warn "Kategorien-Vorlage nicht gelesen: $($_.Exception.Message)" }
+    }
+
     $calId = Resolve-CalendarId (Get-JsonProperty $settings 'CalendarId') $saEmail
     Set-JsonProperty $settings 'CalendarId' $calId
     $utf8NoBom = New-Object System.Text.UTF8Encoding $false

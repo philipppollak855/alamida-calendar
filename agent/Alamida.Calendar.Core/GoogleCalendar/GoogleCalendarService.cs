@@ -1,3 +1,8 @@
+using System.Net;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using Google;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Calendar.v3;
 using Google.Apis.Calendar.v3.Data;
@@ -8,10 +13,12 @@ namespace Alamida.Calendar.Core.GoogleCalendar;
 
 public class GoogleCalendarService
 {
+    private const string TimeZoneId = "Europe/Vienna";
     private readonly CalendarService _calendarService;
-    private readonly string _calendarId;
 
-    public GoogleCalendarService(string credentialsPath, string calendarId = "primary")
+    public string ServiceAccountEmail { get; }
+
+    public GoogleCalendarService(string credentialsPath)
     {
         var credential = GoogleCredential.FromFile(credentialsPath)
             .CreateScoped(CalendarService.Scope.Calendar);
@@ -22,136 +29,104 @@ public class GoogleCalendarService
             ApplicationName = "Alamida Calendar"
         });
 
-        _calendarId = calendarId;
-    }
-
-    public async Task<string> CreateEventAsync(CalendarEvent calendarEvent)
-    {
-        var googleEvent = new Event
+        try
         {
-            Summary = calendarEvent.Title,
-            Description = BuildDescription(calendarEvent),
-            Location = calendarEvent.Location,
-            Start = new EventDateTime
-            {
-                DateTimeDateTimeOffset = calendarEvent.Start,
-                TimeZone = "Europe/Berlin"
-            },
-            End = new EventDateTime
-            {
-                DateTimeDateTimeOffset = calendarEvent.End ?? calendarEvent.Start.AddHours(1),
-                TimeZone = "Europe/Berlin"
-            }
-        };
-
-        var request = _calendarService.Events.Insert(googleEvent, _calendarId);
-        var createdEvent = await request.ExecuteAsync();
-
-        return createdEvent.Id;
-    }
-
-    public async Task UpdateEventAsync(string googleEventId, CalendarEvent calendarEvent)
-    {
-        var googleEvent = new Event
-        {
-            Summary = calendarEvent.Title,
-            Description = BuildDescription(calendarEvent),
-            Location = calendarEvent.Location,
-            Start = new EventDateTime
-            {
-                DateTimeDateTimeOffset = calendarEvent.Start,
-                TimeZone = "Europe/Berlin"
-            },
-            End = new EventDateTime
-            {
-                DateTimeDateTimeOffset = calendarEvent.End ?? calendarEvent.Start.AddHours(1),
-                TimeZone = "Europe/Berlin"
-            }
-        };
-
-        var request = _calendarService.Events.Update(googleEvent, _calendarId, googleEventId);
-        await request.ExecuteAsync();
-    }
-
-    public async Task DeleteEventAsync(string googleEventId)
-    {
-        var request = _calendarService.Events.Delete(_calendarId, googleEventId);
-        await request.ExecuteAsync();
-    }
-
-    public async Task<List<CalendarEvent>> GetEventsAsync(DateTime start, DateTime end)
-    {
-        var request = _calendarService.Events.List(_calendarId);
-        request.TimeMinDateTimeOffset = start;
-        request.TimeMaxDateTimeOffset = end;
-        request.ShowDeleted = false;
-        request.SingleEvents = true;
-        request.OrderBy = EventsResource.ListRequest.OrderByEnum.StartTime;
-
-        var events = await request.ExecuteAsync();
-        var calendarEvents = new List<CalendarEvent>();
-
-        foreach (var googleEvent in events.Items)
-        {
-            var calendarEvent = new CalendarEvent
-            {
-                GoogleCalendarEventId = googleEvent.Id,
-                Title = googleEvent.Summary ?? string.Empty,
-                Description = googleEvent.Description ?? string.Empty,
-                Location = googleEvent.Location ?? string.Empty,
-                Start = googleEvent.Start?.DateTimeDateTimeOffset?.DateTime ?? DateTime.MinValue,
-                End = googleEvent.End?.DateTimeDateTimeOffset?.DateTime ?? DateTime.MinValue,
-                IsAllDay = googleEvent.Start?.Date != null
-            };
-
-            // Parse metadata from description
-            ParseDescriptionMetadata(calendarEvent);
-
-            calendarEvents.Add(calendarEvent);
+            using var doc = JsonDocument.Parse(File.ReadAllText(credentialsPath));
+            ServiceAccountEmail = doc.RootElement.TryGetProperty("client_email", out var e) ? e.GetString() ?? "" : "";
         }
-
-        return calendarEvents;
-    }
-
-    private string BuildDescription(CalendarEvent calendarEvent)
-    {
-        var description = calendarEvent.Description;
-        
-        if (!string.IsNullOrEmpty(calendarEvent.Standort))
+        catch (Exception)
         {
-            description += $"\nStandort: {calendarEvent.Standort}";
+            ServiceAccountEmail = "";
         }
-
-        description += $"\nKategorie: {calendarEvent.Category}";
-        description += $"\nEventId: {calendarEvent.Id}";
-
-        return description;
     }
 
-    private void ParseDescriptionMetadata(CalendarEvent calendarEvent)
-    {
-        if (string.IsNullOrEmpty(calendarEvent.Description))
-            return;
+    /// <summary>Google-Event-ID (base32hex) aus dem stabilen Termin-Schluessel.</summary>
+    public static string GoogleEventId(string schluessel) =>
+        "alamida" + Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(schluessel))).ToLowerInvariant();
 
-        var lines = calendarEvent.Description.Split('\n');
-        foreach (var line in lines)
+    /// <summary>Legt den Termin an oder aktualisiert ihn (gleiche ID = gleicher Termin, keine Duplikate).</summary>
+    public async Task UpsertAsync(string calendarId, CalendarEvent calendarEvent, string? colorId, CancellationToken ct = default)
+    {
+        var googleEvent = ToGoogleEvent(calendarEvent, colorId);
+        try
         {
-            if (line.StartsWith("Standort:"))
+            await _calendarService.Events.Insert(googleEvent, calendarId).ExecuteAsync(ct);
+        }
+        catch (GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.Conflict)
+        {
+            googleEvent.Status = "confirmed";
+            await _calendarService.Events.Update(googleEvent, calendarId, googleEvent.Id).ExecuteAsync(ct);
+        }
+    }
+
+    public async Task DeleteAsync(string calendarId, string schluessel, CancellationToken ct = default)
+    {
+        try
+        {
+            await _calendarService.Events.Delete(calendarId, GoogleEventId(schluessel)).ExecuteAsync(ct);
+        }
+        catch (GoogleApiException ex) when (ex.HttpStatusCode is HttpStatusCode.NotFound or HttpStatusCode.Gone)
+        {
+        }
+    }
+
+    public string BeschreibeFehler(Exception ex, string calendarId)
+    {
+        var freigabe = string.IsNullOrWhiteSpace(ServiceAccountEmail) ? "den Service Account" : ServiceAccountEmail;
+        return ex switch
+        {
+            GoogleApiException { HttpStatusCode: HttpStatusCode.NotFound } =>
+                $"Kalender nicht gefunden: {calendarId} - Kalender-ID pruefen und fuer {freigabe} freigeben",
+            GoogleApiException { HttpStatusCode: HttpStatusCode.Forbidden } =>
+                $"Keine Schreibrechte fuer Kalender {calendarId} - {freigabe} braucht 'Aenderungen an Terminen vornehmen'",
+            _ => ex.Message,
+        };
+    }
+
+    private static Event ToGoogleEvent(CalendarEvent ev, string? colorId)
+    {
+        var end = ev.End ?? (ev.IsAllDay ? ev.Start.Date.AddDays(1) : ev.Start.AddHours(1));
+        return new Event
+        {
+            Id = GoogleEventId(ev.Id),
+            Summary = ev.Title,
+            Description = ev.Description,
+            Location = string.IsNullOrWhiteSpace(ev.Location) ? null : ev.Location,
+            ColorId = string.IsNullOrWhiteSpace(colorId) ? null : colorId.Trim(),
+            Start = ToEventDateTime(ev.Start, ev.IsAllDay),
+            End = ToEventDateTime(end, ev.IsAllDay),
+            ExtendedProperties = new Event.ExtendedPropertiesData
             {
-                calendarEvent.Standort = line.Substring("Standort:".Length).Trim();
-            }
-            else if (line.StartsWith("Kategorie:"))
-            {
-                var categoryStr = line.Substring("Kategorie:".Length).Trim();
-                if (Enum.TryParse<EventCategory>(categoryStr, out var category))
+                Private__ = new Dictionary<string, string>
                 {
-                    calendarEvent.Category = category;
-                }
-            }
-            else if (line.StartsWith("EventId:"))
-            {
-                calendarEvent.Id = line.Substring("EventId:".Length).Trim();
-            }
+                    ["alamidaKey"] = ev.Id,
+                    ["sterbefallId"] = ev.SterbefallId,
+                    ["kategorie"] = ev.Category.ToString(),
+                },
+            },
+        };
+    }
+
+    private static EventDateTime ToEventDateTime(DateTime value, bool allDay)
+    {
+        if (allDay)
+            return new EventDateTime { Date = value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) };
+
+        var offset = ViennaTimeZone().GetUtcOffset(value);
+        return new EventDateTime
+        {
+            DateTimeDateTimeOffset = new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Unspecified), offset),
+            TimeZone = TimeZoneId,
+        };
+    }
+
+    private static TimeZoneInfo ViennaTimeZone()
+    {
+        foreach (var id in new[] { TimeZoneId, "W. Europe Standard Time" })
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
+            catch (Exception) { }
         }
+        return TimeZoneInfo.Local;
     }
 }
