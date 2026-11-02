@@ -50,8 +50,8 @@ $shortcuts = @(
 foreach ($s in $shortcuts) { Remove-Item -LiteralPath $s -Recurse -Force -ErrorAction SilentlyContinue }
 
 Remove-Item -LiteralPath $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item -LiteralPath (Join-Path $WorkDir 'build') -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item -LiteralPath (Join-Path $WorkDir 'download') -Recurse -Force -ErrorAction SilentlyContinue
+# Arbeitsordner des Installers (Build, Download, ggf. heruntergeladenes .NET SDK)
+Remove-Item -LiteralPath $WorkDir -Recurse -Force -ErrorAction SilentlyContinue
 if ($RemoveConfig) { Remove-Item -LiteralPath $ConfigDir -Recurse -Force -ErrorAction SilentlyContinue }
 
 if (-not $Silent) {
