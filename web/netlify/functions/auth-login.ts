@@ -1,5 +1,5 @@
 import type { Config } from '@netlify/functions';
-import { clientId, cookie, zufall } from '../lib/server';
+import { clientId, cookie, redirectUri, zufall } from '../lib/server';
 
 export default async (req: Request) => {
   const url = new URL(req.url);
@@ -7,7 +7,7 @@ export default async (req: Request) => {
   const ziel = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   ziel.search = new URLSearchParams({
     client_id: clientId(),
-    redirect_uri: `${url.origin}/api/auth/callback`,
+    redirect_uri: redirectUri(url.origin),
     response_type: 'code',
     scope: 'openid email profile',
     state,

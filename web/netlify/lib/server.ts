@@ -10,6 +10,8 @@ export function env(name: string): string {
 }
 
 export const clientId = () => env('GOOGLE_CLIENT_ID') || env('VITE_GOOGLE_CLIENT_ID');
+/** Muss exakt einer „Autorisierten Weiterleitungs-URI“ der OAuth-Client-ID entsprechen. */
+export const redirectUri = (origin: string) => env('OAUTH_REDIRECT_URI') || `${origin}/api/auth/callback`;
 export const adminEmails = () => env('ADMIN_EMAILS').split(/[,;\s]+/).filter(Boolean);
 
 const b64url = (b: Buffer | string) => Buffer.from(b).toString('base64url');

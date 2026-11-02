@@ -25,6 +25,15 @@ async function holen<T>(pfad: string, init?: RequestInit): Promise<T> {
 
 export const ichLaden = () => holen<Ich>('/api/me');
 
+/** Rückkehr von Google auf die Startseite (?code=…&state=…): Code an den Server weiterreichen. */
+export async function anmeldungAbschliessen(code: string, state: string): Promise<void> {
+  await holen<{ ok: boolean }>('/api/auth/callback', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code, state }),
+  });
+}
+
 export async function termineLaden(): Promise<{ termine: Termin[]; fehler: string[] }> {
   const r = await holen<{ kalender: { kalender: KalenderEintrag; events: GoogleEvent[] }[]; fehler: string[] }>('/api/termine');
   const termine = r.kalender.flatMap((k) =>

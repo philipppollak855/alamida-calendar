@@ -4,7 +4,7 @@ import { format, parse, startOfWeek, getDay, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './planung.css';
-import { abmelden, ichLaden, termineAusCache, termineLaden, type Ich } from './api';
+import { abmelden, anmeldungAbschliessen, ichLaden, termineAusCache, termineLaden, type Ich } from './api';
 import AdminAnsicht from './AdminAnsicht';
 import MobileAnsicht from './MobileAnsicht';
 import { useInstallieren } from './useInstallieren';
@@ -209,8 +209,12 @@ export default function PlanungPage() {
   }, [freigeschaltet]);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const code = params.get('code');
+    const state = params.get('state');
     if (location.search) history.replaceState(null, '', '/');
-    ichLaden()
+    (code && state ? anmeldungAbschliessen(code, state).catch((e: Error) => setFehler(e.message)) : Promise.resolve())
+      .then(() => ichLaden())
       .then((i) => {
         setIch(i);
         if (!i.angemeldet || !i.rechte?.freigeschaltet) {
