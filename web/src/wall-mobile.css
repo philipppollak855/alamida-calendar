@@ -1,0 +1,533 @@
+/**
+ * Wandmonitor — Mobilansicht (Klasse wall--mobile, Viewport ≤768px).
+ * Desktop-Layout in styles.css bleibt unverändert.
+ */
+
+.wall--mobile {
+  --wall-mob-pad: max(0.5rem, env(safe-area-inset-left, 0px));
+  --wall-scroll-thumb: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+
+.wall--mobile .wall-stage {
+  padding-left: var(--wall-mob-pad);
+  padding-right: var(--wall-mob-pad);
+}
+
+/* ─── Tab-Leiste: horizontale Pill-Leiste, geringe Höhe ─── */
+.wall--mobile .wall-view-tabs.wall-view-tabs--one-row,
+.wall--mobile .wall-view-tabs.wall-view-tabs--mobile-bar {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wall-scroll-thumb) transparent;
+  gap: 0.3rem;
+  padding: 0.28rem var(--wall-mob-pad) 0.35rem;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-solid);
+}
+
+.wall--mobile .wall-view-tabs.wall-view-tabs--one-row::-webkit-scrollbar,
+.wall--mobile .wall-view-tabs.wall-view-tabs--mobile-bar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.wall--mobile .wall-view-tabs.wall-view-tabs--one-row::-webkit-scrollbar-thumb,
+.wall--mobile .wall-view-tabs.wall-view-tabs--mobile-bar::-webkit-scrollbar-thumb {
+  background: var(--wall-scroll-thumb);
+  border-radius: 999px;
+}
+
+.wall--mobile .wall-view-tab {
+  flex: 0 0 auto;
+  scroll-snap-align: center;
+  min-width: 4.5rem;
+  max-width: none;
+  min-height: 32px;
+  max-height: 32px;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.15;
+  white-space: nowrap;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.wall--mobile .wall-view-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.wall--mobile .wall-view-tab.auto.active {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.wall--mobile .wall-kuehlraum-stage--rotate {
+  overflow: hidden;
+}
+
+.wall--mobile .wall-kuehlraum-stage--rotate .wall-cool-grid {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+
+/* ─── Kühlraum: scrollbarer Bereich (nur ohne Unter-Rotation) ─── */
+.wall--mobile .wall-kuehlraum-stage:not(.wall-kuehlraum-stage--rotate) {
+  gap: 0.35rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wall-scroll-thumb) transparent;
+  padding-bottom: 0.35rem;
+}
+
+.wall--mobile .wall-kuehlraum-stage::-webkit-scrollbar {
+  width: 5px;
+}
+
+.wall--mobile .wall-kuehlraum-stage::-webkit-scrollbar-thumb {
+  background: var(--wall-scroll-thumb);
+  border-radius: 999px;
+}
+
+.wall--mobile .wall-cool-grid {
+  flex: 0 0 auto;
+  min-height: min(52vh, 22rem);
+  height: auto;
+}
+
+.wall--mobile .wall-cool-tile.on.is-nicht-frei,
+.wall--mobile .wall-cool-tile.on.is-frei-erfasst {
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.wall--mobile .wall-cool-tile-footer {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.wall--mobile .wall-cool-tile-footer .wall-freigabe-btn {
+  max-width: none;
+  width: 100%;
+  min-height: 34px;
+  font-size: 0.62rem;
+}
+
+/* Urnen: zwei Spalten */
+.wall--mobile .wall-urnen-section {
+  flex-shrink: 0;
+  max-height: none;
+  overflow: visible;
+  padding-top: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.wall--mobile .wall-urnen-title {
+  font-size: 0.95rem;
+}
+
+.wall--mobile .wall-urnen-sub {
+  font-size: 0.72rem;
+  margin-bottom: 0.35rem;
+}
+
+.wall--mobile .wall-urnen-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.wall--mobile .wall-urnen-item {
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  padding: 0.4rem 0.45rem;
+}
+
+.wall--mobile .wall-urnen-item-main {
+  min-width: 0;
+}
+
+.wall--mobile .wall-urnen-name {
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+.wall--mobile .wall-urnen-meta {
+  font-size: 0.65rem;
+}
+
+.wall--mobile .wall-urnen-section .urnen-undo-btn {
+  width: 100%;
+  min-height: 32px;
+  font-size: 0.65rem;
+  text-align: center;
+}
+
+/* Extern */
+.wall--mobile .wall-extern-stage {
+  gap: 0.35rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wall-scroll-thumb) transparent;
+}
+
+.wall--mobile .wall-extern-grid {
+  padding-bottom: 0.25rem;
+}
+
+.wall--mobile .wall-extern-person.is-nicht-frei,
+.wall--mobile .wall-extern-person.is-frei-erfasst {
+  background: var(--surface);
+  border-width: 0 0 0 4px;
+  border-style: solid;
+  box-shadow: none;
+}
+
+.wall--mobile .wall-extern-person.is-nicht-frei {
+  border-left-color: #ef4444;
+}
+
+.wall--mobile .wall-extern-person.is-frei-erfasst {
+  border-left-color: #22c55e;
+}
+
+/* Heute / Offen */
+.wall--mobile .wall-list-stage {
+  gap: 0.25rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wall-scroll-thumb) transparent;
+}
+
+.wall--mobile .wall-big-list {
+  gap: 0.4rem;
+  padding-bottom: 0.25rem;
+}
+
+.wall--mobile .wall-big-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto;
+  gap: 0.15rem 0.5rem;
+  padding: 0.55rem 0.65rem;
+  align-items: center;
+}
+
+.wall--mobile .wall-big-row time {
+  grid-column: 1;
+  grid-row: 1;
+  order: unset;
+  font-size: 0.75rem;
+  opacity: 1;
+}
+
+.wall--mobile .wall-big-main {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-width: 0;
+}
+
+.wall--mobile .wall-big-name {
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.wall--mobile .wall-big-row .route-flow {
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
+}
+
+.wall--mobile .wall-big-row-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  margin-top: 0;
+}
+
+.wall--mobile .wall-erledigt-btn {
+  min-height: 36px;
+  font-size: 0.72rem;
+}
+
+.wall--mobile .wall-big-row.is-erledigt {
+  border-left-width: 4px;
+}
+
+/* ─── Kalender ─── */
+.wall--mobile .wall-cal-stage {
+  min-height: 0;
+}
+
+.wall--mobile .wall-cal--narrow {
+  height: 100%;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-desktop-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-period-row {
+  flex-shrink: 0;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid {
+  gap: 0.06rem;
+  padding-bottom: 0.15rem;
+  margin-bottom: 0.1rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-weekday {
+  min-height: 0.72rem;
+  font-size: 0.42rem;
+  letter-spacing: 0;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-cell:not(.is-pad),
+.wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-cell.is-pad {
+  aspect-ratio: unset;
+  min-height: 0.88rem;
+  max-height: 1rem;
+  padding: 0.04rem;
+  border-radius: 4px;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-num {
+  font-size: 0.52rem;
+  line-height: 1.1;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-period-overview--month-grid .wall-cal-period-badge {
+  font-size: 0.38rem;
+  line-height: 1;
+  margin-top: 0;
+  padding: 0;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-today-btn {
+  font-size: 0.58rem;
+  padding: 0.15rem 0.3rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-month-grid {
+  display: grid !important;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wall-scroll-thumb) transparent;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  align-content: start;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-month-grid::-webkit-scrollbar {
+  width: 5px;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-month-grid::-webkit-scrollbar-thumb {
+  background: var(--wall-scroll-thumb);
+  border-radius: 999px;
+}
+
+@media (min-width: 400px) {
+  .wall--mobile .wall-cal--mobile-month .wall-cal-month-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day--month {
+  display: flex;
+  flex-direction: column;
+  min-height: 5.5rem;
+  max-height: none;
+  overflow: hidden;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day--month.is-summary-only {
+  min-height: 4.25rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day--month.has-events {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day--month.has-events .wall-cal-day-head {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-solid));
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day--month.has-events.is-today {
+  background: #dbeafe;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day--month.has-events.is-today .wall-cal-day-head {
+  background: #bfdbfe;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 100%;
+  width: 100%;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-head {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  gap: 0.2rem;
+  padding: 0.28rem 0.32rem;
+  min-height: 0;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-wd {
+  font-size: 0.58rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-num {
+  font-size: 0.58rem;
+  font-weight: 700;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.1;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-today-pill--mini {
+  font-size: 0.5rem;
+  padding: 0.1rem 0.22rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  padding: 0.22rem 0.2rem 0.28rem;
+  min-height: 2rem;
+  box-sizing: border-box;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-total,
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-ueb {
+  display: block;
+  width: 100%;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  word-break: break-word;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-ueb {
+  font-size: 0.54rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-summary-none {
+  font-size: 0.62rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-day-list {
+  max-height: 4.5rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.wall--mobile .wall-cal-day-dialog-root {
+  padding: 0;
+  align-items: flex-end;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-card--compact {
+  padding: 0.28rem 0.32rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-card--compact .wall-cal-name {
+  font-size: 0.68rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-card--compact .wall-cal-time {
+  font-size: 0.62rem;
+}
+
+.wall--mobile .wall-cal--mobile-month .wall-cal-badge {
+  font-size: 0.5rem;
+  padding: 0.06rem 0.2rem;
+}
+
+.wall--mobile .wall-cal-mobile-body {
+  min-height: 0;
+}
+
+.wall--mobile .wall-cal-mobile-strip {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wall-scroll-thumb) transparent;
+  gap: 0.5rem;
+  padding-bottom: 0.35rem;
+}
+
+.wall--mobile .wall-cal-agenda-day {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0.35rem 0.45rem;
+}
+
+.wall--mobile .wall-cal-card--mobile {
+  padding: 0.45rem 0.5rem;
+}
+
+@media (max-width: 480px) {
+  .wall--mobile .wall-view-tab {
+    min-width: 4.1rem;
+    font-size: 0.62rem;
+    padding: 0.25rem 0.45rem;
+  }
+
+  .wall--mobile .wall-time {
+    font-size: 1.1rem;
+  }
+}

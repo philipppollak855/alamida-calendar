@@ -1,0 +1,6 @@
+﻿=== Alamida UI Inspector ===
+Gespeichert: C:\Users\offic\Alamida-Monitoring\docs\inspector-dump.txt
+Zeilen: 451
+Alamida-Fenster gefunden.
+Oeffnen Sie die Datei inspector-dump.txt im Editor.
+21.05.2026 15:25:15

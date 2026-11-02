@@ -1,0 +1,6 @@
+{
+  "FirebaseProjectId": "alamida---monitoring",
+  "ServiceAccountPath": "%AppData%\\AlamidaMonitoring\\serviceAccount.json",
+  "WorkstationId": "PC-DISPO-01",
+  "PollIntervalMs": 2000
+}

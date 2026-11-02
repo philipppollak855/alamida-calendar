@@ -1,0 +1,31 @@
+=== Alamida Snapshot (--once) ===
+Mapping: c:\Users\offic\Alamida-Monitoring\agent\Alamida.Monitoring.Agent\bin\Release\net8.0-windows\field-mapping-9.2.1.json
+Status: OK
+{
+  "SterbefallId": "260087",
+  "VerstorbenerName": "Anton Schellmann",
+  "Kuehlraum": "Kühlr. Grafenbach",
+  "VonOrt": "Kühlr. Grafenbach",
+  "NachOrt": "St. Johann",
+  "AbholungAm": "28.05.2026",
+  "AktuelleEtappeNummer": 2,
+  "Etappen": [
+    {
+      "Nummer": 1,
+      "VonOrt": "UK Neunkirchen",
+      "NachOrt": "Kühlr. Grafenbach",
+      "AbholungAm": "15.05.2026",
+      "Kuehlraum": "Kühlr. Grafenbach",
+      "HasRoute": true
+    },
+    {
+      "Nummer": 2,
+      "VonOrt": "Kühlr. Grafenbach",
+      "NachOrt": "St. Johann",
+      "AbholungAm": "28.05.2026",
+      "HasRoute": true
+    }
+  ],
+  "HasMinimumData": true
+}
+21.05.2026 12:18:23

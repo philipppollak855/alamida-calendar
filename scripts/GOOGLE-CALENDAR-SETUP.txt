@@ -1,0 +1,47 @@
+# Google Calendar Setup für Alamida Kalender
+
+## Installation
+
+1. Google Cloud Console öffnen: https://console.cloud.google.com
+2. Neues Projekt erstellen oder bestehendes auswählen
+3. Google Calendar API aktivieren:
+   - APIs & Services → Bibliothek
+   - "Google Calendar API" suchen und aktivieren
+4. Service Account erstellen:
+   - IAM & Admin → Service Accounts
+   - "Create Service Account"
+   - Name: "Alamida Calendar Agent"
+   - Rolle: "Calendar Editor" oder "Editor"
+   - "Create and Continue"
+   - Service Account Key als JSON herunterladen
+5. JSON-Datei speichern:
+   - Pfad: %AppData%\AlamidaCalendar\service-account.json
+   - Beispiel: C:\Users\<Benutzer>\AppData\Roaming\AlamidaCalendar\service-account.json
+6. Kalender freigeben:
+   - Google Calendar öffnen (https://calendar.google.com)
+   - Kalender-Einstellungen → Mit Personen teilen
+   - Service Account E-Mail hinzufügen (aus JSON-Datei)
+   - Berechtigung: "Verwalten"
+
+## App konfigurieren
+
+Editieren Sie `agent/Alamida.Calendar.Agent/appsettings.json`:
+
+```json
+{
+  "CalendarId": "primary",
+  "ServiceAccountPath": "%AppData%\\AlamidaCalendar\\service-account.json",
+  "WorkstationId": "PC-NAME",
+  "PollIntervalMs": 5000,
+  "FieldMappingPath": "docs/field-mapping-9.2.1.json"
+}
+```
+
+## Testen
+
+```powershell
+cd agent
+dotnet run
+```
+
+Tray-Icon erscheint → Rechtsklick → Status anzeigen

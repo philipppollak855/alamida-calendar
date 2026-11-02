@@ -1,0 +1,48 @@
+# .NET
+bin/
+obj/
+out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio
+.vs/
+*.vspscc
+*.vssscc
+._*
+
+# Node
+node_modules/
+dist/
+*.log
+
+# Secrets
+service-account.json
+*.p12
+*.key
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Build outputs
+dist/installer-temp/
+dist/agent-release/
+*.zip
+*.exe
+
+# Temporary
+*.tmp
+*.bak
+*.old
+
+# Devin
+.devin/

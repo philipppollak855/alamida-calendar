@@ -1,0 +1,1558 @@
+/* ─── Mobile: ein Bildschirm pro Wand-Ansicht, kein Überlappen ─── */
+
+@media (max-width: 768px) {
+  .install-pwa {
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    width: min(100vw - 1.25rem, 520px);
+  }
+
+  .install-pwa-inner {
+    padding: 0.65rem 0.85rem;
+  }
+
+  .install-pwa-text {
+    font-size: 0.8rem;
+    min-width: 0;
+  }
+
+  /* Disposition */
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'brand theme'
+      'nav nav'
+      'user user';
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.5rem 0.65rem;
+  }
+
+  .topbar-brand {
+    grid-area: brand;
+    min-width: 0;
+  }
+
+  .topbar .theme-switch {
+    grid-area: theme;
+    justify-self: end;
+    margin-left: 0;
+  }
+
+  .topbar-nav {
+    grid-area: nav;
+    order: unset;
+    width: 100%;
+    margin-left: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.3rem;
+  }
+
+  .topbar-nav .nav-pill {
+    padding: 0.4rem 0.35rem;
+    font-size: 0.72rem;
+    min-height: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .user-menu {
+    grid-area: user;
+    order: unset;
+    width: 100%;
+    margin-left: 0;
+    padding-top: 0.35rem;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .user-menu-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .board--narrow {
+    gap: 0.65rem;
+  }
+
+  .board--narrow .board-hero {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem;
+  }
+
+  .board--narrow .board-hero-text h1 {
+    font-size: 1.2rem;
+  }
+
+  .board-hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+
+  .board-wall-link {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.38rem 0.55rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .board-wall-link:hover {
+    background: var(--accent);
+    color: var(--surface-solid, #fff);
+    text-decoration: none;
+  }
+
+  .board--narrow .settings-toggle-meta {
+    display: none;
+  }
+
+  .board--narrow .settings-toggle {
+    padding: 0.55rem 0.75rem;
+  }
+
+  .board--narrow .kpi-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 0.4rem;
+    padding-bottom: 0.15rem;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+
+  .board--narrow .kpi-grid .stat-card {
+    flex: 0 0 min(30vw, 6.5rem);
+    scroll-snap-align: start;
+    padding: 0.55rem 0.6rem;
+  }
+
+  .board--narrow .stat-value {
+    font-size: 1.35rem;
+  }
+
+  .board--narrow .stat-hint {
+    display: none;
+  }
+
+  .board--narrow .stat-label {
+    font-size: 0.62rem;
+  }
+
+  .board--narrow .panel-head p {
+    display: none;
+  }
+
+  .board--narrow .panel-head {
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .board--narrow .board-aside {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .board--narrow .board-aside-feed {
+    display: none;
+  }
+
+  .board--narrow .board-grid {
+    gap: 0.65rem;
+  }
+
+  .board--narrow .panel {
+    padding: 0.85rem 0.75rem;
+  }
+
+  .board--narrow .transfer-card {
+    padding: 0.65rem 0.7rem;
+  }
+
+  .board--narrow.board-workspace {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'hero'
+      'nav'
+      'body';
+    gap: 0.65rem;
+  }
+
+  .board--narrow .board-section-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding: 0.35rem;
+    gap: 0.3rem;
+  }
+
+  .board--narrow .board-section-tab {
+    flex: 0 0 auto;
+    width: auto;
+    scroll-snap-align: start;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  .board--narrow .board-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .board--narrow .board-overview-kpis.kpi-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    grid-template-columns: unset;
+  }
+
+  .board--narrow .board-lager-kr-row {
+    grid-template-columns: 1fr;
+  }
+
+  .board--narrow .board-wall-link--visible {
+    font-size: 0.72rem;
+    padding: 0.38rem 0.55rem;
+  }
+
+  .app-shell {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .main-content {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+    box-sizing: border-box;
+  }
+
+  .board--narrow,
+  .board--narrow .board-grid,
+  .board--narrow .board-aside,
+  .board--narrow .board-hero,
+  .board--narrow .board-hero-actions,
+  .board--narrow .settings-panel,
+  .board--narrow .transfer-list,
+  .board--narrow .case-list {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .board--narrow .panel {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .board--narrow .cool-grid {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .board--narrow .kpi-grid {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .board--narrow .filter-tabs {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .board--narrow .transfer-date {
+    color: var(--text);
+    font-weight: 700;
+  }
+
+  .board-grid {
+    gap: 0.85rem;
+  }
+
+  .live-data-bar {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+  }
+
+  .settings-toggle {
+    padding: 0.75rem 1rem;
+  }
+
+  .settings-body {
+    padding: 0.85rem 1rem 1rem;
+  }
+
+  .settings-kr-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Wandmonitor: festes Viewport-Raster */
+  .wall {
+    height: 100dvh;
+    max-height: 100dvh;
+    min-height: 100dvh;
+    padding: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 0;
+    background: var(--bg);
+  }
+
+  /* Dekorative Kreise der Wand-Hintergrundfläche nicht über UI legen */
+  .wall-bg {
+    opacity: 0.25;
+    background: var(--bg);
+  }
+
+  .wall-topbar,
+  .wall-view-tabs,
+  .wall-footer {
+    position: relative;
+    z-index: 3;
+    background: var(--bg);
+  }
+
+  .wall-view-tab.auto.active {
+    box-shadow: none;
+  }
+
+  .wall-topbar-end .live-indicator {
+    font-size: 0.65rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wall-topbar-end .live-dot {
+    box-shadow: none;
+    flex-shrink: 0;
+  }
+
+  .wall-topbar .brand-mark {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+
+  .wall-topbar {
+    margin-bottom: 0;
+    padding: 0.5rem 0.65rem;
+    gap: 0.35rem 0.5rem;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'brand actions'
+      'clock clock';
+    align-items: center;
+    flex-shrink: 0;
+    isolation: isolate;
+  }
+
+  .wall-brand {
+    grid-area: brand;
+    min-width: 0;
+    max-width: 2.5rem;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .wall-brand-title {
+    font-size: 0.85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wall-brand-sub {
+    display: none;
+  }
+
+  .wall-clock {
+    grid-area: clock;
+    order: unset;
+    text-align: left;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .wall-time {
+    font-size: 1.25rem;
+    display: inline;
+  }
+
+  .wall-date {
+    font-size: 0.7rem;
+    display: inline;
+  }
+
+  .wall-topbar-end {
+    grid-area: actions;
+    margin-left: 0;
+    justify-content: flex-end;
+    justify-self: end;
+    gap: 0.25rem;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    min-width: 0;
+    max-width: 100%;
+    z-index: 2;
+  }
+
+  .wall-topbar-end .live-indicator {
+    display: none;
+  }
+
+  .wall-topbar-end .theme-switch {
+    flex-shrink: 0;
+  }
+
+  .wall-topbar-end .theme-switch-btn {
+    font-size: 0.6rem;
+    padding: 0.32rem 0.38rem;
+  }
+
+  .wall-link:not(.wall-link--dispo) {
+    display: none;
+  }
+
+  .wall-link--dispo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.35rem 0.5rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    text-decoration: none;
+    white-space: nowrap;
+    min-height: 32px;
+  }
+
+  .wall-link--dispo:hover {
+    background: var(--accent);
+    color: var(--surface-solid, #fff);
+    text-decoration: none;
+  }
+
+  .wall-topbar-end .btn-small {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.7rem;
+  }
+
+  .wall:not(.wall--mobile) .wall-view-tabs.wall-view-tabs--one-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.2rem;
+    padding: 0.3rem 0.5rem 0;
+  }
+
+  .wall-view-tabs {
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
+
+  .wall-view-tab {
+    flex: unset;
+    font-size: clamp(0.55rem, 2.4vw, 0.68rem);
+    padding: 0.38rem 0.12rem;
+    min-height: 42px;
+    line-height: 1.2;
+    border-radius: 8px;
+    text-align: center;
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  .wall-stage {
+    min-height: 0;
+    overflow: hidden;
+    padding: 0 0.65rem;
+  }
+
+  .wall-stage--edge-swipe {
+    position: relative;
+  }
+
+  .wall-edge-swipe {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: clamp(40px, 11vw, 56px);
+    z-index: 12;
+    touch-action: pan-y;
+  }
+
+  .wall-edge-swipe--left {
+    left: 0;
+  }
+
+  .wall-edge-swipe--right {
+    right: 0;
+  }
+
+  .wall-stage-title {
+    font-size: 0.8rem;
+    margin: 0 0 0.35rem;
+    flex-shrink: 0;
+    line-height: 1.2;
+  }
+
+  .wall-stage-sub {
+    display: none;
+  }
+
+  .wall-kuehlraum-stage,
+  .wall-extern-stage,
+  .wall-list-stage,
+  .wall-cal-stage {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Kalender mobil: vertikale Agenda / Monatsraster, kein horizontaler Scroll */
+  .wall-cal-stage .wall-stage-title {
+    display: none;
+  }
+
+  .wall-cal--narrow {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .wall-cal--narrow .wall-cal-toolbar {
+    flex-shrink: 0;
+    gap: 0.25rem;
+    margin-bottom: 0;
+  }
+
+  .wall-cal--narrow .wall-cal-range-btn {
+    min-height: 36px;
+  }
+
+  .wall-cal-filters-toggle {
+    min-height: 36px;
+    padding: 0.35rem 0.5rem;
+  }
+
+  .wall-cal--narrow .wall-cal-toolbar-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .wall-cal--narrow .wall-cal-title {
+    display: none;
+  }
+
+  .wall-cal--narrow .wall-cal-count {
+    font-size: 0.72rem;
+    padding: 0.15rem 0.45rem;
+  }
+
+  .wall-cal--narrow .wall-cal-toolbar-right {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+  }
+
+  .wall-cal--narrow .wall-cal-search {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .wall-cal--narrow .wall-cal-search-input {
+    font-size: 16px;
+    padding: 0.4rem 0.55rem;
+    min-height: 36px;
+  }
+
+  .wall-cal--narrow .wall-cal-range {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.25rem;
+  }
+
+  .wall-cal--narrow .wall-cal-range-btn {
+    min-height: 40px;
+    padding: 0.4rem 0.25rem;
+    font-size: 0.8rem;
+  }
+
+  .wall-cal-mobile-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    gap: 0.4rem;
+  }
+
+  .wall-cal-filters-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.4rem 0.55rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface-solid);
+    color: var(--text);
+    cursor: pointer;
+    min-height: 40px;
+  }
+
+  .wall-cal-filters-chevron {
+    font-size: 0.65rem;
+    opacity: 0.75;
+  }
+
+  .wall-cal-art-filters.is-collapsed {
+    display: none;
+  }
+
+  .wall-cal-art-filters:not(.is-collapsed) {
+    flex-shrink: 0;
+    gap: 0.25rem;
+    max-height: 5.5rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .wall-cal-art-chip {
+    font-size: 0.65rem;
+    padding: 0.28rem 0.45rem;
+    min-height: 32px;
+  }
+
+  .wall-cal--narrow .wall-cal-period-row {
+    width: 100%;
+  }
+
+  .wall-cal--narrow .wall-cal-period-row .wall-cal-period-overview {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+  }
+
+  /* Übersicht: flach — Hauptbereich für Termine (min-height: 0 gegen Flex-Überlappung) */
+  .wall-cal--narrow .wall-cal-period-overview--even {
+    min-height: 0;
+    width: 100%;
+    gap: 0.1rem;
+    padding-bottom: 0.2rem;
+    margin-bottom: 0.15rem;
+    border-bottom-width: 1px;
+    position: relative;
+    z-index: 2;
+    background: var(--bg);
+    box-sizing: border-box;
+  }
+
+  .wall-cal--narrow .wall-cal-period-overview--even .wall-cal-period-cell {
+    width: 100%;
+    aspect-ratio: unset;
+    height: 1.2rem;
+    min-height: 1.2rem;
+    max-height: 1.2rem;
+    justify-content: center;
+    padding: 0 0.05rem;
+    flex-direction: row;
+    gap: 0.15rem;
+  }
+
+  .wall-cal--narrow .wall-cal-period-row .wall-cal-period-overview--dense-month:not(.wall-cal-period-overview--month-grid) {
+    max-height: 5.35rem;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .wall-cal--narrow .wall-cal-period-overview--dense-month:not(.wall-cal-period-overview--month-grid) .wall-cal-period-cell {
+    height: 1.05rem;
+    min-height: 1.05rem;
+    max-height: 1.05rem;
+  }
+
+  .wall-cal--narrow .wall-cal-period-overview--month-grid {
+    max-height: none;
+    gap: 0.06rem;
+    padding-bottom: 0.15rem;
+  }
+
+  .wall-cal--narrow .wall-cal-period-overview--month-grid .wall-cal-period-weekday {
+    min-height: 0.72rem;
+    font-size: 0.42rem;
+  }
+
+  .wall-cal--narrow .wall-cal-period-overview--month-grid .wall-cal-period-cell:not(.is-pad),
+  .wall-cal--narrow .wall-cal-period-overview--month-grid .wall-cal-period-cell.is-pad {
+    aspect-ratio: unset;
+    min-height: 0.88rem;
+    max-height: 1rem;
+    padding: 0.04rem;
+  }
+
+  .wall-cal--narrow .wall-cal-period-overview--month-grid .wall-cal-period-num {
+    font-size: 0.52rem;
+  }
+
+  .wall-cal--narrow .wall-cal-period-overview--month-grid .wall-cal-period-badge {
+    font-size: 0.38rem;
+    margin-top: 0;
+  }
+
+  .wall-cal--narrow .wall-cal-period-overview--even .wall-cal-period-num {
+    font-size: 0.62rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .wall-cal--narrow .wall-cal-period-overview--even .wall-cal-period-badge {
+    font-size: 0.5rem;
+    margin-top: 0;
+    line-height: 1;
+  }
+
+  .wall-cal--narrow .wall-cal-today-btn {
+    padding: 0.28rem 0.42rem;
+    font-size: 0.65rem;
+  }
+
+  .wall-cal-period-overview--compact.wall-cal-period-overview--even {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .wall-cal-period-cell {
+    background: var(--surface-solid);
+    border-color: var(--border-strong);
+  }
+
+  .wall-cal-period-overview--interactive .wall-cal-period-cell {
+    padding: 0;
+    min-height: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .wall-cal-period-cell.is-selected {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+
+  .wall-cal-agenda-day.is-focused {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-dim);
+  }
+
+  /* Termine: horizontal zwischen Tagen wischen (nicht vertikal durch alle Tage) */
+  .wall-cal-mobile-strip {
+    flex: 1 1 0;
+    min-height: 7rem;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0.35rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding: 0.1rem 0.15rem 0.2rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .wall-cal-mobile-strip--month {
+    scroll-snap-type: x proximity;
+  }
+
+  .wall-cal-agenda-day {
+    flex: 0 0 min(78vw, 11.5rem);
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: 100%;
+    align-self: stretch;
+    padding: 0.35rem 0.3rem;
+    border-radius: 8px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border-strong);
+  }
+
+  .wall-cal-mobile-strip--month .wall-cal-agenda-day {
+    flex-basis: min(4.5rem, 21vw);
+    padding: 0.28rem 0.2rem;
+  }
+
+  .wall-cal-agenda-day.is-today {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent-dim);
+  }
+
+  .wall-cal-agenda-day-head {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+    padding: 0 0 0.25rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0.25rem;
+    flex-shrink: 0;
+  }
+
+  .wall-cal-agenda-wd {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--muted);
+    min-width: 2rem;
+  }
+
+  .wall-cal-agenda-date {
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.15;
+    min-width: 0;
+  }
+
+  .wall-cal-agenda-count {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.08rem 0.35rem;
+    border-radius: 999px;
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .wall-cal-today-pill {
+    display: inline-block;
+    font-size: 0.58rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.08rem 0.3rem;
+    border-radius: 4px;
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .wall-cal-agenda-none {
+    margin: 0;
+    font-size: 0.68rem;
+    color: var(--muted);
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .wall-cal-agenda-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .wall-cal-agenda-day.is-empty .wall-cal-agenda-day-head {
+    opacity: 0.65;
+  }
+
+  .wall-cal-card--mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.4rem 0.45rem;
+    border-radius: 8px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    min-width: 0;
+  }
+
+  .wall-cal-card--mobile .wall-cal-mobile-body {
+    gap: 0.15rem;
+  }
+
+  .wall-cal-card--mobile .wall-cal-time {
+    font-size: 0.72rem;
+    line-height: 1.25;
+    margin-top: 0.1rem;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .wall-cal-card--mobile .wall-cal-name {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .wall-cal-card--mobile .wall-cal-meta {
+    color: var(--muted);
+    opacity: 1;
+  }
+
+  .wall-cal-card--mobile .wall-cal-mobile-types {
+    color: var(--text);
+    opacity: 0.85;
+  }
+
+  .wall-cal-mobile-body {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  .wall-cal-card--mobile .wall-cal-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1.25;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .wall-cal-card--mobile .wall-cal-mobile-types,
+  .wall-cal-card--mobile .wall-cal-meta {
+    white-space: normal;
+    line-height: 1.2;
+  }
+
+  .wall-cal-mobile-line {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+    min-width: 0;
+  }
+
+  .wall-cal-mobile-types {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wall-cal-card--mobile .wall-cal-meta {
+    font-size: 0.68rem;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wall-cal-card--mobile.is-grouped.wall-cal-card--color-feier {
+    border-color: rgba(5, 150, 105, 0.65);
+    background: rgba(52, 211, 153, 0.18);
+  }
+
+  [data-theme='alamida'] .wall-cal-card--mobile {
+    box-shadow: 0 1px 4px rgba(42, 72, 78, 0.1);
+  }
+
+  [data-theme='alamida'] .wall-cal-card--mobile.wall-cal-card--color-fahrt {
+    background: rgba(251, 146, 60, 0.28);
+    border-color: rgba(234, 88, 12, 0.55);
+    border-left: 4px solid #ea580c;
+  }
+
+  [data-theme='alamida'] .wall-cal-card--mobile.wall-cal-card--color-kremation {
+    background: rgba(192, 132, 252, 0.3);
+    border-color: rgba(126, 34, 206, 0.55);
+    border-left: 4px solid #7e22ce;
+  }
+
+  [data-theme='alamida'] .wall-cal-card--mobile.wall-cal-card--color-aufnahme {
+    border-color: rgba(37, 99, 235, 0.7);
+    border-left-width: 3px;
+    background: rgba(96, 165, 250, 0.22);
+  }
+
+  [data-theme='alamida'] .wall-cal-card--mobile.wall-cal-card--color-feier {
+    background: rgba(52, 211, 153, 0.22);
+    border-color: rgba(5, 150, 105, 0.55);
+    border-left: 4px solid #059669;
+  }
+
+  [data-theme='alamida'] .wall-cal-period-cell.is-today {
+    background: #bfdbfe;
+    border-color: #1d4ed8;
+  }
+
+  [data-theme='alamida'] .wall-cal-period-cell.is-today .wall-cal-period-num {
+    color: #1e40af;
+    font-weight: 800;
+  }
+
+  .wall-cal--narrow .wall-cal-month {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .wall-cal--narrow .wall-cal-empty {
+    flex: 1;
+    padding: 1rem 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  /* Wochenstreifen nur in Desktop-Ansicht; Monatsraster über wall-cal--mobile-month */
+  .wall-cal--narrow:not(.wall-cal--mobile-month) .wall-cal-strip,
+  .wall-cal--narrow:not(.wall-cal--mobile-month) .wall-cal-month-grid {
+    display: none !important;
+  }
+
+  .wall-extern-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+  }
+
+  .wall-freigabe-btn,
+  .wall-retour-btn {
+    width: 100%;
+    max-width: none;
+    min-height: 36px;
+  }
+
+  /* Kühlraum: 3×3 gleichmäßig im verfügbaren Bereich */
+  .wall-urnen-section {
+    flex-shrink: 0;
+    max-height: 26vh;
+    overflow-y: auto;
+    padding-top: 0.65rem;
+  }
+
+  .wall-urnen-title {
+    font-size: 1.15rem;
+  }
+
+  .wall-urnen-sub {
+    font-size: 0.82rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .wall-urnen-item {
+    padding: 0.45rem 0.55rem;
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  .wall-urnen-name {
+    font-size: 0.88rem;
+  }
+
+  .wall-urnen-section .urnen-undo-btn {
+    font-size: 0.68rem;
+  }
+
+  .wall-retour-btn {
+    padding: 0.28rem 0.45rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .wall-cool-grid {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    grid-template-columns: repeat(var(--kr-cols, 3), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--kr-rows, 3), minmax(0, 1fr));
+    gap: 0.3rem;
+  }
+
+  .wall-cool-tile {
+    min-height: 0;
+    padding: 0.3rem 0.35rem;
+    border-radius: 8px;
+    justify-content: center;
+  }
+
+  .wall-tile-nr {
+    font-size: 0.55rem;
+    letter-spacing: 0.06em;
+  }
+
+  .wall-tile-name {
+    font-size: clamp(0.6rem, 2.8vw, 0.8rem);
+    margin-top: 0.15rem;
+    line-height: 1.15;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .wall-tile-pos {
+    font-size: 0.55rem;
+    margin-top: 0.1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wall-cool-termin-marker.cool-termin-markers {
+    margin-top: 0.15rem;
+    gap: 0.12rem;
+  }
+
+  .wall-cool-termin-marker .cool-termin-marker {
+    font-size: 0.5rem;
+    padding: 0.12rem 0.25rem;
+    line-height: 1.2;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+
+  .wall-cool-tile-footer {
+    padding-top: 0.15rem;
+    gap: 0.15rem;
+  }
+
+  .wall-cool-tile-footer .wall-freigabe-btn {
+    font-size: 0.5rem;
+    padding: 0.15rem 0.3rem;
+    max-width: 3.5rem;
+  }
+
+  .wall-tile-freigabe-hint {
+    font-size: 0.5rem;
+  }
+
+  .wall-tile-free {
+    font-size: 0.75rem;
+  }
+
+  /* Extern: eine Spalte, Scroll nur im Inhalt */
+  .wall-extern-grid {
+    flex: 1;
+    min-height: 0;
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    align-content: start;
+  }
+
+  .wall-extern-card {
+    min-height: auto;
+    flex-shrink: 0;
+  }
+
+  .wall-extern-card-head {
+    padding: 0.5rem 0.65rem 0.4rem;
+  }
+
+  .wall-extern-ort {
+    font-size: 0.85rem;
+  }
+
+  .wall-extern-count {
+    font-size: 1.2rem;
+  }
+
+  .wall-extern-list {
+    --wall-extern-row: 4rem;
+    max-height: none;
+    overflow-y: visible;
+    padding: 0.25rem 0;
+  }
+
+  /* Ab 4. Eintrag: Scroll, Höhe für genau 3 sichtbare Zeilen */
+  .wall-extern-list:has(.wall-extern-person:nth-child(4)) {
+    max-height: calc(var(--wall-extern-row) * 3);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .wall-extern-person {
+    box-sizing: border-box;
+    min-height: var(--wall-extern-row);
+    padding: 0.28rem 0.55rem;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .wall-extern-person-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .wall-extern-meta {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wall-extern-actions {
+    width: auto;
+    flex-shrink: 0;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 0.2rem;
+  }
+
+  .wall-extern-list .wall-freigabe-btn,
+  .wall-extern-list .wall-retour-btn {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    min-height: 34px;
+    padding: 0.28rem 0.45rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .wall-extern-list .wall-freigabe-edit {
+    flex-wrap: nowrap;
+    gap: 0.2rem;
+  }
+
+  .wall-extern-list .wall-freigabe-date {
+    width: 6.5rem;
+    min-width: 0;
+    flex: 0 1 auto;
+    font-size: 14px;
+    padding: 0.2rem 0.25rem;
+    min-height: 32px;
+  }
+
+  .wall-freigabe-edit {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .wall-freigabe-date {
+    font-size: 16px;
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .wall-extern-name {
+    display: block;
+    font-size: 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wall-extern-meta {
+    font-size: 0.68rem;
+  }
+
+  /* Listen: kompakte Zeilen, Scroll im Stage */
+  .wall-big-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.35rem;
+    max-height: none;
+  }
+
+  .wall-big-list.scroll {
+    max-height: none;
+  }
+
+  .wall-big-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+    padding: 0.5rem 0.65rem;
+  }
+
+  .wall-big-row time {
+    font-size: 0.72rem;
+    order: -1;
+    opacity: 0.85;
+  }
+
+  .wall-big-name {
+    font-size: 0.88rem;
+    margin: 0;
+  }
+
+  .wall-big-row .route-flow {
+    font-size: 0.72rem;
+    width: 100%;
+  }
+
+  .wall-empty {
+    font-size: 1rem;
+    padding: 1.5rem 0.5rem;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .wall-footer {
+    margin-top: 0;
+    padding: 0.35rem 0.65rem 0.5rem;
+    flex-shrink: 0;
+    gap: 0.35rem;
+    border-top-width: 1px;
+  }
+
+  .wall-footer-actions {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .wall-pause-btn {
+    min-height: 36px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.8rem;
+  }
+
+  .wall-rotate-hint {
+    display: none;
+  }
+
+  .wall-progress-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .wall-tab-countdown--desktop {
+    display: none;
+  }
+
+  .wall-rotate-hint--mobile {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-align: center;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar {
+    padding: 0.5rem 0.65rem;
+  }
+
+  .topbar-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .theme-switch-btn {
+    font-size: 0.62rem;
+    padding: 0.35rem 0.4rem;
+  }
+
+  .main-content {
+    padding: 0.5rem max(0.5rem, env(safe-area-inset-right, 0px)) 1.5rem
+      max(0.5rem, env(safe-area-inset-left, 0px));
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+
+  .board--narrow .kpi-grid {
+    display: flex;
+    grid-template-columns: unset;
+  }
+
+  .stat-value {
+    font-size: 1.4rem;
+  }
+
+  .wall-topbar {
+    padding: 0.4rem 0.5rem;
+  }
+
+  .wall-view-tabs {
+    padding: 0.3rem 0.5rem 0;
+    gap: 0.25rem;
+  }
+
+  .wall-view-tab {
+    font-size: 0.62rem;
+    min-height: 36px;
+  }
+
+  .wall-stage {
+    padding: 0 0.5rem;
+  }
+
+  .wall-cool-grid {
+    gap: 0.25rem;
+  }
+
+  .auth-theme-bar {
+    top: max(0.5rem, env(safe-area-inset-top));
+    right: 0.5rem;
+  }
+}
+
+/* Alamida: weichere mobile Flächen */
+@media (max-width: 768px) {
+  [data-theme='alamida'] .wall-topbar {
+    border-radius: 0;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  [data-theme='alamida'] .wall-view-tabs {
+    background: rgba(255, 255, 255, 0.28);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.35rem;
+    border-radius: 0;
+  }
+
+  [data-theme='alamida'] .wall-footer {
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(8px);
+  }
+
+  [data-theme='alamida'] .wall-cool-tile,
+  [data-theme='alamida'] .wall-extern-card,
+  [data-theme='alamida'] .wall-big-row {
+    box-shadow: 0 2px 10px rgba(42, 72, 78, 0.06);
+  }
+
+  [data-theme='alamida'] .install-pwa-inner {
+    background: rgba(255, 255, 255, 0.96);
+  }
+
+  [data-theme='alamida'] .topbar {
+    padding: 0.5rem 0.65rem;
+  }
+
+  [data-theme='alamida'] .panel {
+    margin-bottom: 0.65rem;
+  }
+
+  [data-theme='alamida'] .transfer-card,
+  [data-theme='alamida'] .case-card {
+    margin-bottom: 0;
+  }
+}
+
+/* Landscape-Handy: Kühlraum bleibt 3 Spalten, etwas flacher */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  .wall {
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+  }
+
+  .wall-topbar {
+    padding: 0.25rem 0.5rem;
+  }
+
+  .wall-brand-sub,
+  .wall-stage-sub,
+  .wall-rotate-hint {
+    display: none;
+  }
+
+  .wall-time {
+    font-size: 1rem;
+  }
+
+  .wall-view-tab {
+    min-height: 32px;
+    font-size: 0.62rem;
+  }
+
+  .wall-cool-tile {
+    padding: 0.2rem 0.3rem;
+  }
+
+  .wall-cal--narrow .wall-cal-toolbar {
+    gap: 0.2rem;
+  }
+
+  .wall-cal--narrow .wall-cal-toolbar-right {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .wall-cal--narrow .wall-cal-search {
+    flex: 1 1 55%;
+    min-width: 8rem;
+  }
+
+  .wall-cal--narrow .wall-cal-range {
+    flex: 1 1 40%;
+    min-width: 9rem;
+  }
+
+  .wall-cal-card--mobile {
+    padding: 0.3rem 0.4rem;
+  }
+
+  .wall-cal-period-cell {
+    min-height: 1.75rem;
+  }
+}

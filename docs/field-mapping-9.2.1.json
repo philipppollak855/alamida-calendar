@@ -1,0 +1,577 @@
+{
+  "version": "9.2.1",
+  "windowTitlePatterns": ["Alamida"],
+  "detailmaske": {
+    "ueberfuehrung": {
+      "windowTitleContains": ["Alamida"],
+      "maxEtappen": 6,
+      "fields": {
+        "sterbefallHeader": {
+          "automationIdContains": ["Layout Object:"],
+          "nameContains": ["|"],
+          "controlTypes": ["Text"]
+        },
+        "sterbeort": {
+          "automationIdContains": [
+            "SD_Sterbeort_komplett",
+            "SD_Sterbeort",
+            "Sterbeort_",
+            "Sterbeort",
+            "Todesort",
+            "Verstorben_Ort",
+            "Verstorben_ Sterbeort"
+          ],
+          "automationIdExcludes": ["Standesamt"],
+          "controlTypes": ["Edit", "ComboBox", "Text"]
+        },
+        "bestattungsart": {
+          "automationIdContains": ["Bestattungsart", "Bestattung_Art", "Art_der_Bestattung"],
+          "controlTypes": ["ComboBox", "Edit", "Text"]
+        },
+        "beisetzungsort": {
+          "automationIdContains": ["Termin_Bestattung_Ort", "Termin_Beisetzung_Ort", "Beisetzungsort"],
+          "automationIdExcludes": ["Zusatz", "_Zusatz"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "beisetzungsortZusatz": {
+          "automationIdContains": [
+            "Termin_Bestattung_Ort_Zusatz",
+            "Termin_Bestattung_Zusatz",
+            "Termin_Beisetzung_Ort_Zusatz",
+            "Termin_Beisetzung_Zusatz"
+          ],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "trauerfeierort": {
+          "automationIdContains": [
+            "Termin_Gottesdienst_Ort",
+            "Termin_Trauerfeier1_Ort",
+            "Termin_Trauerfeier_Ort"
+          ],
+          "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2", "Zusatz", "_Zusatz"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "trauerfeierortZusatz": {
+          "automationIdContains": [
+            "Termin_Gottesdienst_Ort_Zusatz",
+            "Termin_Gottesdienst_Zusatz",
+            "Termin_Trauerfeier1_Ort_Zusatz",
+            "Termin_Trauerfeier1_Zusatz",
+            "Termin_Trauerfeier_Ort_Zusatz",
+            "Termin_Trauerfeier_Zusatz"
+          ],
+          "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "trauerfeier2ort": {
+          "automationIdContains": [
+            "Termin_Trauerfeier2_Ort",
+            "Trauerfeier2_Ort",
+            "Trauerfeier_2_Ort"
+          ],
+          "automationIdExcludes": ["Zusatz", "_Zusatz"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "trauerfeier2ortZusatz": {
+          "automationIdContains": [
+            "Termin_Trauerfeier2_Ort_Zusatz",
+            "Termin_Trauerfeier2_Zusatz",
+            "Trauerfeier2_Ort_Zusatz",
+            "Trauerfeier_2_Zusatz"
+          ],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "beisetzungsdatum": {
+          "automationIdContains": [
+            "Field: sfl 2::Termin_Beisetzung_Datum",
+            "Field: sfl 2::Termin_Bestattung_Datum",
+            "Termin_Beisetzung_Datum",
+            "Termin_Beisetzung1_Datum",
+            "Termin_Bestattung_Datum",
+            "Beisetzungsdatum",
+            "Bestattung_Datum"
+          ],
+          "controlTypes": ["Calendar", "Edit"]
+        },
+        "beisetzungszeit": {
+          "automationIdContains": [
+            "Termin_Bestattung_Zeit",
+            "Beisetzung_Uhrzeit",
+            "Bestattung_Uhrzeit",
+            "Termin_Beisetzung_Zeit"
+          ],
+          "controlTypes": ["Edit", "Text"]
+        },
+        "trauerfeierdatum": {
+          "automationIdContains": [
+            "Field: sfl 2::Termin_Gottesdienst_Datum",
+            "Termin_Gottesdienst_Datum",
+            "Field: sfl 2::Termin_Trauerfeier1_Datum",
+            "Field: sfl 2::Termin_Trauerfeier_Datum",
+            "Termin_Trauerfeier1_Datum",
+            "Termin_Trauerfeier_Datum",
+            "Trauerfeier1_Datum",
+            "Trauerfeier_Datum",
+            "Trauerfeier_Termin"
+          ],
+          "automationIdExcludes": [
+            "Trauerfeier2",
+            "Trauerfeier_2",
+            "Trauerfeier 2",
+            "Wochentag",
+            "Trauergespräch",
+            "Verabschiedung",
+            "Rosenkranz"
+          ],
+          "controlTypes": ["Calendar", "Edit"]
+        },
+        "trauerfeierzeit": {
+          "automationIdContains": [
+            "Field: sfl 2::Termin_Gottesdienst_Zeit",
+            "Termin_Gottesdienst_Zeit",
+            "Field: sfl 2::Termin_Trauerfeier1_Zeit",
+            "Termin_Trauerfeier1_Zeit",
+            "Termin_Trauerfeier_Zeit",
+            "Trauerfeier_Uhrzeit",
+            "Trauerfeier_Zeit"
+          ],
+          "automationIdExcludes": [
+            "Trauerfeier2",
+            "Trauerfeier_2",
+            "Trauerfeier 2",
+            "Trauergespräch",
+            "Verabschiedung"
+          ],
+          "controlTypes": ["Edit", "Text", "ComboBox"]
+        },
+        "trauerfeier2datum": {
+          "automationIdContains": [
+            "Termin_Trauerfeier2_Datum",
+            "Trauerfeier2_Datum",
+            "Trauerfeier_2_Datum"
+          ],
+          "controlTypes": ["Calendar", "Edit"]
+        },
+        "trauerfeier2zeit": {
+          "automationIdContains": [
+            "Termin_Trauerfeier2_Zeit",
+            "Trauerfeier2_Zeit",
+            "Trauerfeier_2_Zeit"
+          ],
+          "controlTypes": ["Edit", "Text"]
+        },
+        "rosenkranzdatum": {
+          "automationIdContains": [
+            "Termin_Rosenkranz_Datum",
+            "Rosenkranz_Datum",
+            "Rosenkranz_Termin"
+          ],
+          "controlTypes": ["Calendar", "Edit"]
+        },
+        "rosenkranzzeit": {
+          "automationIdContains": [
+            "Termin_Rosenkranz_Zeit",
+            "Rosenkranz_Zeit",
+            "Rosenkranz_Uhrzeit"
+          ],
+          "controlTypes": ["Edit", "Text"]
+        },
+        "rosenkranzort": {
+          "automationIdContains": ["Termin_Rosenkranz_Ort", "Rosenkranz_Ort"],
+          "automationIdExcludes": ["Zusatz", "_Zusatz"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "rosenkranzortZusatz": {
+          "automationIdContains": [
+            "Termin_Rosenkranz_Ort_Zusatz",
+            "Termin_Rosenkranz_Zusatz",
+            "Rosenkranz_Ort_Zusatz",
+            "Rosenkranz_Zusatz"
+          ],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "aufnahmedatum": {
+          "automationIdContains": [
+            "Field: sfl 2::Termin_Trauergespräch_Datum",
+            "Field: sfl 2::Termin_Trauergespraech_Datum",
+            "Termin_Trauergespräch_Datum",
+            "Termin_Trauergespraech_Datum",
+            "Trauergespräch_Datum",
+            "Trauergespraech_Datum"
+          ],
+          "controlTypes": ["Calendar", "Edit"]
+        },
+        "aufnahmezeit": {
+          "automationIdContains": [
+            "Field: sfl 2::Termin_Trauergespräch_Zeit",
+            "Field: sfl 2::Termin_Trauergespraech_Zeit",
+            "Termin_Trauergespräch_Zeit",
+            "Termin_Trauergespraech_Zeit",
+            "Trauergespräch_Zeit",
+            "Trauergespraech_Zeit"
+          ],
+          "controlTypes": ["Edit", "Text", "ComboBox"]
+        },
+        "aufnahmeort": {
+          "automationIdContains": [
+            "Termin_Trauergespräch_Ort",
+            "Termin_Trauergespraech_Ort",
+            "Trauergespräch_Ort",
+            "Trauergespraech_Ort"
+          ],
+          "automationIdExcludes": ["Zusatz", "_Zusatz"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "aufnahmeortZusatz": {
+          "automationIdContains": [
+            "Termin_Trauergespräch_Ort_Zusatz",
+            "Termin_Trauergespräch_Zusatz",
+            "Termin_Trauergespraech_Ort_Zusatz",
+            "Termin_Trauergespraech_Zusatz"
+          ],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "imAnschluss": {
+          "automationIdContains": [
+            "Field: sfl 2::Termin_Bestattung_Anschließend",
+            "Field: sfl 2::Termin_Bestattung_Anschliessend",
+            "Termin_Bestattung_Anschließend",
+            "Termin_Bestattung_Anschliessend",
+            "Field: sfl 2::Termin_Beisetzung_Im_Anschluss",
+            "Termin_Beisetzung_Im_Anschluss",
+            "Im_Anschluss",
+            "Bestattung_Im_Anschluss",
+            "Trauerfeier_Im_Anschluss"
+          ],
+          "controlTypes": ["CheckBox", "Group"]
+        },
+        "krematoriumOrt": {
+          "automationIdContains": ["Krematorium", "Krematorium_Ort", "Feuerbestattung_Ort"],
+          "nameContains": ["Innermanzing", "Feba", "Krematorium"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "feuerbestattungOrt": {
+          "automationIdContains": ["Feuerbestattung", "Einäscherung"],
+          "controlTypes": ["ComboBox", "Edit"]
+        },
+        "kuehlraum": {
+          "automationIdContains": ["Kuehlraum", "Kühlraum", "Kuehlplatz_Ort"],
+          "nameContains": ["Kühlr", "Kuehlr"],
+          "controlTypes": ["ComboBox", "Edit", "Text"]
+        },
+        "kuehlplatz": {
+          "automationIdContains": ["Kuehlplatz", "Kühlplatz", "Kuehlraum_Nr", "Kuehlraum_Nummer"],
+          "controlTypes": ["Edit", "ComboBox"]
+        },
+        "abholungAm": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung1_Datum"],
+          "controlTypes": ["Calendar"]
+        },
+        "abholung2Am": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung2_Datum"],
+          "controlTypes": ["Calendar"]
+        },
+        "abholung3Am": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung3_Datum"],
+          "controlTypes": ["Calendar"]
+        },
+        "abholung4Am": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung4_Datum"],
+          "controlTypes": ["Calendar"]
+        },
+        "abholung5Am": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung5_Datum"],
+          "controlTypes": ["Calendar"]
+        },
+        "abholung6Am": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung6_Datum"],
+          "controlTypes": ["Calendar"]
+        },
+        "ueberfuehrungText": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung1_Text"],
+          "controlTypes": ["Edit"]
+        },
+        "ueberfuehrung2Text": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung2_Text"],
+          "controlTypes": ["Edit"]
+        },
+        "ueberfuehrung3Text": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung3_Text"],
+          "controlTypes": ["Edit"]
+        },
+        "ueberfuehrung4Text": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung4_Text"],
+          "controlTypes": ["Edit"]
+        },
+        "ueberfuehrung5Text": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung5_Text"],
+          "controlTypes": ["Edit"]
+        },
+        "ueberfuehrung6Text": {
+          "automationIdContains": ["Field: sfl 2::Termin_Überführung6_Text"],
+          "controlTypes": ["Edit"]
+        }
+      }
+    }
+  },
+  "neuerSterbefall": {
+    "detectNameContains": ["Neuer Sterbefall", "Neuen Sterbefall", "Sterbefall anlegen"],
+    "detectAutomationIdContains": ["Neuer_Sterbefall", "Sterbefall_Neu", "Neu_Sterbefall"],
+    "fields": {
+      "sterbefallHeader": {
+        "automationIdContains": ["Layout Object:", "Sterbefall_Nr"],
+        "nameContains": ["|"],
+        "controlTypes": ["Text"]
+      },
+      "sterbefallId": {
+        "automationIdContains": ["Sterbefall_Nr", "Sterbefall_ID", "Fallnummer", "Fall_Nr"],
+        "controlTypes": ["Edit", "Text"]
+      },
+      "verstorbenerVorname": {
+        "automationIdContains": ["Verstorben_Vorname", "Vorname"],
+        "controlTypes": ["Edit", "ComboBox"]
+      },
+      "verstorbenerNachname": {
+        "automationIdContains": ["Verstorben_Nachname", "Verstorben_Zuname", "Nachname", "Zuname"],
+        "controlTypes": ["Edit", "ComboBox"]
+      },
+      "verstorbenerName": {
+        "automationIdContains": ["Verstorben_Name", "Name_Verstorbener"],
+        "nameContains": ["Verstorbener"],
+        "controlTypes": ["Edit", "Text"]
+      },
+      "sterbeort": {
+        "automationIdContains": [
+          "SD_Sterbeort_komplett",
+          "SD_Sterbeort",
+          "Sterbeort_",
+          "Sterbeort",
+          "Todesort",
+          "Verstorben_Ort"
+        ],
+        "automationIdExcludes": ["Standesamt"],
+        "controlTypes": ["Edit", "ComboBox", "Text"]
+      },
+      "sterbedatum": {
+        "automationIdContains": ["Sterbedatum", "Todesdatum", "Verstorben_Sterbedatum"],
+        "controlTypes": ["Calendar", "Edit"]
+      },
+      "bestattungsart": {
+        "automationIdContains": ["Bestattungsart", "Bestattung_Art", "Art_der_Bestattung"],
+        "controlTypes": ["ComboBox", "Edit", "Text"]
+      },
+      "beisetzungsort": {
+        "automationIdContains": ["Termin_Bestattung_Ort", "Termin_Beisetzung_Ort", "Beisetzungsort"],
+        "automationIdExcludes": ["Zusatz", "_Zusatz"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "beisetzungsortZusatz": {
+        "automationIdContains": [
+          "Termin_Bestattung_Ort_Zusatz",
+          "Termin_Bestattung_Zusatz",
+          "Termin_Beisetzung_Ort_Zusatz",
+          "Termin_Beisetzung_Zusatz"
+        ],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "trauerfeierort": {
+        "automationIdContains": [
+          "Termin_Gottesdienst_Ort",
+          "Termin_Trauerfeier1_Ort",
+          "Termin_Trauerfeier_Ort"
+        ],
+        "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2", "Zusatz", "_Zusatz"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "trauerfeierortZusatz": {
+        "automationIdContains": [
+          "Termin_Gottesdienst_Ort_Zusatz",
+          "Termin_Gottesdienst_Zusatz",
+          "Termin_Trauerfeier1_Ort_Zusatz",
+          "Termin_Trauerfeier1_Zusatz",
+          "Termin_Trauerfeier_Ort_Zusatz",
+          "Termin_Trauerfeier_Zusatz"
+        ],
+        "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "trauerfeier2ort": {
+        "automationIdContains": [
+          "Termin_Trauerfeier2_Ort",
+          "Trauerfeier2_Ort",
+          "Trauerfeier_2_Ort"
+        ],
+        "automationIdExcludes": ["Zusatz", "_Zusatz"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "trauerfeier2ortZusatz": {
+        "automationIdContains": [
+          "Termin_Trauerfeier2_Ort_Zusatz",
+          "Termin_Trauerfeier2_Zusatz",
+          "Trauerfeier2_Ort_Zusatz",
+          "Trauerfeier_2_Zusatz"
+        ],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "beisetzungsdatum": {
+        "automationIdContains": [
+          "Field: sfl 2::Termin_Beisetzung_Datum",
+          "Field: sfl 2::Termin_Bestattung_Datum",
+          "Termin_Beisetzung_Datum",
+          "Termin_Beisetzung1_Datum",
+          "Termin_Bestattung_Datum",
+          "Beisetzungsdatum",
+          "Bestattung_Datum"
+        ],
+        "controlTypes": ["Calendar", "Edit"]
+      },
+      "beisetzungszeit": {
+        "automationIdContains": [
+          "Termin_Bestattung_Zeit",
+          "Beisetzung_Uhrzeit",
+          "Bestattung_Uhrzeit",
+          "Termin_Beisetzung_Zeit"
+        ],
+        "controlTypes": ["Edit", "Text"]
+      },
+      "trauerfeierdatum": {
+        "automationIdContains": [
+          "Field: sfl 2::Termin_Gottesdienst_Datum",
+          "Termin_Gottesdienst_Datum",
+          "Field: sfl 2::Termin_Trauerfeier1_Datum",
+          "Field: sfl 2::Termin_Trauerfeier_Datum",
+          "Termin_Trauerfeier1_Datum",
+          "Termin_Trauerfeier_Datum",
+          "Trauerfeier1_Datum",
+          "Trauerfeier_Datum"
+        ],
+        "automationIdExcludes": [
+          "Trauerfeier2",
+          "Trauerfeier_2",
+          "Trauerfeier 2",
+          "Wochentag",
+          "Trauergespräch",
+          "Verabschiedung"
+        ],
+        "controlTypes": ["Calendar", "Edit"]
+      },
+      "trauerfeierzeit": {
+        "automationIdContains": [
+          "Field: sfl 2::Termin_Gottesdienst_Zeit",
+          "Termin_Gottesdienst_Zeit",
+          "Field: sfl 2::Termin_Trauerfeier1_Zeit",
+          "Termin_Trauerfeier1_Zeit",
+          "Termin_Trauerfeier_Zeit",
+          "Trauerfeier_Uhrzeit"
+        ],
+        "automationIdExcludes": ["Trauerfeier2", "Trauerfeier_2", "Trauerfeier 2"],
+        "controlTypes": ["Edit", "Text", "ComboBox"]
+      },
+      "trauerfeier2datum": {
+        "automationIdContains": ["Termin_Trauerfeier2_Datum", "Trauerfeier2_Datum", "Trauerfeier_2_Datum"],
+        "controlTypes": ["Calendar", "Edit"]
+      },
+      "trauerfeier2zeit": {
+        "automationIdContains": ["Termin_Trauerfeier2_Zeit", "Trauerfeier2_Zeit", "Trauerfeier_2_Zeit"],
+        "controlTypes": ["Edit", "Text"]
+      },
+      "rosenkranzdatum": {
+        "automationIdContains": ["Termin_Rosenkranz_Datum", "Rosenkranz_Datum"],
+        "controlTypes": ["Calendar", "Edit"]
+      },
+      "rosenkranzzeit": {
+        "automationIdContains": ["Termin_Rosenkranz_Zeit", "Rosenkranz_Zeit"],
+        "controlTypes": ["Edit", "Text"]
+      },
+      "rosenkranzort": {
+        "automationIdContains": ["Termin_Rosenkranz_Ort", "Rosenkranz_Ort"],
+        "automationIdExcludes": ["Zusatz", "_Zusatz"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "rosenkranzortZusatz": {
+        "automationIdContains": [
+          "Termin_Rosenkranz_Ort_Zusatz",
+          "Termin_Rosenkranz_Zusatz",
+          "Rosenkranz_Ort_Zusatz",
+          "Rosenkranz_Zusatz"
+        ],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "aufnahmedatum": {
+        "automationIdContains": [
+          "Field: sfl 2::Termin_Trauergespräch_Datum",
+          "Field: sfl 2::Termin_Trauergespraech_Datum",
+          "Termin_Trauergespräch_Datum",
+          "Termin_Trauergespraech_Datum",
+          "Trauergespräch_Datum",
+          "Trauergespraech_Datum"
+        ],
+        "controlTypes": ["Calendar", "Edit"]
+      },
+      "aufnahmezeit": {
+        "automationIdContains": [
+          "Field: sfl 2::Termin_Trauergespräch_Zeit",
+          "Field: sfl 2::Termin_Trauergespraech_Zeit",
+          "Termin_Trauergespräch_Zeit",
+          "Termin_Trauergespraech_Zeit",
+          "Trauergespräch_Zeit",
+          "Trauergespraech_Zeit"
+        ],
+        "controlTypes": ["Edit", "Text", "ComboBox"]
+      },
+      "aufnahmeort": {
+        "automationIdContains": [
+          "Termin_Trauergespräch_Ort",
+          "Termin_Trauergespraech_Ort",
+          "Trauergespräch_Ort",
+          "Trauergespraech_Ort"
+        ],
+        "automationIdExcludes": ["Zusatz", "_Zusatz"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "aufnahmeortZusatz": {
+        "automationIdContains": [
+          "Termin_Trauergespräch_Ort_Zusatz",
+          "Termin_Trauergespräch_Zusatz",
+          "Termin_Trauergespraech_Ort_Zusatz",
+          "Termin_Trauergespraech_Zusatz"
+        ],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "imAnschluss": {
+        "automationIdContains": [
+          "Field: sfl 2::Termin_Bestattung_Anschließend",
+          "Field: sfl 2::Termin_Bestattung_Anschliessend",
+          "Termin_Bestattung_Anschließend",
+          "Termin_Bestattung_Anschliessend",
+          "Field: sfl 2::Termin_Beisetzung_Im_Anschluss",
+          "Termin_Beisetzung_Im_Anschluss",
+          "Im_Anschluss",
+          "Bestattung_Im_Anschluss"
+        ],
+        "controlTypes": ["CheckBox", "Group"]
+      },
+      "krematoriumOrt": {
+        "automationIdContains": ["Krematorium", "Krematorium_Ort", "Feuerbestattung_Ort"],
+        "controlTypes": ["ComboBox", "Edit"]
+      },
+      "kuehlraum": {
+        "automationIdContains": ["Kuehlraum", "Kühlraum", "Kuehlplatz_Ort"],
+        "nameContains": ["Kühlr", "Kuehlr"],
+        "controlTypes": ["ComboBox", "Edit", "Text"]
+      },
+      "kuehlplatz": {
+        "automationIdContains": ["Kuehlplatz", "Kühlplatz", "Kuehlraum_Nr"],
+        "controlTypes": ["Edit", "ComboBox"]
+      },
+      "ueberfuehrungText": {
+        "automationIdContains": ["Field: sfl 2::Termin_Überführung1_Text", "Überführung1_Text"],
+        "controlTypes": ["Edit"]
+      },
+      "abholungAm": {
+        "automationIdContains": ["Field: sfl 2::Termin_Überführung1_Datum"],
+        "controlTypes": ["Calendar"]
+      }
+    }
+  }
+}

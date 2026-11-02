@@ -1,0 +1,63 @@
+name: Agent Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'agent/**'
+      - 'docs/field-mapping-9.2.1.json'
+      - 'scripts/build-agent-release.ps1'
+      - 'scripts/apply-agent-release.ps1'
+      - 'scripts/install-wizard.ps1'
+      - 'scripts/START-HIER.bat'
+      - 'scripts/agent-install-common.ps1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build portable ZIP
+        shell: pwsh
+        run: |
+          $version = "0.8.$env:GITHUB_RUN_NUMBER"
+          ./scripts/build-agent-release.ps1 -Version $version
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: agent-v0.8.${{ github.run_number }}
+          name: Agent v0.8.${{ github.run_number }}
+          body: |
+            ## Installation (empfohlen)
+            1. **AlamidaMonitoring-Installer.zip** entpacken
+            2. **START-HIER.bat** starten (nicht nur entpacken — keine EXE im ZIP!)
+            3. Agent-ZIP liegt im Paket; serviceAccount.json nebenlegen
+
+            ## Enthalten
+            - Agent (self-contained, Auto-Update)
+            - Installations-Wizard
+            - Wandmonitor-Desktop-Verknüpfung mit Update-Check
+
+            Einzel-Assets: Agent-ZIP und Installer-Skripte separat.
+          files: |
+            dist/agent-release/AlamidaMonitoring-Installer.zip
+            dist/agent-release/AlamidaMonitoringAgent-win-x64.zip
+            dist/agent-release/installer/START-HIER.bat
+            dist/agent-release/installer/START-HIER.txt
+            dist/agent-release/installer/install-wizard.bat
+            dist/agent-release/installer/AlamidaMonitoringAgent-win-x64.zip
+            dist/agent-release/installer/install-wizard.ps1
+            dist/agent-release/installer/agent-install-common.ps1
+            dist/agent-release/installer/launch-wall-monitor.ps1
+            dist/agent-release/installer/apply-agent-release.ps1
+          make_latest: true

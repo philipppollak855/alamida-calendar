@@ -1,0 +1,43 @@
+Firebase-Zugang für den Alamida Monitoring Agent
+==============================================
+
+Pro PC (oder einmalig auf USB mit dem Installer):
+
+1. Firebase Console öffnen:
+   https://console.firebase.google.com/project/alamida---monitoring/settings/serviceaccounts/adminsdk
+
+2. „Neuen privaten Schlüssel generieren“ → JSON speichern
+
+3. Optional umbenennen in: serviceAccount.json
+   (im Wizard kann der Original-Dateiname bleiben)
+
+4. Entweder:
+   - JSON neben install-wizard.bat ablegen, ODER
+   - im Wizard Schritt 4: "Firebase JSON-Datei waehlen"
+
+Die Datei wird nach kopiert:
+   %AppData%\AlamidaMonitoring\serviceAccount.json
+
+Ohne diese Datei laeuft der Agent zwar, synchronisiert aber NICHT
+(meldet "Firestore nicht verbunden" im Tray).
+
+Tray-Status (mehrere PCs):
+- "Aktualisiert" / "Neu erfasst" = volle Daten fuer Wand/Disposition
+- "Nur Lebenszeichen" = Firebase erreichbar, aber Alamida-Detail/Termine
+  nicht offen — Wand zeigt ggf. alte Daten oder nichts Neues
+- "Live unveraendert" = Fall unveraendert, Verbindung OK
+- "Sync fehlgeschlagen — …" = Dienstkonto verbunden, Schreiben scheitert
+  (NICHT dasselbe wie "Firestore nicht verbunden")
+
+Fehlerdiagnose:
+1. Tray: Status anzeigen → steht "Firestore: verbunden"?
+2. Log lesen: %AppData%\AlamidaMonitoring\firestore-last-error.txt
+3. Schreibtest: AlamidaMonitoring.Agent.exe --seed (aus Installordner)
+4. Firebase Console → IAM: Dienstkonto braucht Rolle
+   "Cloud Datastore User" oder "Firebase Admin SDK Administrator Service Agent"
+5. serviceAccount.json muss type "service_account" sein (kein OAuth/Web-Config-JSON)
+
+Wand leer trotz Sync? In Firebase Console sterbefaelle pruefen:
+inHistory, aktivInDisposition, historieGrund (manuell_entfernt).
+
+Release-Build: scripts\build-agent-release.ps1

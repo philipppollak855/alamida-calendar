@@ -1,0 +1,630 @@
+/* Alamida — weiches, atmosphärisches Teal-Design */
+
+[data-theme='alamida'] {
+  --bg: #b8d4d8;
+  --bg-elevated: #c8e2e6;
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-solid: rgba(255, 255, 255, 0.88);
+  --surface-hover: rgba(255, 255, 255, 0.95);
+  --border: rgba(120, 158, 162, 0.35);
+  --border-strong: rgba(90, 130, 135, 0.45);
+  --text: #2a3d42;
+  --muted: #5a7378;
+  --accent: #3d7a8c;
+  --accent-dim: rgba(61, 122, 140, 0.12);
+  --success: #3d8a62;
+  --success-dim: rgba(61, 138, 98, 0.14);
+  --warn: #9a7b3a;
+  --warn-dim: rgba(154, 123, 58, 0.14);
+  --violet: #6a7a9a;
+  --violet-dim: rgba(106, 122, 154, 0.12);
+  --danger: #b85a68;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow: 0 8px 32px rgba(42, 72, 78, 0.08);
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+[data-theme='alamida'] body {
+  background: linear-gradient(
+    165deg,
+    #c5e4e8 0%,
+    #b0d4d8 35%,
+    #a8ccd2 70%,
+    #9ec4ca 100%
+  );
+  background-attachment: fixed;
+}
+
+[data-theme='alamida'] body::before {
+  display: block;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 10%, rgba(255, 255, 255, 0.45), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 85% 90%, rgba(255, 255, 255, 0.2), transparent 50%);
+  opacity: 1;
+}
+
+/* ─── Header ─── */
+[data-theme='alamida'] .topbar,
+[data-theme='alamida'] .wall-topbar {
+  background: rgba(255, 255, 255, 0.55);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 24px rgba(42, 72, 78, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text);
+}
+
+[data-theme='alamida'] .topbar {
+  padding: 0.8rem 1.5rem;
+}
+
+[data-theme='alamida'] .wall-topbar {
+  padding: 1.1rem 1.5rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  margin-bottom: 1.35rem;
+}
+
+[data-theme='alamida'] .brand-title,
+[data-theme='alamida'] .wall-brand-title,
+[data-theme='alamida'] .wall-time {
+  color: #2a4048;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+[data-theme='alamida'] .wall-time {
+  font-weight: 500;
+}
+
+[data-theme='alamida'] .brand-sub,
+[data-theme='alamida'] .wall-brand-sub,
+[data-theme='alamida'] .wall-date {
+  color: var(--muted);
+  opacity: 1;
+  font-weight: 500;
+}
+
+[data-theme='alamida'] .brand-mark {
+  background: linear-gradient(145deg, #9ec8ce 0%, #7eb0b8 100%);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(61, 122, 140, 0.2);
+}
+
+[data-theme='alamida'] .nav-pill,
+[data-theme='alamida'] .wall-link {
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+}
+
+[data-theme='alamida'] .nav-pill:hover,
+[data-theme='alamida'] .wall-link:hover {
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--text);
+  text-decoration: none;
+}
+
+[data-theme='alamida'] .nav-pill.active {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--accent);
+  border-color: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 12px rgba(42, 72, 78, 0.08);
+}
+
+[data-theme='alamida'] .user-menu-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+[data-theme='alamida'] .user-menu .btn-ghost {
+  background: rgba(255, 255, 255, 0.55);
+  border-color: var(--border);
+  border-radius: 999px;
+}
+
+[data-theme='alamida'] .user-menu .btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme='alamida'] .main-content,
+[data-theme='alamida'] .wall {
+  background: transparent;
+}
+
+[data-theme='alamida'] .wall-bg {
+  display: none;
+}
+
+/* ─── Panels & Karten ─── */
+[data-theme='alamida'] .panel {
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  border-radius: var(--radius);
+  backdrop-filter: blur(8px);
+}
+
+[data-theme='alamida'] .panel-head h2,
+[data-theme='alamida'] .panel-head h3,
+[data-theme='alamida'] .board-hero h1,
+[data-theme='alamida'] .wall-stage-title {
+  font-weight: 600;
+  color: #2a4048;
+  letter-spacing: -0.02em;
+}
+
+[data-theme='alamida'] .panel-head p,
+[data-theme='alamida'] .board-hero-text p,
+[data-theme='alamida'] .settings-hint,
+[data-theme='alamida'] .wall-stage-sub {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+[data-theme='alamida'] input[type='text'],
+[data-theme='alamida'] input[type='number'],
+[data-theme='alamida'] input[type='email'],
+[data-theme='alamida'] textarea,
+[data-theme='alamida'] .settings-textarea,
+[data-theme='alamida'] .settings-test-input,
+[data-theme='alamida'] .settings-kr-card input {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 4px rgba(42, 72, 78, 0.04);
+  font-family: var(--font);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-theme='alamida'] input:focus,
+[data-theme='alamida'] textarea:focus {
+  border-color: rgba(61, 122, 140, 0.45);
+  box-shadow: 0 0 0 3px rgba(61, 122, 140, 0.12);
+  outline: none;
+}
+
+[data-theme='alamida'] .stat-card,
+[data-theme='alamida'] .transfer-card,
+[data-theme='alamida'] .case-card,
+[data-theme='alamida'] .cool-cell,
+[data-theme='alamida'] .wall-cool-tile,
+[data-theme='alamida'] .wall-extern-card,
+[data-theme='alamida'] .wall-big-row,
+[data-theme='alamida'] .auth-card {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 20px rgba(42, 72, 78, 0.06);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  transition: box-shadow 0.25s ease, transform 0.2s ease;
+}
+
+[data-theme='alamida'] .transfer-card:hover,
+[data-theme='alamida'] .case-card-trigger:hover {
+  box-shadow: 0 8px 28px rgba(42, 72, 78, 0.1);
+}
+
+[data-theme='alamida'] .stat-value {
+  color: #2a4048;
+  font-weight: 600;
+}
+
+[data-theme='alamida'] .stat-label,
+[data-theme='alamida'] .stat-hint,
+[data-theme='alamida'] .transfer-id,
+[data-theme='alamida'] .case-id {
+  color: var(--muted);
+}
+
+[data-theme='alamida'] .btn-primary {
+  background: linear-gradient(180deg, #5a9aaa 0%, #4a8a9a 100%);
+  color: #fff;
+  border: 1px solid rgba(61, 122, 140, 0.3);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(61, 122, 140, 0.25);
+  font-weight: 500;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-theme='alamida'] .btn-primary:hover {
+  background: linear-gradient(180deg, #6aacbc 0%, #5a9aaa 100%);
+  box-shadow: 0 6px 20px rgba(61, 122, 140, 0.3);
+  transform: translateY(-1px);
+}
+
+[data-theme='alamida'] .btn-ghost,
+[data-theme='alamida'] .btn-google,
+[data-theme='alamida'] .wall-pause-btn {
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-theme='alamida'] .btn-ghost:hover,
+[data-theme='alamida'] .wall-pause-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 12px rgba(42, 72, 78, 0.08);
+}
+
+[data-theme='alamida'] .filter-tab,
+[data-theme='alamida'] .wall-view-tab {
+  background: rgba(255, 255, 255, 0.35);
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-weight: 500;
+  transition: all 0.25s ease;
+}
+
+[data-theme='alamida'] .filter-tab:hover,
+[data-theme='alamida'] .wall-view-tab:hover {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--text);
+}
+
+[data-theme='alamida'] .filter-tab.active,
+[data-theme='alamida'] .wall-view-tab.active {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(255, 255, 255, 0.8);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 2px 12px rgba(42, 72, 78, 0.08);
+}
+
+[data-theme='alamida'] .chip {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+[data-theme='alamida'] .settings-toggle {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius);
+}
+
+[data-theme='alamida'] .settings-test.panel-inset {
+  background: rgba(255, 255, 255, 0.45);
+  border-color: var(--border);
+  border-radius: var(--radius-sm);
+}
+
+[data-theme='alamida'] .settings-kr-card {
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-sm);
+}
+
+[data-theme='alamida'] .auth-screen {
+  background: transparent;
+}
+
+[data-theme='alamida'] .auth-card {
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 48px rgba(42, 72, 78, 0.12);
+}
+
+[data-theme='alamida'] .live-data-bar,
+[data-theme='alamida'] .live-indicator {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+}
+
+[data-theme='alamida'] .alert-warn {
+  background: rgba(255, 248, 230, 0.9);
+  border-color: rgba(154, 123, 58, 0.35);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+}
+
+[data-theme='alamida'] .alert-danger {
+  background: rgba(255, 240, 242, 0.92);
+  border-color: rgba(184, 90, 104, 0.35);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+}
+
+[data-theme='alamida'] code {
+  background: rgba(61, 122, 140, 0.1);
+  color: var(--accent);
+  border-radius: 6px;
+}
+
+[data-theme='alamida'] a {
+  color: var(--accent);
+  transition: color 0.2s ease;
+}
+
+[data-theme='alamida'] a:hover {
+  color: #2d6575;
+}
+
+/* ─── Kühlraum ─── */
+[data-theme='alamida'] .cool-cell.free,
+[data-theme='alamida'] .wall-cool-tile.off {
+  background: rgba(255, 255, 255, 0.4);
+  border-style: dashed;
+  border-color: rgba(120, 158, 162, 0.4);
+}
+
+[data-theme='alamida'] .cool-cell.occupied,
+[data-theme='alamida'] .wall-cool-tile.on.is-nicht-frei {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #ef4444;
+  border-width: 3px;
+  box-shadow: none;
+}
+
+[data-theme='alamida'] .wall-cool-tile.on.is-frei-erfasst {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #22c55e;
+  border-width: 3px;
+  box-shadow: none;
+}
+
+[data-theme='alamida'] .wall-big-row.is-erledigt {
+  background: rgba(52, 211, 153, 0.28);
+  border-color: rgba(34, 197, 94, 0.55);
+  border-left: 5px solid #16a34a;
+}
+
+[data-theme='alamida'] .transfer-card.status-heute {
+  border-color: rgba(61, 122, 140, 0.35);
+  box-shadow: 0 4px 20px rgba(61, 122, 140, 0.12);
+}
+
+/* ─── Extern-Karten ─── */
+[data-theme='alamida'] .wall-extern-card {
+  border-radius: var(--radius);
+}
+
+[data-theme='alamida'] .wall-extern-card--krankenhaus {
+  border-left: 4px solid rgba(90, 140, 160, 0.5);
+}
+
+[data-theme='alamida'] .wall-extern-card--kremation {
+  border-left: 4px solid rgba(154, 130, 100, 0.45);
+}
+
+[data-theme='alamida'] .wall-extern-card--pflegeheim {
+  border-left: 4px solid rgba(61, 122, 140, 0.45);
+}
+
+[data-theme='alamida'] .wall-extern-card--bestattung {
+  border-left: 4px solid rgba(120, 130, 135, 0.45);
+}
+
+[data-theme='alamida'] .wall-extern-card--kuehlraum {
+  border-left: 4px solid rgba(72, 160, 120, 0.5);
+}
+
+[data-theme='alamida'] .wall-extern-card--extern {
+  border-left: 4px solid rgba(120, 158, 162, 0.35);
+}
+
+[data-theme='alamida'] .wall-extern-badge {
+  border-radius: 999px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+[data-theme='alamida'] .wall-extern-badge--krankenhaus {
+  background: rgba(90, 140, 160, 0.18);
+  color: #3d6570;
+}
+
+[data-theme='alamida'] .wall-extern-badge--kremation {
+  background: rgba(154, 130, 100, 0.18);
+  color: #6a5a40;
+}
+
+[data-theme='alamida'] .wall-extern-badge--pflegeheim {
+  background: rgba(61, 122, 140, 0.15);
+  color: #3d7a8c;
+}
+
+[data-theme='alamida'] .wall-extern-badge--bestattung {
+  background: rgba(100, 110, 115, 0.15);
+  color: #4a5558;
+}
+
+[data-theme='alamida'] .wall-extern-badge--kuehlraum {
+  background: rgba(72, 160, 120, 0.16);
+  color: #2d6b4a;
+}
+
+[data-theme='alamida'] .wall-extern-badge--extern {
+  background: rgba(120, 158, 162, 0.12);
+  color: #4a6068;
+}
+
+[data-theme='alamida'] .wall-extern-ort {
+  color: #2a4048;
+  font-weight: 600;
+}
+
+[data-theme='alamida'] .wall-extern-person {
+  border-bottom-color: rgba(120, 158, 162, 0.2);
+}
+
+/* ─── Theme-Schalter ─── */
+[data-theme='alamida'] .theme-switch {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+[data-theme='alamida'] .theme-switch-btn {
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.25s ease;
+}
+
+[data-theme='alamida'] .theme-switch-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--text);
+}
+
+[data-theme='alamida'] .theme-switch-btn.active {
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--accent);
+  box-shadow: 0 2px 8px rgba(42, 72, 78, 0.06);
+}
+
+[data-theme='alamida'] .wall-view-tabs {
+  background: rgba(255, 255, 255, 0.35);
+  padding: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+[data-theme='alamida'] .wall-view-tab {
+  border-radius: 999px;
+}
+
+[data-theme='alamida'] .wall-empty {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+[data-theme='alamida'] .panel-badge {
+  background: rgba(61, 122, 140, 0.12);
+  color: var(--accent);
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+[data-theme='alamida'] .install-pwa-inner {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--border);
+  box-shadow: 0 8px 32px rgba(42, 72, 78, 0.12);
+}
+
+[data-theme='alamida'] .transfer-date {
+  color: #1a3340;
+}
+
+[data-theme='alamida'] .wall-freigabe-btn.is-offen {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border-color: #dc2626;
+}
+
+[data-theme='alamida'] .wall-freigabe-btn.is-offen:hover:not(:disabled) {
+  background: #fecaca;
+  color: #450a0a;
+}
+
+[data-theme='alamida'] .wall-freigabe-btn.is-frei-geplant {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border-color: #dc2626;
+}
+
+[data-theme='alamida'] .wall-freigabe-btn.is-frei {
+  color: #fff;
+  background: #16a34a;
+  border-color: #15803d;
+}
+
+[data-theme='alamida'] .wall-freigabe-btn.is-frei:hover:not(:disabled) {
+  background: #15803d;
+  color: #fff;
+}
+
+[data-theme='alamida'] .wall-freigabe-date {
+  color: var(--text);
+  background: #fff;
+  border-color: var(--border-strong);
+}
+
+[data-theme='alamida'] .wall-freigabe-ok {
+  color: #fff;
+  background: #16a34a;
+  border-color: #15803d;
+}
+
+[data-theme='alamida'] .wall-freigabe-cancel {
+  color: var(--text);
+  background: #fff;
+}
+
+[data-theme='alamida'] .wall-retour-btn {
+  color: #78350f;
+  background: #fde68a;
+  border-color: #d97706;
+}
+
+[data-theme='alamida'] .wall-retour-btn:hover:not(:disabled) {
+  background: #fcd34d;
+  color: #451a03;
+}
+
+[data-theme='alamida'] .urnen-undo-btn {
+  color: #2a4048;
+  background: #fff;
+  border-color: var(--border-strong);
+}
+
+[data-theme='alamida'] .board-section-nav {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--border);
+}
+
+[data-theme='alamida'] .board-section-tab.active {
+  background: rgba(61, 122, 140, 0.12);
+  border-color: rgba(61, 122, 140, 0.35);
+  color: var(--accent);
+}
+
+[data-theme='alamida'] .wall-cal-period-cell {
+  background: rgba(255, 255, 255, 0.95);
+  color: #2a4048;
+}
+
+[data-theme='alamida'] .wall-cal-period-cell.is-today {
+  background: #bfdbfe;
+  border-color: #1d4ed8;
+  color: #1e3a8a;
+}
+
+[data-theme='alamida'] .wall-cal-period-cell.is-today .wall-cal-period-wd,
+[data-theme='alamida'] .wall-cal-period-cell.is-today .wall-cal-period-num,
+[data-theme='alamida'] .wall-cal-period-cell.is-today .wall-cal-period-badge {
+  color: #1e40af;
+}
+
+[data-theme='alamida'] .wall-cal-period-cell.is-selected {
+  background: rgba(90, 154, 170, 0.22);
+  border-color: #4a8a9a;
+  color: #1e3a4a;
+}
+
+@media (max-width: 768px) {
+  [data-theme='alamida'] .wall-topbar {
+    border-radius: 0;
+    margin-bottom: 0;
+  }
+
+  [data-theme='alamida'] .main-content {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+}

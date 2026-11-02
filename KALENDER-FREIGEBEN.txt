@@ -1,0 +1,25 @@
+=== KALENDER FREIGEBEN ===
+
+Der Kalender muss für das Service Account freigegeben werden.
+
+Service Account Email: ai-studio-applet-webapp-b5ea8@appspot.gserviceaccount.com
+
+Schritte:
+1. Oeffne Google Calendar: https://calendar.google.com
+2. Klicke auf das Zahnrad-Symbol (Einstellungen)
+3. Waehle "Mit Personen teilen"
+4. Fuegen Sie folgende Email hinzu: ai-studio-applet-webapp-b5ea8@appspot.gserviceaccount.com
+5. Berechtigung: "Verwalten" (Make changes to events)
+6. Klicken Sie auf "Senden"
+
+Nach der Freigabe:
+- Der Agent kann Termine automatisch synchronisieren
+- Termine erscheinen im Google Calendar
+- Termine werden mit Kategorien und Standorten versehen
+
+Installer bereit: dist/installer/AlamidaCalendarAgent-Setup.zip
+
+Zum Installieren:
+1. ZIP entpacken
+2. INSTALL.bat als Administrator ausfuehren
+3. Agent starten

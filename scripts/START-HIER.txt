@@ -1,0 +1,23 @@
+═══════════════════════════════════════════════════════
+  ALAMIDA MONITORING — BITTE HIER STARTEN
+═══════════════════════════════════════════════════════
+
+WICHTIG: In diesem Ordner ist KEINE AlamidaMonitoringAgent.exe!
+
+Die EXE wird erst vom Installations-Wizard nach
+  C:\AlamidaMonitoring\
+installiert.
+
+► Doppelklick auf:  START-HIER.bat   oder   install-wizard.bat
+
+Im Wizard:
+  1. Installationsordner bestätigen (C:\AlamidaMonitoring)
+  2. Agent-ZIP wählen (liegt hier als AlamidaMonitoringAgent-win-x64.zip)
+  3. serviceAccount.json wählen (Firebase, siehe FIREBASE-SETUP.txt)
+  4. Fertig — Autostart + Desktop-Verknüpfungen
+
+Nach der Installation:
+  C:\AlamidaMonitoring\AlamidaMonitoringAgent.exe
+  Desktop: „Alamida Wandmonitor“ und „Alamida Monitoring Agent“
+
+Nur entpacken reicht NICHT — Wizard muss einmal durchlaufen!

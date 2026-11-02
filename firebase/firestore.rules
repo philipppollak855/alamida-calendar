@@ -1,0 +1,154 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isActivatedUser() {
+      return isSignedIn()
+        && userDoc().data.activated == true;
+    }
+
+    // Öffentlicher Wandmonitor-Link ohne Login.
+    function isPublicWallRead() {
+      return true;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.activated == false
+        && request.resource.data.email is string;
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.activated == resource.data.activated;
+      allow delete: if false;
+    }
+
+    function sterbefallUrnenUpdateOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['urnenBereich', 'urnenSeit', 'retourVon']);
+    }
+
+    function sterbefallFreigabeUpdateOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['freigabeFrei', 'freigabeDatum', 'freigabeAm']);
+    }
+
+    function sterbefallFreigabeSet() {
+      return request.resource.data.freigabeFrei == true
+        && request.resource.data.freigabeDatum is string
+        && request.resource.data.freigabeDatum.size() > 0;
+    }
+
+    function sterbefallFreigabeClear() {
+      return resource.data.freigabeFrei == true
+        && request.resource.data.freigabeFrei == false;
+    }
+
+    function sterbefallUrnenSet() {
+      return request.resource.data.urnenBereich == true;
+    }
+
+    function sterbefallUrnenClear() {
+      return resource.data.urnenBereich == true
+        && request.resource.data.urnenBereich == false;
+    }
+
+    function sterbefallDispositionCloseOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly([
+          'inHistory',
+          'aktivInDisposition',
+          'historieGrund',
+          'abschlussGrund',
+          'abschlussBemerkung',
+          'abgeschlossenAm',
+          'archiviertAm',
+          'updatedAt',
+          'sterbefallId',
+        ]);
+    }
+
+    function sterbefallDispositionCloseGrundValid(grund) {
+      return grund in [
+        'manuell_entfernt',
+        'uebergabe_anderer_bestatter',
+        'beisetzung_durch_dritte',
+        'kremation_extern',
+        'storniert',
+        'sonstiges',
+      ];
+    }
+
+    function sterbefallDispositionCloseValid() {
+      return request.resource.data.inHistory == true
+        && request.resource.data.aktivInDisposition == false
+        && sterbefallDispositionCloseGrundValid(request.resource.data.historieGrund)
+        && (
+          request.resource.data.historieGrund == 'manuell_entfernt'
+          || (
+            request.resource.data.abschlussGrund == request.resource.data.historieGrund
+            && request.resource.data.abgeschlossenAm != null
+          )
+        );
+    }
+
+    function sterbefallErledigtUpdateOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['erledigteUeberfuehrungenZeilen']);
+    }
+
+    function sterbefallKuehlplatzDispositionUpdateOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly([
+          'kuehlplatzDisposition',
+          'kuehlraumIdDisposition',
+          'updatedAt',
+        ]);
+    }
+
+    function sterbefallKuehlplatzDispositionValid() {
+      return request.resource.data.kuehlraumIdDisposition is string
+        && request.resource.data.kuehlraumIdDisposition.size() > 0
+        && request.resource.data.kuehlplatzDisposition is string
+        && request.resource.data.kuehlplatzDisposition.size() > 0;
+    }
+
+    match /sterbefaelle/{id} {
+      allow read: if isActivatedUser() || isPublicWallRead();
+      allow update: if isActivatedUser()
+        && (
+          (sterbefallUrnenUpdateOnly() && (sterbefallUrnenSet() || sterbefallUrnenClear()))
+          || (sterbefallFreigabeUpdateOnly() && (sterbefallFreigabeSet() || sterbefallFreigabeClear()))
+          || (sterbefallDispositionCloseOnly() && sterbefallDispositionCloseValid())
+          || sterbefallErledigtUpdateOnly()
+          || (sterbefallKuehlplatzDispositionUpdateOnly() && sterbefallKuehlplatzDispositionValid())
+        );
+      allow create, delete: if false;
+    }
+    match /ueberfuehrungen/{id} {
+      allow read: if isActivatedUser();
+      allow write: if false;
+    }
+    match /events/{id} {
+      allow read: if isActivatedUser();
+      allow write: if false;
+    }
+    match /sterbefaelle_history/{id} {
+      allow read: if isActivatedUser();
+      allow write: if false;
+    }
+
+    match /settings/{docId} {
+      allow read: if isActivatedUser() || isPublicWallRead();
+      allow write: if isActivatedUser();
+    }
+  }
+}
