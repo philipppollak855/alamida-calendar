@@ -37,6 +37,16 @@ public sealed class AlamidaMaskWatcher
             return null;
         }
 
+        // Vorsorge zuerst: ihr Kopf „26426 | Name (2025)“ sieht aus wie ein Sterbefall-Kopf.
+        var vorsorge = _profile.Vorsorge;
+        if (vorsorge.Aktiv && elements.Any(el => vorsorge.DetectAutomationIdContains.Any(m =>
+                el.AutomationId.Contains(m, StringComparison.OrdinalIgnoreCase))))
+        {
+            _letzteMaske = MaskKind.VorsorgeTermine;
+            LetzteErfassungMs = sw.ElapsedMilliseconds;
+            return VorsorgeSnapshot(window, elements, vorsorge, out debugLog);
+        }
+
         var maske = MaskDetector.Detect(elements);
         if (maske == MaskKind.Unbekannt && MaskDetector.WindowHasOpenSterbefallHeader(elements))
             maske = MaskKind.DetailUeberfuehrung;
@@ -108,6 +118,56 @@ public sealed class AlamidaMaskWatcher
         }
 
         return null;
+    }
+
+    private string? _letzterVorsorgeKopf;
+
+    private DetailSnapshot? VorsorgeSnapshot(
+        FlaUI.Core.AutomationElements.AutomationElement window, UiaElementInfo[] elements, VorsorgeMaskConfig cfg, out string? debugLog)
+    {
+        var kopfText = UiaFieldExtractor.ExtractFields(elements, new Dictionary<string, FieldLocator> { ["kopf"] = cfg.Kopf })
+            .GetValueOrDefault("kopf");
+        var kopf = VorsorgeKopf.Parse(kopfText);
+        var quelle = "uia";
+        if (kopf == null)
+        {
+            quelle = "ocr";
+            try { kopfText = KopfzeilenOcr.LeseKopfleiste(window); }
+            catch (Exception ex) { kopfText = "OCR-Fehler: " + ex.Message; }
+            kopf = VorsorgeKopf.Parse(kopfText);
+        }
+
+        var termine = new List<VorsorgeTermin>();
+        var debug = new List<string> { $"Maske={MaskKind.VorsorgeTermine}", $"kopf({quelle})={kopfText ?? "(leer)"}" };
+        for (var n = 1; n <= Math.Max(1, cfg.MaxTermine); n++)
+        {
+            var f = UiaFieldExtractor.ExtractFields(elements, cfg.FelderFuer(n));
+            debug.AddRange(f.Select(kv => $"{n}.{kv.Key}={kv.Value ?? "(leer)"}"));
+            termine.Add(new VorsorgeTermin
+            {
+                Nummer = n,
+                Datum = f.GetValueOrDefault("datum"),
+                Zeit = f.GetValueOrDefault("zeit"),
+                Ort = f.GetValueOrDefault("ort"),
+                Notiz = f.GetValueOrDefault("notiz"),
+            });
+        }
+        debugLog = string.Join(Environment.NewLine, debug);
+
+        // Texterkennung: erst übernehmen, wenn zwei Abfragen hintereinander dieselbe Nummer liefern.
+        var schluessel = kopf == null ? null : $"{kopf.Value.Nummer}|{kopf.Value.Name}";
+        var bestaetigt = schluessel != null && (quelle == "uia" || schluessel == _letzterVorsorgeKopf);
+        _letzterVorsorgeKopf = schluessel;
+        if (!bestaetigt) return null;
+
+        return new DetailSnapshot
+        {
+            SterbefallId = "V" + kopf!.Value.Nummer,
+            VerstorbenerName = kopf.Value.Name,
+            QuelleMaske = "vorsorge_termine",
+            ErfassungsPhase = "detail",
+            VorsorgeTermine = termine,
+        };
     }
 
     private static void NormalizeTerminFelder(Dictionary<string, string?> fields)

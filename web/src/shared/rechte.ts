@@ -10,6 +10,7 @@ export const KATEGORIE_SCHLUESSEL = [
   'Abholung',
   'Ueberfuehrung',
   'Kremation',
+  'Vorsorge',
   'Sonstiges',
 ] as const;
 

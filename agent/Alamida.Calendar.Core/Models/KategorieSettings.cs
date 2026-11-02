@@ -26,5 +26,6 @@ public sealed class KategorieSettings
         [EventCategory.Abholung] = new() { Name = "Abholung", Symbol = "🚐", ColorId = "11" },
         [EventCategory.Ueberfuehrung] = new() { Name = "Überführung", Symbol = "🚗", ColorId = "9", DauerMinuten = 120 },
         [EventCategory.Kremation] = new() { Name = "Kremation", Symbol = "🔥", ColorId = "6" },
+        [EventCategory.Vorsorge] = new() { Name = "Vorsorge", Symbol = "📝", ColorId = "2" },
     };
 }

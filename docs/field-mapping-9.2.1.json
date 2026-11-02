@@ -573,5 +573,33 @@
         "controlTypes": ["Calendar"]
       }
     }
+  },
+  "vorsorge": {
+    "detectAutomationIdContains": ["Termin_Vorsorge1_Datum"],
+    "maxTermine": 4,
+    "kopf": {
+      "automationIdContains": ["Layout Object:"],
+      "nameContains": ["|"],
+      "controlTypes": ["Text"]
+    },
+    "terminFelder": {
+      "datum": {
+        "automationIdContains": ["Termin_Vorsorge{n}_Datum"],
+        "automationIdExcludes": ["Wochentag"],
+        "controlTypes": ["Calendar", "Edit", "Text"]
+      },
+      "zeit": {
+        "automationIdContains": ["Termin_Vorsorge{n}_Zeit"],
+        "controlTypes": ["ComboBox", "Edit", "Text"]
+      },
+      "ort": {
+        "automationIdContains": ["Termin_Vorsorge{n}_Ort"],
+        "controlTypes": ["ComboBox", "Edit", "Text"]
+      },
+      "notiz": {
+        "automationIdContains": ["Termin_Vorsorge{n}_Bemerkung"],
+        "controlTypes": ["Edit", "Text"]
+      }
+    }
   }
 }

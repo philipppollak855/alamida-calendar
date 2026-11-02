@@ -6,6 +6,7 @@ export type Kategorie =
   | 'Abholung'
   | 'Ueberfuehrung'
   | 'Kremation'
+  | 'Vorsorge'
   | 'Sonstiges';
 
 export type Gruppe = 'Zeremonien' | 'Fahrten' | 'Gespräche' | 'Sonstiges';
@@ -18,6 +19,7 @@ export const KATEGORIEN: Record<Kategorie, { label: string; symbol: string; farb
   Abholung: { label: 'Abholung', symbol: '🚐', farbe: '#d50000', gruppe: 'Fahrten' },
   Ueberfuehrung: { label: 'Überführung', symbol: '🚗', farbe: '#3f51b5', gruppe: 'Fahrten' },
   Kremation: { label: 'Kremation', symbol: '🔥', farbe: '#f4511e', gruppe: 'Fahrten' },
+  Vorsorge: { label: 'Vorsorge', symbol: '📝', farbe: '#33b679', gruppe: 'Gespräche' },
   Sonstiges: { label: 'Sonstiges', symbol: '📌', farbe: '#78909c', gruppe: 'Sonstiges' },
 };
 
@@ -62,6 +64,7 @@ const STICHWORTE: [RegExp, Kategorie][] = [
   [/abholung/i, 'Abholung'],
   [/kremation|krematorium|feuerbestattung/i, 'Kremation'],
   [/überführung|ueberfuehrung/i, 'Ueberfuehrung'],
+  [/vorsorge/i, 'Vorsorge'],
 ];
 
 export function kategorieAus(ev: GoogleEvent): Kategorie {

@@ -5,4 +5,5 @@ public enum MaskKind
     Unbekannt,
     NeuerSterbefall,
     DetailUeberfuehrung,
+    VorsorgeTermine,
 }

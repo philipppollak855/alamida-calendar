@@ -9,6 +9,7 @@ public sealed class FieldMappingProfile
     public List<string> WindowTitlePatterns { get; set; } = [];
     public DetailmaskeConfig Detailmaske { get; set; } = new();
     public NeuerSterbefallMaskConfig NeuerSterbefall { get; set; } = new();
+    public VorsorgeMaskConfig Vorsorge { get; set; } = new();
 
     public static FieldMappingProfile Load(string path)
     {
@@ -38,6 +39,26 @@ public sealed class NeuerSterbefallMaskConfig
     public List<string> DetectNameContains { get; set; } = [];
     public List<string> DetectAutomationIdContains { get; set; } = [];
     public Dictionary<string, FieldLocator> Fields { get; set; } = new();
+}
+
+/// <summary>Maske „Vorsorgen → Termine“: Felder mit „{n}“ im Muster werden für Termin 1..MaxTermine ersetzt.</summary>
+public sealed class VorsorgeMaskConfig
+{
+    public List<string> DetectAutomationIdContains { get; set; } = [];
+    public int MaxTermine { get; set; } = 4;
+    public FieldLocator Kopf { get; set; } = new();
+    public Dictionary<string, FieldLocator> TerminFelder { get; set; } = new();
+
+    public bool Aktiv => DetectAutomationIdContains.Count > 0 && TerminFelder.Count > 0;
+
+    public Dictionary<string, FieldLocator> FelderFuer(int n) =>
+        TerminFelder.ToDictionary(kv => kv.Key, kv => new FieldLocator
+        {
+            AutomationIdContains = kv.Value.AutomationIdContains.Select(x => x.Replace("{n}", n.ToString())).ToList(),
+            AutomationIdExcludes = kv.Value.AutomationIdExcludes.Select(x => x.Replace("{n}", n.ToString())).ToList(),
+            NameContains = kv.Value.NameContains.Select(x => x.Replace("{n}", n.ToString())).ToList(),
+            ControlTypes = kv.Value.ControlTypes,
+        });
 }
 
 public sealed class FieldLocator

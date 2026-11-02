@@ -54,6 +54,13 @@ internal static class Program
         try
         {
             profile = FieldMappingProfile.Load(config.FieldMappingPath);
+            if (!profile.Vorsorge.Aktiv)
+            {
+                // Ältere Mapping-Kopie in %AppData% ohne Vorsorge-Abschnitt: mitgelieferte Datei nutzen.
+                var mitgeliefert = Path.Combine(AppContext.BaseDirectory, "field-mapping-9.2.1.json");
+                try { if (File.Exists(mitgeliefert)) profile.Vorsorge = FieldMappingProfile.Load(mitgeliefert).Vorsorge; }
+                catch (Exception ex) { LogAgentStartup($"Vorsorge-Mapping nicht geladen: {ex.Message}"); }
+            }
         }
         catch (Exception ex)
         {
@@ -83,7 +90,7 @@ internal static class Program
                 Path.Combine(Path.GetDirectoryName(config.FieldMappingPath)!, "inspector-dump.txt"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlamidaCalendar", "inspector-dump.txt"),
             };
-            var outPath = outCandidates.First();
+            var outPath = outCandidates.FirstOrDefault(p => Directory.Exists(Path.GetDirectoryName(p))) ?? outCandidates[^1];
             Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
             var utf8NoBom = new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
             File.WriteAllText(outPath, dump, utf8NoBom);
