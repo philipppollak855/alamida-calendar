@@ -237,11 +237,12 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
   const { liste, eintraege, tage } = useMemo(() => {
     const liste = dienste(plusTage(startOfMonth(datum), -14), plusTage(endOfMonth(datum), 14));
     const eintraege: KalEintrag[] = [];
+    const jetzt = zeitText(new Date());
     const tage = new Map<string, Dienst>();
     for (const d of liste) {
       for (let t = ausText(d.von); t < ausText(d.bis); t = plusTage(t, 1)) tage.set(datumText(t), d);
       const belegt = einsaetzeIn(daten.eintraege, d);
-      if (!belegt.length) eintraege.push({ id: `offen-${d.id}`, titel: '＋ offen', start: ausText(d.von), ende: ausText(d.bis), ganz: true, dienst: d, farbe: 'var(--warn)', offen: true });
+      if (!belegt.length && d.bis > jetzt) eintraege.push({ id: `offen-${d.id}`, titel: '+ offen', start: ausText(d.von), ende: ausText(d.bis), ganz: true, dienst: d, farbe: 'var(--warn)', offen: true });
       for (const e of belegt)
         eintraege.push({
           id: `${d.id}-${e.id}`,
@@ -309,9 +310,9 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
         style={{ height: 'calc(100vh - 260px)', minHeight: 560 }}
       />
       <div className="bs-legende klein">
-        <span><i className="bs-punkt dienst" /> Wochenende / Feiertag</span>
-        <span><i className="bs-punkt feiertag" /> Feiertag</span>
-        <span><i className="bs-punkt offen" /> noch offen</span>
+        <span><i className="bs-punkt bs-p-dienst" /> Wochenende / Feiertag</span>
+        <span><i className="bs-punkt bs-p-feiertag" /> Feiertag</span>
+        <span><i className="bs-punkt bs-p-offen" /> noch offen</span>
         <span>★ ich · Klick auf einen Tag oder Eintrag zum {daten.darfPlanen ? 'Einteilen' : 'Eintragen'}</span>
       </div>
     </section>

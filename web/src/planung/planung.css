@@ -416,16 +416,16 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .bereitschaft .bereitschaft-kopf .klein { margin: 0; }
 .bs-liste { margin: 0 auto; width: 100%; }
 .bs-modus-planung .kalender-ansicht, .bs-uebersicht { width: 100%; }
-.planung .rbc-day-bg.bs-dienst-tag { background: color-mix(in srgb, var(--akzent) 7%, transparent); }
+.planung .rbc-day-bg.bs-dienst-tag { background: color-mix(in srgb, var(--akzent) 10%, transparent); }
 .planung .rbc-day-bg.bs-feiertag { background: color-mix(in srgb, var(--rot) 9%, transparent); }
 .planung .rbc-event.bs-offen { background: transparent; border: 1px dashed color-mix(in srgb, var(--warn) 70%, transparent); color: var(--warn); }
 .bs-kalender .rbc-day-bg { cursor: pointer; }
 .bs-legende { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; margin-top: 0.7rem; color: var(--text-2); }
 .bs-legende span { display: inline-flex; align-items: center; gap: 0.35rem; }
 .bs-punkt { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 50%; vertical-align: middle; }
-.bs-punkt.dienst { background: color-mix(in srgb, var(--akzent) 45%, transparent); }
-.bs-punkt.feiertag { background: color-mix(in srgb, var(--rot) 55%, transparent); }
-.bs-punkt.offen { border: 1px dashed var(--warn); }
+.bs-punkt.bs-p-dienst { background: color-mix(in srgb, var(--akzent) 45%, transparent); }
+.bs-punkt.bs-p-feiertag { background: color-mix(in srgb, var(--rot) 55%, transparent); }
+.bs-punkt.bs-p-offen { border: 1px dashed var(--warn); }
 .bs-modal { position: relative; width: min(560px, 100%); padding: 0.4rem; }
 .bs-modal .dienst { box-shadow: none; border: none; background: transparent; }
 .bs-schliessen { position: absolute; top: 0.6rem; right: 0.7rem; z-index: 1; border: none; background: transparent; color: var(--text-2); font-size: 1rem; }
