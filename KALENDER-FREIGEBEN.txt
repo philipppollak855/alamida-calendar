@@ -17,9 +17,5 @@ Nach der Freigabe:
 - Termine erscheinen im Google Calendar
 - Termine werden mit Kategorien und Standorten versehen
 
-Installer bereit: dist/installer/AlamidaCalendarAgent-Setup.zip
-
 Zum Installieren:
-1. ZIP entpacken
-2. INSTALL.bat als Administrator ausfuehren
-3. Agent starten
+INSTALLIEREN.bat doppelklicken (keine Adminrechte noetig).
