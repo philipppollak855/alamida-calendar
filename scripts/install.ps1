@@ -37,7 +37,7 @@ $UninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Alami
 $RunKey       = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 
 Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName Microsoft.VisualBasic
+Add-Type -AssemblyName System.Drawing
 
 function Write-Step([string] $Text) { Write-Host ""; Write-Host "=== $Text ===" -ForegroundColor Cyan }
 function Write-Ok([string] $Text) { Write-Host "  OK  $Text" -ForegroundColor Green }
@@ -47,6 +47,48 @@ function Write-Warn([string] $Text) { Write-Host "  !!  $Text" -ForegroundColor 
 function Show-Message([string] $Text, [string] $Icon = 'Information') {
     if ($Silent) { return }
     [void][System.Windows.Forms.MessageBox]::Show($Text, $AppName, 'OK', $Icon)
+}
+
+# Eigenes Eingabefenster statt InputBox: bleibt im Vordergrund, auch wenn kurz vorher der Browser geoeffnet wurde
+function Show-InputDialog([string] $Prompt) {
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = $AppName
+    $form.FormBorderStyle = 'FixedDialog'
+    $form.StartPosition = 'CenterScreen'
+    $form.MaximizeBox = $false
+    $form.MinimizeBox = $false
+    $form.TopMost = $true
+    $form.AutoSize = $true
+    $form.AutoSizeMode = 'GrowAndShrink'
+    $form.Padding = New-Object System.Windows.Forms.Padding 12
+    $label = New-Object System.Windows.Forms.Label
+    $label.Text = $Prompt
+    $label.AutoSize = $true
+    $label.MaximumSize = New-Object System.Drawing.Size 520, 0
+    $label.Location = New-Object System.Drawing.Point 12, 12
+    $form.Controls.Add($label)
+    $y = $label.PreferredSize.Height + 24
+    $box = New-Object System.Windows.Forms.TextBox
+    $box.Location = New-Object System.Drawing.Point 12, $y
+    $box.Width = 520
+    $form.Controls.Add($box)
+    $ok = New-Object System.Windows.Forms.Button
+    $ok.Text = 'OK'
+    $ok.DialogResult = 'OK'
+    $ok.Location = New-Object System.Drawing.Point 352, ($y + 36)
+    $form.Controls.Add($ok)
+    $cancel = New-Object System.Windows.Forms.Button
+    $cancel.Text = 'Abbrechen'
+    $cancel.DialogResult = 'Cancel'
+    $cancel.Location = New-Object System.Drawing.Point 444, ($y + 36)
+    $form.Controls.Add($cancel)
+    $form.AcceptButton = $ok
+    $form.CancelButton = $cancel
+    $form.Add_Shown({ $form.Activate(); $box.Focus() })
+    try {
+        if ($form.ShowDialog() -eq 'OK') { return $box.Text }
+        return ''
+    } finally { $form.Dispose() }
 }
 
 function Set-JsonProperty($Object, [string] $Name, $Value) {
@@ -222,7 +264,7 @@ function Resolve-CalendarId([string] $Current, [string] $ServiceAccountEmail) {
         "2. Diese Adresse hinzufuegen (bereits in der Zwischenablage, mit Strg+V einfuegen):`n   $ServiceAccountEmail`n" +
         "   Berechtigung: 'Aenderungen an Terminen vornehmen'.`n" +
         "3. Unter 'Kalender integrieren' die Kalender-ID kopieren und hier einfuegen`n   (z.B. ihr.name@gmail.com):"
-    $id = [Microsoft.VisualBasic.Interaction]::InputBox($prompt, $AppName, '')
+    $id = Show-InputDialog $prompt
     if ([string]::IsNullOrWhiteSpace($id)) { return 'primary' }
     return $id.Trim()
 }
