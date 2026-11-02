@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import './planung.css';
 import { hubAnmelden, ichLaden, type Ich } from './api';
-import BereitschaftAnsicht from './BereitschaftAnsicht';
+import BereitschaftAnsicht, { NACH_ANMELDUNG } from './BereitschaftAnsicht';
 
 /** Eigenständige Bereitschaftsansicht (/bereitschaft), z. B. als eigene App im Bestattung Stranz HUB. */
 export default function BereitschaftPage() {
@@ -28,7 +28,9 @@ export default function BereitschaftPage() {
           <div className="glas admin-block">
             <h2>Bereitschaft</h2>
             <p className="klein">Bitte anmelden.</p>
-            <a className="knopf primaer" href="/api/auth/login">Mit Google anmelden</a>
+            <a className="knopf primaer" href="/api/auth/login" onClick={() => localStorage.setItem(NACH_ANMELDUNG, '/bereitschaft')}>
+              Mit Google anmelden
+            </a>
           </div>
         ) : (
           <BereitschaftAnsicht aktiv={!!ich.rechte?.freigeschaltet} />

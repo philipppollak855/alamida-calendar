@@ -48,6 +48,8 @@ describe('Einteilung', () => {
     expect(einsatzFehler(liste, { email: 'd@x.at', von: '2026-11-08T08:00', bis: '2026-11-09T08:00' })).toMatch(/nur an Wochenenden/);
     expect(einsatzFehler(liste, { email: 'a@x.at', von: '2026-11-08T08:00', bis: '2026-11-08T09:00' })).toMatch(/bereits/);
     expect(einsatzFehler([], { email: 'd@x.at', von: '2026-10-26T00:00', bis: '2026-10-27T00:00' })).toBeNull();
+    expect(einsatzFehler([], { email: 'd@x.at', von: '2026-11-06T25:00', bis: '2026-11-07T02:00' })).toMatch(/Ungültig/);
+    expect(einsatzFehler([], { email: 'd@x.at', von: '2026-11-06T10:00', bis: '2026-11-06T09:00' })).toMatch(/Ungültig/);
   });
   it('Planungsrecht über Admin oder Gruppe', () => {
     const k = { ...STANDARD_KONFIG, benutzer: [{ email: 'b@x.at', gruppen: ['buero'] }, { email: 'f@x.at', gruppen: ['fahrer'] }], bereitschaftGruppen: ['buero'] };

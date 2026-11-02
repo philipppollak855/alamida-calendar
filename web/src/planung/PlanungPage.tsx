@@ -6,7 +6,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './planung.css';
 import { abmelden, anmeldungAbschliessen, hubAnmelden, ichLaden, termineAusCache, termineLaden, type Ich } from './api';
 import AdminAnsicht from './AdminAnsicht';
-import BereitschaftAnsicht, { BereitschaftZeile, bereitschaftAm, useBereitschaft } from './BereitschaftAnsicht';
+import BereitschaftAnsicht, { BereitschaftZeile, NACH_ANMELDUNG, bereitschaftAm, useBereitschaft } from './BereitschaftAnsicht';
 import MobileAnsicht from './MobileAnsicht';
 import { useInstallieren } from './useInstallieren';
 import { demoTermine } from './demoDaten';
@@ -225,6 +225,9 @@ export default function PlanungPage() {
     )
       .then(() => ichLaden())
       .then((i) => {
+        const ziel = localStorage.getItem(NACH_ANMELDUNG);
+        localStorage.removeItem(NACH_ANMELDUNG);
+        if (i.angemeldet && ziel === '/bereitschaft') return location.replace(ziel);
         setIch(i);
         if (!i.angemeldet || !i.rechte?.freigeschaltet) {
           setEchteDaten(false);

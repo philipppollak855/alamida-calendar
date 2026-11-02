@@ -1,7 +1,7 @@
 import type { Config } from '@netlify/functions';
 import { randomBytes } from 'node:crypto';
 import { darfPlanen, datumText, einsatzFehler, plusTage, type Einsatz } from '../../src/shared/bereitschaft';
-import { angemeldet, bereitschaftLaden, bereitschaftSpeichern, json } from '../lib/server';
+import { angemeldet, bereitschaftLaden, einsatzLoeschen, einsatzSpeichern, json } from '../lib/server';
 
 /** Bereitschaft: GET Liste, POST eintragen, DELETE ?id= austragen. Jeder trägt sich selbst ein, Planer/Admins alle. */
 export default async (req: Request) => {
@@ -10,8 +10,8 @@ export default async (req: Request) => {
   if (!a.rechte.freigeschaltet) return json({ fehler: 'keine Freigabe' }, 403);
   const planer = darfPlanen(a.rechte, a.konfig);
   const ich = a.sitzung.email.toLowerCase();
-  const grenze = `${datumText(plusTage(new Date(), -400))}T00:00`;
-  let liste = (await bereitschaftLaden()).filter((e) => e.bis >= grenze);
+  const ab = datumText(plusTage(new Date(), -31));
+  let liste = await bereitschaftLaden(ab);
 
   if (req.method === 'POST') {
     const b = (await req.json().catch(() => ({}))) as { email?: unknown; von?: unknown; bis?: unknown };
@@ -23,20 +23,27 @@ export default async (req: Request) => {
     const fehler = einsatzFehler(liste, neu);
     if (fehler) return json({ fehler }, 400);
     const name = person?.name ?? (email === ich ? a.sitzung.name : undefined);
-    liste = [...liste, { id: randomBytes(9).toString('base64url'), ...neu, ...(name ? { name } : {}), eingetragenVon: ich }];
-    await bereitschaftSpeichern(liste);
+    const e: Einsatz = { id: randomBytes(9).toString('base64url'), ...neu, ...(name ? { name } : {}), eingetragenVon: ich, erstellt: Date.now() };
+    await einsatzSpeichern(e);
+    // Gleichzeitige Anfragen: erneut prüfen, nur gegen früher erstellte Einträge; bei Konflikt den eigenen zurücknehmen.
+    liste = await bereitschaftLaden(ab);
+    const frueher = liste.filter((x) => x.id !== e.id && (x.erstellt ?? 0) <= (e.erstellt ?? 0));
+    const konflikt = einsatzFehler(frueher, neu);
+    if (konflikt) {
+      await einsatzLoeschen(e);
+      return json({ fehler: konflikt }, 409);
+    }
   } else if (req.method === 'DELETE') {
     const id = new URL(req.url).searchParams.get('id');
     const e = liste.find((x) => x.id === id);
     if (!e) return json({ fehler: 'Eintrag nicht gefunden' }, 404);
     if (e.email !== ich && !planer) return json({ fehler: 'Du darfst nur dich selbst austragen' }, 403);
+    await einsatzLoeschen(e);
     liste = liste.filter((x) => x.id !== id);
-    await bereitschaftSpeichern(liste);
   }
 
-  const eintraege: Einsatz[] = liste.sort((x, y) => x.von.localeCompare(y.von));
   return json({
-    eintraege,
+    eintraege: liste.map(({ eingetragenVon, erstellt: _e, ...rest }) => (planer ? { ...rest, eingetragenVon } : rest)),
     darfPlanen: planer,
     ich: { email: ich, name: a.sitzung.name },
     personen: planer ? a.konfig.benutzer.map((x) => ({ email: x.email, name: x.name })) : [],

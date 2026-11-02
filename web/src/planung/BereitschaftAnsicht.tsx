@@ -5,6 +5,8 @@ import { bereitschaftAustragen, bereitschaftEintragen, bereitschaftLaden, type B
 import { MAX_GLEICHZEITIG, ausText, datumText, dienste, einsaetzeIn, plusTage, zeitText, type Dienst, type Einsatz } from '../shared/bereitschaft';
 
 const WOCHEN = 12;
+/** Ziel nach der Google-Anmeldung (die immer auf „/“ zurückkehrt). */
+export const NACH_ANMELDUNG = 'alamida.nachAnmeldung';
 
 /** Lädt die Bereitschaftsliste (nur mit Freigabe). */
 export function useBereitschaft(aktiv: boolean) {
@@ -118,15 +120,15 @@ function DienstKarte({ d, daten, onDaten }: { d: Dienst; daten: BereitschaftDate
           ))}
         </ul>
       )}
-      {!vorbei && !offen && (daten.darfPlanen || !ichDabei) && (
+      {!vorbei && !offen && (
         <div className="dienst-aktionen">
           {!ichDabei && (
             <button className="knopf primaer" disabled={laeuft} onClick={() => void tun(() => bereitschaftEintragen({ von: d.von, bis: d.bis }))}>
               Mich eintragen
             </button>
           )}
-          <button className="knopf" onClick={() => { setOffen(true); setEmail(ichDabei ? '' : daten.ich.email); }}>
-            {daten.darfPlanen ? '+ Einteilen …' : 'Nur bestimmte Zeit …'}
+          <button className="knopf" onClick={() => { setOffen(true); setGanz(!ichDabei); setEmail(ichDabei && daten.darfPlanen ? '' : daten.ich.email); }}>
+            {daten.darfPlanen ? '+ Einteilen …' : ichDabei ? '+ Weitere Zeit …' : 'Nur bestimmte Zeit …'}
           </button>
         </div>
       )}

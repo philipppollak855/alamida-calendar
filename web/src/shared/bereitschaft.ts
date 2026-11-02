@@ -18,7 +18,9 @@ export interface Einsatz {
   name?: string;
   von: string;
   bis: string;
-  eingetragenVon: string;
+  eingetragenVon?: string;
+  /** Zeitpunkt der Eintragung (ms), für die Reihenfolge bei gleichzeitigen Anfragen. */
+  erstellt?: number;
 }
 
 const p2 = (n: number) => String(n).padStart(2, '0');
@@ -96,10 +98,12 @@ export function gleichzeitig(eintraege: Einsatz[], neu: { von: string; bis: stri
 }
 
 const ZEIT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+/** Format und echtes Datum/Uhrzeit (z. B. kein 25:00 oder 31.02.). */
+export const gueltigeZeit = (s: string) => ZEIT.test(s) && zeitText(ausText(s)) === s;
 
 /** Prüft einen neuen Eintrag; liefert eine Fehlermeldung oder null. */
 export function einsatzFehler(eintraege: Einsatz[], neu: { email: string; von: string; bis: string }): string | null {
-  if (!ZEIT.test(neu.von) || !ZEIT.test(neu.bis) || neu.von >= neu.bis) return 'Ungültiger Zeitraum';
+  if (!gueltigeZeit(neu.von) || !gueltigeZeit(neu.bis) || neu.von >= neu.bis) return 'Ungültiger Zeitraum';
   const start = ausText(neu.von);
   const dienst = dienste(plusTage(start, -3), plusTage(start, 3)).find((d) => d.von <= neu.von && neu.bis <= d.bis);
   if (!dienst) return 'Bereitschaft gibt es nur an Wochenenden (Fr–So) und Feiertagen';
