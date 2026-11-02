@@ -1,0 +1,53 @@
+.planung { font-family: 'DM Sans', system-ui, sans-serif; color: #1f2937; background: #f3f4f6; min-height: 100vh; padding: 0 0 2rem; }
+.planung button { font: inherit; cursor: pointer; border: 1px solid #d1d5db; background: #fff; border-radius: 8px; padding: 0.4rem 0.8rem; color: inherit; }
+.planung button:disabled { opacity: 0.6; cursor: default; }
+.planung button.primaer { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+.planung-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.5rem; padding: 0.75rem 1.25rem; background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 10; }
+.planung-kopf h1 { font-size: 1.2rem; margin: 0; }
+.planung-tabs { display: flex; gap: 0.25rem; flex-wrap: wrap; flex: 1; }
+.planung-tabs button { border: none; background: transparent; border-radius: 999px; }
+.planung-tabs button.aktiv { background: #e8f0fe; color: #1a56db; font-weight: 600; }
+.planung-konto { display: flex; gap: 0.5rem; }
+.hinweis-leiste { margin: 0.75rem 1.25rem 0; padding: 0.5rem 0.9rem; border-radius: 8px; background: #fff8e1; border: 1px solid #ffe08a; font-size: 0.9rem; }
+.hinweis-leiste.fehler { background: #fdecea; border-color: #f5b5ae; }
+.einstellungen { margin: 0.75rem 1.25rem 0; padding: 1rem; background: #fff; border-radius: 10px; border: 1px solid #e5e7eb; display: grid; gap: 0.75rem; }
+.einstellungen label { display: grid; gap: 0.25rem; font-size: 0.9rem; }
+.einstellungen input:not([type]) { padding: 0.45rem 0.6rem; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; }
+.einstellungen fieldset { border: 1px solid #e5e7eb; border-radius: 8px; display: grid; gap: 0.3rem; }
+.einstellungen .check { display: flex; align-items: center; gap: 0.4rem; }
+.punkt { width: 0.7rem; height: 0.7rem; border-radius: 50%; display: inline-block; }
+.filter-leiste { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; padding: 0.75rem 1.25rem; }
+.planung .chip { border-width: 2px; border-radius: 999px; font-size: 0.85rem; padding: 0.25rem 0.7rem; }
+.planung .chip.aus { opacity: 0.4; text-decoration: line-through; }
+.stand { margin-left: auto; font-size: 0.8rem; color: #6b7280; }
+.planung section { padding: 0 1.25rem; }
+.tag-nav { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem; }
+.tag-nav h2 { font-size: 1.1rem; margin: 0 0 0 0.75rem; }
+.spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+.spalte { background: #fff; border-radius: 12px; padding: 0.75rem; border: 1px solid #e5e7eb; display: flex; flex-direction: column; gap: 0.5rem; min-height: 8rem; }
+.spalte h3 { margin: 0 0 0.25rem; font-size: 0.95rem; display: flex; justify-content: space-between; }
+.anzahl { background: #f3f4f6; border-radius: 999px; padding: 0 0.55rem; font-size: 0.8rem; }
+.leer { color: #9ca3af; font-size: 0.9rem; margin: 0.25rem 0; }
+.termin { display: block; text-decoration: none; color: inherit; background: #fafafa; border: 1px solid #eee; border-left: 5px solid; border-radius: 8px; padding: 0.5rem 0.65rem; }
+.termin:hover { background: #f1f5ff; }
+.termin-zeit { font-size: 0.8rem; color: #4b5563; font-variant-numeric: tabular-nums; }
+.termin-titel { font-size: 0.95rem; margin-top: 0.1rem; }
+.termin-ort { font-size: 0.82rem; color: #6b7280; margin-top: 0.15rem; }
+.kalender-ansicht { background: #fff; margin: 0 1.25rem; padding: 0.75rem !important; border-radius: 12px; border: 1px solid #e5e7eb; }
+.kalender-ansicht .rbc-event { font-size: 0.8rem; }
+.faelle { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+.fall { background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; padding: 0.9rem; }
+.fall.erledigt { opacity: 0.6; }
+.fall h3 { margin: 0; font-size: 1rem; }
+.fall-nr { color: #9ca3af; font-weight: 400; font-size: 0.85rem; }
+.naechster { margin: 0.25rem 0 0.5rem; font-size: 0.85rem; color: #1a56db; }
+.zeitleiste { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+.zeitleiste li.vorbei { opacity: 0.5; }
+.liste { display: grid; gap: 0.5rem; max-width: 760px; }
+.liste h2 { font-size: 1.1rem; margin: 0 0 0.25rem; }
+.warnung { display: grid; gap: 0.15rem; background: #fff; border-radius: 8px; border: 1px solid #e5e7eb; border-left: 5px solid #f59e0b; padding: 0.55rem 0.75rem; }
+.warnung.ueberschneidung { border-left-color: #dc2626; }
+.warnung small { color: #6b7280; }
+@media (max-width: 640px) { .planung-kopf { padding: 0.6rem 0.75rem; } .planung section, .filter-leiste { padding-left: 0.75rem; padding-right: 0.75rem; } }
+body:has(.planung) { background: #f3f4f6; }
+.planung button { text-transform: none; letter-spacing: normal; }

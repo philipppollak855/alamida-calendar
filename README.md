@@ -107,15 +107,6 @@ Als Kalender-ID die ID des freigegebenen Kalenders verwenden (Google Kalender �
 
 4. In Google Kalender: Einstellungen → „Ansichtsoptionen“ → **„Kalender in der Tagesansicht nebeneinander anzeigen“**. Die Tagesansicht zeigt dann je Kalender eine Spalte; links lassen sich Kalender ein- und ausblenden (z. B. Fahrer sehen nur „Fahrten“).
 
-## Web-UI starten
-
-```powershell
-cd web
-npm run dev
-```
-
-Öffnen Sie http://localhost:5173 für die Kalenderansicht.
-
 ## Kategorien
 
 Jeder Termin aus der Maske (Tab „Termine“) wird einer Kategorie zugeordnet und bekommt deren Farbe:
@@ -146,24 +137,29 @@ Einstellungen in `%AppData%\AlamidaCalendar\appsettings.json`, Abschnitt `Katego
 - Der Agent liest die Maske jede Sekunde (`PollIntervalMs`); neue und geänderte Termine gehen sofort an Google, gelöschte nach der nächsten Abfrage (Schutz vor Lesefehlern). Nur geänderte Termine werden übertragen.
 - Termine ohne Uhrzeit werden ganztägig eingetragen. Jeder Termin hat eine feste ID aus Sterbefall-Nummer und Termin-Art: Änderungen in Alamida aktualisieren den Termin, gelöschte Daten entfernen ihn, es entstehen keine Duplikate. Termine werden erst eingetragen, wenn der Sterbefall eine Nummer hat.
 
-## Web-UI starten
+## Web-UI (Planung)
 
-```powershell
+Eigene Planungsoberfläche in `web/`, liest die Termine direkt aus Google Kalender (nur Lesen, Anmeldung mit dem eigenen Google-Konto):
+
+- **Tagesplan**: Spalten Zeremonien / Fahrten / Gespräche
+- **Woche / Monat**: Kalenderansicht in Kategorie-Farben
+- **Sterbefälle**: alle Termine eines Falls als Zeitleiste, sortiert nach nächstem Termin
+- **Fahrten**: Abholungen, Überführungen, Kremationen der nächsten 14 Tage
+- **Hinweise**: Überschneidungen von Zeremonien, Zeremonien ohne Uhrzeit, Termine nach der Beisetzung
+
+Ohne Anmeldung zeigt die Seite Beispieldaten.
+
+Einrichtung (einmalig):
+1. Google Cloud Console (gleiches Projekt wie der Service Account) → „APIs & Dienste“ → „Anmeldedaten“ → „OAuth-Client-ID erstellen“ → Typ **Webanwendung**; unter „Autorisierte JavaScript-Quellen“ die Adresse der Seite eintragen (z. B. `https://<name>.netlify.app`, lokal `http://localhost:5173`).
+2. Client-ID als `VITE_GOOGLE_CLIENT_ID` beim Build setzen oder in der Seite unter ⚙ eintragen.
+3. Wer die Seite nutzt, braucht Lesezugriff auf die Kalender; unter ⚙ lassen sich die anzuzeigenden Kalender auswählen.
+
+```bash
 cd web
-npm run dev
+npm ci
+npm run dev      # http://localhost:5173
+npm run build    # dist/ (Netlify: netlify.toml)
 ```
-
-Öffnen Sie http://localhost:5173 für die Kalenderansicht.
-
-## Web-UI
-
-Die Web-UI bietet:
-
-- Monats-/Wochen-/Tagesansicht
-- Filter nach Kategorien
-- Filter nach Standorten
-- Farbcodierte Termine pro Kategorie
-- Responsive Design (Mobile-freundlich)
 
 ## Agent-Konfiguration
 

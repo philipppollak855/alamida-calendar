@@ -1,11 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
-import CalendarPage from './CalendarPage';
+import PlanungPage from './planung/PlanungPage';
 
 export function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/calendar" replace />} />
-      <Route path="/calendar" element={<CalendarPage />} />
+      <Route path="/" element={<PlanungPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
