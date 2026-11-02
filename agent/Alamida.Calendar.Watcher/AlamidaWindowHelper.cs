@@ -6,34 +6,43 @@ namespace Alamida.Calendar.Watcher;
 
 public static class AlamidaWindowHelper
 {
-    public static AutomationElement? FindBestWindow(
+    /// <summary>Bestes Alamida-Fenster samt einmal gelesenem Element-Baum.</summary>
+    public static (AutomationElement? Window, UiaElementInfo[] Elements) FindBestWindow(
         UIA3Automation automation,
         IReadOnlyList<string> titlePatterns)
     {
         var desktop = automation.GetDesktop();
-        var windows = desktop.FindAllChildren(cf => cf.ByControlType(ControlType.Window));
+        var windows = desktop.FindAllChildren(cf => cf.ByControlType(ControlType.Window))
+            .Where(w =>
+            {
+                var title = UiaValueReader.SafeGet(() => w.Name) ?? "";
+                return titlePatterns.Any(p => title.Contains(p, StringComparison.OrdinalIgnoreCase));
+            })
+            .ToList();
 
         AutomationElement? best = null;
+        UiaElementInfo[] bestElements = [];
         var bestScore = -1;
 
         foreach (var window in windows)
         {
-            var title = window.Name ?? "";
-            if (!titlePatterns.Any(p => title.Contains(p, StringComparison.OrdinalIgnoreCase)))
-                continue;
+            var elements = UiaElementInfo.ReadTree(window);
+            if (windows.Count == 1)
+                return (window, elements);
 
-            var score = ScoreWindow(window);
+            var score = ScoreWindow(window, elements);
             if (score > bestScore)
             {
                 bestScore = score;
                 best = window;
+                bestElements = elements;
             }
         }
 
-        return best;
+        return (best, bestElements);
     }
 
-    public static int ScoreWindow(AutomationElement window)
+    public static int ScoreWindow(AutomationElement window, IReadOnlyList<UiaElementInfo> elements)
     {
         var score = 0;
         try
@@ -43,11 +52,11 @@ public static class AlamidaWindowHelper
         }
         catch { /* ignore */ }
 
-        foreach (var el in window.FindAllDescendants())
+        foreach (var el in elements)
         {
-            var aid = UiaValueReader.SafeGet(() => el.AutomationId) ?? "";
-            var name = UiaValueReader.SafeGet(() => el.Name) ?? "";
-            var value = UiaValueReader.Read(el);
+            var aid = el.AutomationId;
+            var name = el.Name;
+            var value = el.Value;
 
             if (aid.Contains("Termin_Überführung1_Text", StringComparison.OrdinalIgnoreCase)
                 || aid.Contains("Field: sfl 2::Termin_Überführung1_Text", StringComparison.OrdinalIgnoreCase))

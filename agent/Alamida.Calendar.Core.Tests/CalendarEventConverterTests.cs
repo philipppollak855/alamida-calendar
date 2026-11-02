@@ -106,3 +106,21 @@ public class CalendarEventConverterTests
         Assert.Matches(new Regex("^[a-v0-9]{5,1024}$"), id);
     }
 }
+
+public class TryParseStartTests
+{
+    [Theory]
+    [InlineData("28.05.202")]
+    [InlineData("28.05.")]
+    [InlineData("")]
+    public void HalbEingetippt_KeinTermin(string datum) =>
+        Assert.False(CalendarEventConverter.TryParseStart(datum, null, out _, out _));
+
+    [Fact]
+    public void DatumMitZeitfeld()
+    {
+        Assert.True(CalendarEventConverter.TryParseStart("28.05.2026", "9.30", out var start, out var hatZeit));
+        Assert.True(hatZeit);
+        Assert.Equal(new DateTime(2026, 5, 28, 9, 30, 0), start);
+    }
+}

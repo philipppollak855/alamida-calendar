@@ -19,7 +19,7 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlamidaCalendar", "sync-state.json");
     private readonly SyncState _state;
     private SynchronizationContext? _ui;
-    private string? _kandidatHash;
+    private string? _offeneLoeschungen;
     private DateTime _pauseBis = DateTime.MinValue;
     private bool _isRunning = true;
 
@@ -82,66 +82,76 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
     {
         var fallId = CalendarEventConverter.FallSchluessel(snapshot);
         if (fallId == null) return;
+        if (!sofort && DateTime.Now < _pauseBis) return;
 
         var termine = CalendarEventConverter.ConvertToCalendarEvents(snapshot, _config.Kategorien)
-            .Select(e => (Event: e, CalendarId: _config.CalendarIdFuer(e.Category), ColorId: _config.KategorieFuer(e.Category).ColorId))
+            .Select(e => new GeplanterTermin(e, _config.CalendarIdFuer(e.Category), _config.KategorieFuer(e.Category).ColorId))
             .ToList();
-        var hash = BerechneHash(termine);
-
-        if (!sofort)
-        {
-            // Erst uebertragen, wenn die Maske zweimal hintereinander gleich gelesen wurde (Eingabe abgeschlossen).
-            if (hash != _kandidatHash) { _kandidatHash = hash; return; }
-            if (DateTime.Now < _pauseBis) return;
-        }
 
         await _syncLock.WaitAsync();
         try
         {
             _state.Faelle.TryGetValue(fallId, out var alt);
-            if (!sofort && alt?.Hash == hash) return;
+            var alteTermine = alt?.Termine ?? new Dictionary<string, SyncState.TerminEintrag>();
+
+            var geaendert = termine
+                .Where(t => sofort
+                    || !alteTermine.TryGetValue(t.Event.Id, out var a)
+                    || a.CalendarId != t.CalendarId
+                    || a.Hash != t.Hash)
+                .ToList();
+
+            var neueIds = termine.Select(t => t.Event.Id).ToHashSet();
+            var entfernt = alteTermine.Where(a => !neueIds.Contains(a.Key)).ToList();
+
+            // Loeschen erst, wenn der Termin bei zwei Abfragen hintereinander fehlt (kein Loeschen bei kurzem Lesefehler).
+            var loeschSchluessel = fallId + "|" + string.Join(",", entfernt.Select(e => e.Key).OrderBy(k => k));
+            var loeschenBestaetigt = sofort || entfernt.Count == 0 || _offeneLoeschungen == loeschSchluessel;
+            _offeneLoeschungen = entfernt.Count == 0 ? null : loeschSchluessel;
+            if (!loeschenBestaetigt) entfernt.Clear();
+
+            if (geaendert.Count == 0 && entfernt.Count == 0) return;
 
             var aktuellerKalender = _config.CalendarId;
             try
             {
-                foreach (var (ev, calendarId, colorId) in termine)
+                var aufgaben = geaendert.Select(async t =>
                 {
-                    aktuellerKalender = calendarId;
-                    if (alt != null && alt.Termine.TryGetValue(ev.Id, out var alterKalender) && alterKalender != calendarId)
-                        await _calendarService.DeleteAsync(alterKalender, ev.Id);
-                    await _calendarService.UpsertAsync(calendarId, ev, colorId);
-                }
-
-                if (alt != null)
-                {
-                    var neu = termine.Select(t => t.Event.Id).ToHashSet();
-                    foreach (var (schluessel, alterKalender) in alt.Termine.Where(t => !neu.Contains(t.Key)))
+                    aktuellerKalender = t.CalendarId;
+                    var vorhanden = alteTermine.TryGetValue(t.Event.Id, out var a);
+                    if (vorhanden && a!.CalendarId != t.CalendarId)
                     {
-                        aktuellerKalender = alterKalender;
-                        await _calendarService.DeleteAsync(alterKalender, schluessel);
+                        await _calendarService.DeleteAsync(a.CalendarId, t.Event.Id);
+                        vorhanden = false;
                     }
-                }
+                    await _calendarService.UpsertAsync(t.CalendarId, t.Event, t.ColorId, vorhanden);
+                }).Concat(entfernt.Select(async e =>
+                {
+                    aktuellerKalender = e.Value.CalendarId;
+                    await _calendarService.DeleteAsync(e.Value.CalendarId, e.Key);
+                }));
+                await Task.WhenAll(aufgaben);
             }
             catch (Exception ex)
             {
-                _pauseBis = DateTime.Now.AddMinutes(1);
+                _pauseBis = DateTime.Now.AddSeconds(15);
                 var meldung = _calendarService.BeschreibeFehler(ex, aktuellerKalender);
                 Console.WriteLine($"Fehler beim Synchronisieren: {meldung}");
                 UpdateStatusLine($"Status: Fehler - {meldung}");
                 return;
             }
 
-            _state.Faelle[fallId] = new SyncState.FallEintrag
-            {
-                Hash = hash,
-                Termine = termine.ToDictionary(t => t.Event.Id, t => t.CalendarId),
-                Aktualisiert = DateTime.Now,
-            };
+            var eintrag = new SyncState.FallEintrag { Aktualisiert = DateTime.Now };
+            foreach (var t in termine)
+                eintrag.Termine[t.Event.Id] = new SyncState.TerminEintrag { CalendarId = t.CalendarId, Hash = t.Hash };
+            foreach (var a in alteTermine.Where(a => !neueIds.Contains(a.Key) && !entfernt.Any(e => e.Key == a.Key)))
+                eintrag.Termine[a.Key] = a.Value;
+            _state.Faelle[fallId] = eintrag;
             try { _state.Save(_statePath); }
             catch (Exception ex) { Console.WriteLine($"Sync-Status nicht gespeichert: {ex.Message}"); }
 
             _pauseBis = DateTime.MinValue;
-            UpdateStatusLine($"Status: {DateTime.Now:HH:mm:ss} - {fallId}: {termine.Count} Termine synchronisiert");
+            UpdateStatusLine($"Status: {DateTime.Now:HH:mm:ss} - {fallId}: {geaendert.Count} aktualisiert, {entfernt.Count} geloescht");
         }
         finally
         {
@@ -149,9 +159,11 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
         }
     }
 
-    private static string BerechneHash(IEnumerable<(CalendarEvent Event, string CalendarId, string ColorId)> termine) =>
-        string.Join("\n", termine.Select(t =>
-            $"{t.Event.Id}|{t.CalendarId}|{t.ColorId}|{t.Event.Title}|{t.Event.Start:O}|{t.Event.End:O}|{t.Event.IsAllDay}|{t.Event.Location}|{t.Event.Description}"));
+    private sealed record GeplanterTermin(CalendarEvent Event, string CalendarId, string ColorId)
+    {
+        public string Hash { get; } =
+            $"{ColorId}|{Event.Title}|{Event.Start:O}|{Event.End:O}|{Event.IsAllDay}|{Event.Location}|{Event.Description}";
+    }
 
     private void UpdateStatusLine(string text)
     {
@@ -204,7 +216,7 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
         var msg = $"Alamida Kalender Agent\n\n" +
                   $"Synchronisierte Termine: {_state.AnzahlTermine}\n" +
                   $"Workspace ID: {_config.WorkstationId}\n" +
-                  $"Poll-Intervall: {_config.PollIntervalMs}ms\n" +
+                  $"Poll-Intervall: {_config.PollIntervalMs}ms, letzte Erfassung: {_watcher.LetzteErfassungMs}ms\n" +
                   $"Standard-Kalender: {_config.CalendarId}\n" +
                   string.Join("\n", _config.Kategorien
                       .Where(k => k.Value.Aktiv && !string.IsNullOrWhiteSpace(k.Value.CalendarId))
@@ -221,7 +233,7 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
         if (snapshot != null)
         {
             await SyncSnapshotAsync(snapshot, sofort: true);
-            ShowBalloon(_statusZeile.Text, ToolTipIcon.Info);
+            ShowBalloon(_statusZeile.Text ?? "", ToolTipIcon.Info);
         }
         else
         {

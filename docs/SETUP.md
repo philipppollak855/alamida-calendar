@@ -60,7 +60,7 @@ Datei: `agent/Alamida.Calendar.Agent/appsettings.json`
   "CalendarId": "primary",
   "ServiceAccountPath": "%AppData%\\AlamidaCalendar\\service-account.json",
   "WorkstationId": "PC-NAME",
-  "PollIntervalMs": 5000,
+  "PollIntervalMs": 1000,
   "FieldMappingPath": "docs/field-mapping-9.2.1.json",
   "AutoUpdate": {
     "Enabled": true,
