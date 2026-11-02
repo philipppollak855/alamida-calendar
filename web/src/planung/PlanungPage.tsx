@@ -6,6 +6,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './planung.css';
 import { abmelden, anmeldungAbschliessen, hubAnmelden, ichLaden, termineAusCache, termineLaden, type Ich } from './api';
 import AdminAnsicht from './AdminAnsicht';
+import AbwesenheitAnsicht, { AbwesenheitZeile, abwesendAm, useAbwesenheit } from './AbwesenheitAnsicht';
 import BereitschaftAnsicht, { BereitschaftZeile, NACH_ANMELDUNG, bereitschaftAm, useBereitschaft } from './BereitschaftAnsicht';
 import MobileAnsicht from './MobileAnsicht';
 import { useInstallieren } from './useInstallieren';
@@ -32,7 +33,7 @@ import {
 
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek: (d: Date) => startOfWeek(d, { weekStartsOn: 1 }), getDay, locales: { de } });
 
-type Tab = 'tag' | 'kalender' | 'faelle' | 'fahrten' | 'orte' | 'hinweise' | 'bereitschaft' | 'admin';
+type Tab = 'tag' | 'kalender' | 'faelle' | 'fahrten' | 'orte' | 'hinweise' | 'bereitschaft' | 'abwesenheit' | 'admin';
 type Theme = 'dunkel' | 'hell';
 const LS_THEME = 'alamida.theme';
 
@@ -44,6 +45,7 @@ const TABS: { id: Tab; label: string; icon: string; taste: string }[] = [
   { id: 'orte', label: 'Orte', icon: '⌖', taste: '5' },
   { id: 'hinweise', label: 'Hinweise', icon: '⚑', taste: '6' },
   { id: 'bereitschaft', label: 'Bereitschaft', icon: '🛡', taste: '7' },
+  { id: 'abwesenheit', label: 'Urlaub / Krank', icon: '🌴', taste: '8' },
 ];
 const GRUPPEN_ICON: Record<Gruppe, string> = { Zeremonien: '🕯️', Fahrten: '🚐', 'Gespräche': '💬', Sonstiges: '📌' };
 
@@ -189,8 +191,9 @@ export default function PlanungPage() {
 
   const freigeschaltet = !!ich?.rechte?.freigeschaltet;
   const bereitschaft = useBereitschaft(freigeschaltet);
+  const abwesenheit = useAbwesenheit(freigeschaltet);
   const tabs = useMemo(
-    () => (ich?.rechte?.admin ? [...TABS, { id: 'admin' as Tab, label: 'Rechte', icon: '⚿', taste: '8' }] : TABS),
+    () => (ich?.rechte?.admin ? [...TABS, { id: 'admin' as Tab, label: 'Rechte', icon: '⚿', taste: '9' }] : TABS),
     [ich],
   );
 
@@ -227,7 +230,7 @@ export default function PlanungPage() {
       .then((i) => {
         const ziel = localStorage.getItem(NACH_ANMELDUNG);
         localStorage.removeItem(NACH_ANMELDUNG);
-        if (i.angemeldet && ziel === '/bereitschaft') return location.replace(ziel);
+        if (i.angemeldet && (ziel === '/bereitschaft' || ziel === '/abwesenheit')) return location.replace(ziel);
         setIch(i);
         if (!i.angemeldet || !i.rechte?.freigeschaltet) {
           setEchteDaten(false);
@@ -561,6 +564,7 @@ export default function PlanungPage() {
               <button className="knopf" onClick={() => window.print()}>🖨 Drucken</button>
             </div>
             <BereitschaftZeile eintraege={bereitschaftAm(bereitschaft.daten?.eintraege ?? [], tag)} />
+            <AbwesenheitZeile eintraege={abwesendAm(abwesenheit.daten?.eintraege ?? [], format(tag, 'yyyy-MM-dd'))} />
             <div className="wochenband">
               {Array.from({ length: 7 }, (_, n) => plusTage(startOfWeek(tag, { weekStartsOn: 1 }), n)).map((d) => {
                 const anz = termineAmTag(gefiltert, d).length;
@@ -751,6 +755,7 @@ export default function PlanungPage() {
         )}
 
         {tab === 'bereitschaft' && <BereitschaftAnsicht aktiv={freigeschaltet} />}
+        {tab === 'abwesenheit' && <AbwesenheitAnsicht aktiv={freigeschaltet} />}
 
         {tab === 'admin' && ich?.rechte?.admin && <AdminAnsicht />}
 

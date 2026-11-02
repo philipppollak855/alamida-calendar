@@ -457,3 +457,40 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .bereitschaft > *, .bs-uebersicht > *, .bs-spalten > * { min-width: 0; }
 .bs-block { overflow-x: auto; }
 @media (max-width: 600px) { .bs-tabelle { font-size: 0.82rem; } .bs-tabelle td, .bs-tabelle th { padding-left: 0.3rem; padding-right: 0.3rem; } .bs-balken-zelle { min-width: 70px; } }
+
+/* Urlaub / Krank */
+.ab-kacheln { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.ab-formular { display: grid; gap: 0.7rem; align-content: start; }
+.ab-arten { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ab-zeile { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: flex-end; }
+.ab-feld { display: grid; gap: 0.25rem; font-size: 0.8rem; color: var(--text-3); flex: 1; min-width: 140px; }
+.ab-liste { display: grid; gap: 0.5rem; }
+.ab-eintrag { display: flex; justify-content: space-between; gap: 0.8rem; align-items: center; padding: 0.65rem 0.8rem; border-left: 4px solid var(--rand); margin-bottom: 0.5rem; }
+.ab-eintrag.status-abgelehnt { opacity: 0.55; }
+.ab-eintrag-rechts { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.ab-status { font-size: 0.72rem; padding: 0.15rem 0.55rem; border-radius: 999px; border: 1px solid var(--rand); color: var(--text-2); white-space: nowrap; }
+.ab-status.beantragt { border-color: var(--warn); color: var(--warn); }
+.ab-status.genehmigt, .ab-status.gemeldet { border-color: var(--gruen); color: var(--gruen); }
+.ab-team-kopf { display: flex; align-items: center; gap: 0.8rem; }
+.ab-team-kopf h3 { margin: 0; min-width: 9rem; text-align: center; text-transform: capitalize; }
+.ab-legende { display: flex; flex-wrap: wrap; gap: 0.9rem; font-size: 0.78rem; color: var(--text-2); margin: 0.5rem 0 0.7rem; }
+.ab-legende i { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 3px; vertical-align: -1px; }
+.ab-legende i.beantragt { background: repeating-linear-gradient(45deg, var(--text-3) 0 3px, transparent 3px 6px); }
+.ab-matrix { border-collapse: separate; border-spacing: 2px; font-size: 0.72rem; }
+.ab-matrix th { color: var(--text-3); font-weight: 500; min-width: 1.6rem; text-align: center; line-height: 1.15; }
+.ab-matrix th.heute { color: var(--akzent); font-weight: 700; }
+.ab-matrix td { height: 1.6rem; min-width: 1.6rem; text-align: center; border-radius: 4px; background: rgba(127, 127, 127, 0.08); color: #fff; }
+.ab-matrix td.frei, .ab-matrix th.frei { background: rgba(127, 127, 127, 0.2); }
+.ab-matrix td.beantragt { opacity: 0.55; background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.35) 0 3px, transparent 3px 6px); }
+.ab-matrix td.ab-name, .ab-summe td:first-child { background: none; color: var(--text); text-align: left; white-space: nowrap; padding-right: 0.6rem; position: sticky; left: 0; }
+.ab-matrix tr.ich td.ab-name { color: var(--akzent); font-weight: 600; }
+.ab-summe td { background: none; color: var(--text-2); font-weight: 600; }
+.ab-summe td.warn { background: var(--warn); color: #000; }
+.ab-konflikt { color: var(--warn); margin: 0.3rem 0; }
+.ab-rot { color: var(--warn); }
+.ab-stamm .feld { min-width: 0; margin-bottom: 0.25rem; }
+.ab-stamm td { vertical-align: top; }
+.ab-tage { display: grid; grid-template-columns: repeat(7, 3.2rem); gap: 0.2rem; }
+.ab-tage label { display: grid; font-size: 0.68rem; color: var(--text-3); }
+.ab-dashboard, .ab-personal { display: grid; gap: 0.9rem; }
+@media (max-width: 700px) { .ab-eintrag { flex-direction: column; align-items: flex-start; } .ab-eintrag-rechts { justify-content: flex-start; } }

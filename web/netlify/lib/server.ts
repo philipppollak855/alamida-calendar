@@ -2,6 +2,7 @@ import { createHmac, createPublicKey, createSign, randomBytes, timingSafeEqual, 
 import { getStore } from '@netlify/blobs';
 import { STANDARD_KONFIG, konfigPruefen, rechteFuer, type Konfiguration, type Rechte } from '../../src/shared/rechte';
 import type { Einsatz } from '../../src/shared/bereitschaft';
+import { personalPruefen, type Abwesenheit, type Personal } from '../../src/shared/abwesenheit';
 
 export const SESSION_COOKIE = 'alamida_session';
 export const SESSION_TAGE = 90;
@@ -94,6 +95,21 @@ export async function bereitschaftLaden(ab: string): Promise<Einsatz[]> {
 
 export const einsatzSpeichern = (e: Einsatz) => store().setJSON(einsatzSchluessel(e), e);
 export const einsatzLoeschen = (e: Einsatz) => store().delete(einsatzSchluessel(e));
+
+/* Urlaub / Krank: ein Blob je Abwesenheit, Personal-Stammdaten als ein Blob. */
+const abwSchluessel = (id: string) => `abwesenheit/eintrag/${id}`;
+
+export async function abwesenheitenLaden(): Promise<Abwesenheit[]> {
+  const s = store();
+  const { blobs } = await s.list({ prefix: 'abwesenheit/eintrag/' });
+  const l = await Promise.all(blobs.map((b) => s.get(b.key, { type: 'json' }) as Promise<Abwesenheit | null>));
+  return l.filter((e): e is Abwesenheit => !!e).sort((a, b) => a.von.localeCompare(b.von));
+}
+
+export const abwesenheitSpeichern = (e: Abwesenheit) => store().setJSON(abwSchluessel(e.id), e);
+export const abwesenheitLoeschen = (e: Pick<Abwesenheit, 'id'>) => store().delete(abwSchluessel(e.id));
+export const personalLaden = async (): Promise<Personal[]> => personalPruefen(await store().get('abwesenheit-personal', { type: 'json' }));
+export const personalSpeichern = (p: Personal[]) => store().setJSON('abwesenheit-personal', p);
 
 /** Sitzung aus dem Cookie oder – eingebettet im Hub, wo fremde Cookies blockiert werden – aus „Authorization: Bearer“. */
 export async function angemeldet(req: Request): Promise<{ sitzung: Sitzung; rechte: Rechte; konfig: Konfiguration } | null> {
