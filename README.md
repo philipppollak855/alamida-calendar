@@ -19,6 +19,8 @@ Alamida Kalender ist eine Abspaltung von Alamida-Monitoring, die Firebase durch 
 
 ```
 alamida-calendar/
+├── INSTALLIEREN.bat                    # Ein-Klick-Installation
+├── DEINSTALLIEREN.bat                  # Deinstallation
 ├── agent/                              # .NET 8 Windows Agent
 │   ├── Alamida.Calendar.Agent/         # Tray-Application
 │   ├── Alamida.Calendar.Core/          # Google Calendar Service
@@ -30,7 +32,10 @@ alamida-calendar/
 │   │   └── CalendarPage.css
 │   └── dist/                           # Build-Output
 ├── scripts/                            # Installationsskripte
-│   ├── full-setup.ps1                  # Vollautomatisches Setup (Google Cloud + Installer)
+│   ├── install.ps1                     # Ein-Klick-Installation (von INSTALLIEREN.bat aufgerufen)
+│   ├── uninstall.ps1                   # Deinstallation (DEINSTALLIEREN.bat)
+│   ├── build-setup-package.ps1         # Fertiges Installationspaket (ZIP) erstellen
+│   ├── full-setup.ps1                  # Geführtes Google-Cloud-Setup
 │   ├── build-simple-installer.ps1      # ZIP-Installer erstellen
 │   ├── build-installer.ps1             # Inno Setup Installer erstellen
 │   ├── build-agent-release.ps1         # Release-Build
@@ -46,67 +51,49 @@ alamida-calendar/
 
 ## Schnellstart
 
-### Vollautomatisches Setup (empfohlen - ONE CLICK)
+### Ein-Klick-Installation (empfohlen)
 
-**Ein Klick-Installation - Google Cloud Projekt wird automatisch eingerichtet:**
+**`INSTALLIEREN.bat` doppelklicken.** Keine Administratorrechte, kein Rechtsklick, kein Entpacken nach Program Files.
 
-1. Doppelklick auf `INSTALLER-ERSTELLEN.bat` im Projektverzeichnis
-2. Folgen Sie den Anweisungen im Browser:
-   - Google Cloud Projekt wird automatisch erstellt
-   - Calendar API wird aktiviert
-   - Service Account wird erstellt mit Berechtigungen
-   - Kalender wird freigegeben
-   - Konfiguration wird automatisch gesetzt
-3. Das Skript erstellt automatisch den Installer (ZIP-Datei)
-4. Installieren:
-   - `dist/installer/AlamidaCalendarAgent-Setup.zip` entpacken
-   - `INSTALL.bat` als Administrator ausführen (Rechtsklick → "Als Administrator ausführen")
+Der Installer (`scripts/install.ps1`) erledigt automatisch:
 
-**Das wars! Der Agent läuft und synchronisiert automatisch mit Google Calendar.**
+1. Agent bauen (das .NET 8 SDK wird bei Bedarf einmalig nach `%LOCALAPPDATA%\AlamidaCalendar\dotnet` geladen) – im fertigen Paket entfällt dieser Schritt
+2. Installation nach `%LOCALAPPDATA%\Programs\AlamidaCalendar` (laufender Agent wird vorher beendet → auch für Updates)
+3. Konfiguration in `%APPDATA%\AlamidaCalendar` (bestehende Einstellungen bleiben erhalten)
+4. Google Service-Account-JSON wird automatisch gefunden (neben `INSTALLIEREN.bat`, im Download-Ordner oder auf dem Desktop), sonst einmal per Dateiauswahl
+5. Kalender-ID wird einmal abgefragt; die Service-Account-Adresse liegt dabei schon in der Zwischenablage zum Freigeben des Kalenders
+6. Autostart, Startmenü- und Desktop-Verknüpfung, Eintrag unter „Apps & Features“
+7. Agent starten
 
-### Manuelles Setup (falls vollautomatisches Setup nicht funktioniert)
+Protokoll: `%APPDATA%\AlamidaCalendar\install.log`. Deinstallation: `DEINSTALLIEREN.bat` oder „Apps & Features“.
 
-**Schritt 1: Installer erstellen**
+**Ohne Repository herunterzuladen** (PowerShell):
 
 ```powershell
-cd scripts
-.\build-simple-installer.ps1
+powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/philipppollak855/alamida-calendar/master/scripts/install.ps1 | iex"
 ```
 
-**Schritt 2: Google Cloud Projekt einrichten**
-
-Siehe `scripts/GOOGLE-CALENDAR-SETUP.txt` für Details:
-
-1. Google Cloud Console öffnen: https://console.cloud.google.com
-2. Google Calendar API aktivieren
-3. Service Account erstellen und JSON herunterladen
-4. JSON speichern nach: `%AppData%\AlamidaCalendar\service-account.json`
-5. Kalender für Service Account freigeben
-
-**Schritt 3: Installieren**
-
-- `dist/installer/AlamidaCalendarAgent-Setup.zip` entpacken
-- `INSTALL.bat` als Administrator ausführen
-3. Service Account erstellen und JSON herunterladen
-4. JSON speichern nach: `%AppData%\AlamidaCalendar\service-account.json`
-5. Kalender für Service Account freigeben
-
-**Option 3: Manuelles Setup**
+**Unbeaufsichtigt** (z.B. für mehrere PCs):
 
 ```powershell
-# Builden
-cd scripts
-.\build-agent-release.ps1
-
-# Installieren
-.\install-calendar-agent.ps1
+powershell -ExecutionPolicy Bypass -File scripts\install.ps1 -Silent -ServiceAccountPath C:\pfad\service-account.json -CalendarId kalender@example.com
 ```
 
-### 3. Agent starten
+### Fertiges Paket für PCs ohne .NET SDK
 
-Der Agent startet automatisch nach der Installation und erscheint als Tray-Icon im Windows Tray.
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build-setup-package.ps1 -Version 1.0.0
+```
 
-### 4. Web-UI starten
+Erzeugt `dist/AlamidaCalendar-Setup.zip` (Agent self-contained + `INSTALLIEREN.bat`). Auf dem Ziel-PC entpacken und `INSTALLIEREN.bat` doppelklicken.
+Mit `-ServiceAccountPath` wird der Schlüssel mitgeliefert – das ZIP dann nur intern weitergeben, nie veröffentlichen.
+
+### Google Cloud einrichten (einmalig)
+
+Siehe `scripts/GOOGLE-CALENDAR-SETUP.txt`: Calendar API aktivieren, Service Account anlegen, JSON-Schlüssel herunterladen, Kalender für die Service-Account-Adresse freigeben („Änderungen an Terminen vornehmen“).
+Als Kalender-ID die ID des freigegebenen Kalenders verwenden (Google Kalender → Einstellungen → „Kalender integrieren“). `primary` wäre der eigene, für niemanden sichtbare Kalender des Service Accounts.
+
+### Web-UI starten
 
 ```powershell
 cd web
@@ -138,24 +125,24 @@ Die Web-UI bietet:
 
 ## Agent-Konfiguration
 
-Datei: `agent/Alamida.Calendar.Agent/appsettings.json`
+Datei: `%APPDATA%\\AlamidaCalendar\\appsettings.json` (wird vom Installer angelegt; Vorlage: `agent/Alamida.Calendar.Agent/appsettings.json`)
 
 ```json
 {
   "CalendarId": "primary",
   "ServiceAccountPath": "%AppData%\\AlamidaCalendar\\service-account.json",
-  "WorkstationId": "PC-NAME",
+  "WorkstationId": "",
   "PollIntervalMs": 5000,
   "FieldMappingPath": "docs/field-mapping-9.2.1.json",
   "AutoUpdate": {
     "Enabled": true,
     "CheckOnStartup": true,
     "Mode": "release",
-    "GitHubOwner": "IHR_GITHUB_USER",
-    "GitHubRepo": "Alamida-Kalender",
+    "GitHubOwner": "philipppollak855",
+    "GitHubRepo": "alamida-calendar",
     "AssetFileName": "AlamidaCalendarAgent-win-x64.zip",
     "RepoRoot": "",
-    "Branch": "main"
+    "Branch": "master"
   }
 }
 ```

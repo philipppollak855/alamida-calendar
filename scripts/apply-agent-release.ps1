@@ -2,8 +2,8 @@
 param(
     [string] $InstallDir = "",
     [string] $GitHubOwner = "philipppollak855",
-    [string] $GitHubRepo = "Alamida-Monitoring",
-    [string] $AssetFileName = "AlamidaMonitoringAgent-win-x64.zip",
+    [string] $GitHubRepo = "alamida-calendar",
+    [string] $AssetFileName = "AlamidaCalendarAgent-win-x64.zip",
     [switch] $Apply,
     [switch] $CheckOnly
 )
@@ -66,7 +66,7 @@ if (-not (Test-Path -LiteralPath $InstallDir)) {
 $InstallDir = (Get-Item -LiteralPath $InstallDir).FullName
 
 $headers = @{
-    "User-Agent" = "AlamidaMonitoring-Agent"
+    "User-Agent" = "AlamidaCalendar-Agent"
     Accept         = "application/vnd.github+json"
 }
 
@@ -102,7 +102,7 @@ if (-not $Apply) {
 
 Write-Host "=== Agent-Update $localVersion -> $remoteVersion ===" -ForegroundColor Cyan
 
-Get-Process -Name "AlamidaMonitoringAgent" -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process -Name "AlamidaCalendarAgent" -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Seconds 1
 
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) "alamida-agent-update"
@@ -138,7 +138,7 @@ if (Test-Path $settingsBackup) {
     Copy-Item $settingsBackup $localSettings -Force
 }
 
-$exe = Join-Path $InstallDir "AlamidaMonitoringAgent.exe"
+$exe = Join-Path $InstallDir "AlamidaCalendarAgent.exe"
 if (-not (Test-Path $exe)) {
     throw "EXE nach Update nicht gefunden: $exe"
 }

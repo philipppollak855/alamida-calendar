@@ -60,7 +60,7 @@ internal static class Program
             LogTrayCrash(ex);
             MessageBox.Show(
                 $"Field-Mapping ungueltig:\n{config.FieldMappingPath}\n\n{ex.Message}",
-                "Alamida Monitoring",
+                "Alamida Kalender",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
             return;
@@ -81,7 +81,7 @@ internal static class Program
             {
                 Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "docs", "inspector-dump.txt")),
                 Path.Combine(Path.GetDirectoryName(config.FieldMappingPath)!, "inspector-dump.txt"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlamidaMonitoring", "inspector-dump.txt"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlamidaCalendar", "inspector-dump.txt"),
             };
             var outPath = outCandidates.First();
             Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
@@ -160,9 +160,21 @@ internal static class Program
             LogAgentStartup($"Beende fuer Auto-Update: {updateMsg}");
             MessageBox.Show(
                 updateMsg ?? "Ein Agent-Update wird installiert. Der Agent startet danach neu.",
-                "Alamida Monitoring",
+                "Alamida Kalender",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
+            return;
+        }
+
+        if (!File.Exists(config.ServiceAccountPath))
+        {
+            LogAgentStartup($"FEHLER: Service-Account fehlt: {config.ServiceAccountPath}");
+            MessageBox.Show(
+                $"Google Service-Account-Datei nicht gefunden:\n{config.ServiceAccountPath}\n\n" +
+                "Bitte INSTALLIEREN.bat erneut starten und die JSON-Datei auswaehlen.",
+                "Alamida Kalender",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
             return;
         }
 
@@ -189,7 +201,7 @@ internal static class Program
         {
             var dir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "AlamidaMonitoring");
+                "AlamidaCalendar");
             Directory.CreateDirectory(dir);
             File.AppendAllText(
                 Path.Combine(dir, "agent-crash.log"),
@@ -210,7 +222,7 @@ internal static class Program
         {
             var dir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "AlamidaMonitoring");
+                "AlamidaCalendar");
             Directory.CreateDirectory(dir);
             File.AppendAllText(
                 Path.Combine(dir, "agent-startup.log"),
