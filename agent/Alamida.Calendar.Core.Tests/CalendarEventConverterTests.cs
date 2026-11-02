@@ -43,7 +43,9 @@ public class CalendarEventConverterTests
         Assert.Equal(EventCategory.Beisetzung, events["260087|beisetzung"].Category);
         Assert.Equal(EventCategory.Trauerfeier, events["260087|trauerfeier"].Category);
         Assert.Equal(EventCategory.Trauerfeier, events["260087|trauerfeier2"].Category);
-        Assert.StartsWith("Trauerfeier 2:", events["260087|trauerfeier2"].Title);
+        Assert.Equal("🕯️ Trauerfeier 2 Anton Schellmann", events["260087|trauerfeier2"].Title);
+        Assert.Equal("⚰️ Beisetzung Anton Schellmann – Friedhof Ternitz", events["260087|beisetzung"].Title);
+        Assert.Equal("🚗 Überführung Anton Schellmann: Kühlr. Grafenbach → St. Johann", events["260087|schritt2"].Title);
         Assert.Equal(EventCategory.Rosenkranz, events["260087|rosenkranz"].Category);
         Assert.Equal(EventCategory.Trauergespraech, events["260087|aufnahme"].Category);
         Assert.Equal(new DateTime(2026, 5, 20, 10, 0, 0), events["260087|aufnahme"].Start);
@@ -104,5 +106,23 @@ public class CalendarEventConverterTests
         Assert.Equal(id, GoogleCalendarService.GoogleEventId("260087|beisetzung"));
         Assert.NotEqual(id, GoogleCalendarService.GoogleEventId("260087|trauerfeier"));
         Assert.Matches(new Regex("^[a-v0-9]{5,1024}$"), id);
+    }
+}
+
+public class TryParseStartTests
+{
+    [Theory]
+    [InlineData("28.05.202")]
+    [InlineData("28.05.")]
+    [InlineData("")]
+    public void HalbEingetippt_KeinTermin(string datum) =>
+        Assert.False(CalendarEventConverter.TryParseStart(datum, null, out _, out _));
+
+    [Fact]
+    public void DatumMitZeitfeld()
+    {
+        Assert.True(CalendarEventConverter.TryParseStart("28.05.2026", "9.30", out var start, out var hatZeit));
+        Assert.True(hatZeit);
+        Assert.Equal(new DateTime(2026, 5, 28, 9, 30, 0), start);
     }
 }

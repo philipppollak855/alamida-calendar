@@ -1,16 +1,14 @@
 using System.Text.RegularExpressions;
 using Alamida.Calendar.Profiles;
-using FlaUI.Core.AutomationElements;
 
 namespace Alamida.Calendar.Watcher;
 
 public static class UiaFieldExtractor
 {
     public static Dictionary<string, string?> ExtractFields(
-        AutomationElement root,
+        UiaElementInfo[] candidates,
         Dictionary<string, FieldLocator> locators)
     {
-        var candidates = root.FindAllDescendants();
         var result = new Dictionary<string, string?>();
 
         foreach (var (key, locator) in locators)
@@ -68,7 +66,7 @@ public static class UiaFieldExtractor
         fieldKey.EndsWith("zeit", StringComparison.OrdinalIgnoreCase);
 
     private static string? FindBestMatch(
-        AutomationElement[] candidates,
+        UiaElementInfo[] candidates,
         FieldLocator locator,
         string fieldKey)
     {
@@ -84,11 +82,11 @@ public static class UiaFieldExtractor
 
             foreach (var el in candidates)
             {
-                var aid = UiaValueReader.SafeGet(() => el.AutomationId) ?? "";
+                var aid = el.AutomationId;
                 if (!AutomationIdMatches(aid, locator, fieldKey)) continue;
 
-                var elName = UiaValueReader.SafeGet(() => el.Name) ?? "";
-                var val = UiaValueReader.Read(el);
+                var elName = el.Name;
+                var val = el.Value;
                 if (!NameOrValueMatchesLocator(elName, val, locator)) continue;
                 if (string.IsNullOrWhiteSpace(val)) continue;
                 val = AlamidaFieldNormalizer.Normalize(val)!;
@@ -131,8 +129,8 @@ public static class UiaFieldExtractor
 
         foreach (var el in candidates)
         {
-            var name = UiaValueReader.SafeGet(() => el.Name) ?? "";
-            var ct = UiaValueReader.SafeGet(() => el.ControlType.ToString()) ?? "";
+            var name = el.Name;
+            var ct = el.ControlType;
             if (locator.ControlTypes.Count > 0
                 && !locator.ControlTypes.Any(t => ct.Contains(t, StringComparison.OrdinalIgnoreCase)))
             {
@@ -143,7 +141,7 @@ public static class UiaFieldExtractor
                 name.Contains(term, StringComparison.OrdinalIgnoreCase));
             if (score <= 0) continue;
 
-            var val = UiaValueReader.Read(el);
+            var val = el.Value;
             if (string.IsNullOrWhiteSpace(val)) continue;
 
             if (score > bestScore)

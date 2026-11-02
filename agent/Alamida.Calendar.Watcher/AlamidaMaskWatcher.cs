@@ -19,13 +19,17 @@ public sealed class AlamidaMaskWatcher
 
     public bool LetztesAlamidaFensterGefunden => _letztesAlamidaFensterGefunden;
 
+    /// <summary>Dauer der letzten Masken-Erfassung (Fenster + Element-Baum lesen).</summary>
+    public long LetzteErfassungMs { get; private set; }
+
     public DetailSnapshot? TryCaptureSnapshot() => TryCaptureSnapshot(out _);
 
     public DetailSnapshot? TryCaptureSnapshot(out string? debugLog)
     {
         debugLog = null;
         using var automation = new UIA3Automation();
-        var window = AlamidaWindowHelper.FindBestWindow(automation, _profile.WindowTitlePatterns);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var (window, elements) = AlamidaWindowHelper.FindBestWindow(automation, _profile.WindowTitlePatterns);
         _letztesAlamidaFensterGefunden = window != null;
         if (window == null)
         {
@@ -33,15 +37,16 @@ public sealed class AlamidaMaskWatcher
             return null;
         }
 
-        var maske = MaskDetector.Detect(window);
-        if (maske == MaskKind.Unbekannt && MaskDetector.WindowHasOpenSterbefallHeader(window))
+        var maske = MaskDetector.Detect(elements);
+        if (maske == MaskKind.Unbekannt && MaskDetector.WindowHasOpenSterbefallHeader(elements))
             maske = MaskKind.DetailUeberfuehrung;
 
         _letzteMaske = maske;
+        LetzteErfassungMs = sw.ElapsedMilliseconds;
 
         if (maske == MaskKind.NeuerSterbefall && _profile.NeuerSterbefall.Fields.Count > 0)
         {
-            var fields = UiaFieldExtractor.ExtractFields(window, _profile.NeuerSterbefall.Fields);
+            var fields = UiaFieldExtractor.ExtractFields(elements, _profile.NeuerSterbefall.Fields);
             TerminOrtFields.MergeOrtUndZusatz(fields);
             debugLog = FormatDebug(maske, fields);
             var maxZeilen = _profile.Detailmaske.Ueberfuehrung.MaxEtappen > 0
@@ -54,7 +59,7 @@ public sealed class AlamidaMaskWatcher
         if (maske == MaskKind.DetailUeberfuehrung)
         {
             var detailMask = _profile.Detailmaske.Ueberfuehrung;
-            var fields = UiaFieldExtractor.ExtractFields(window, detailMask.Fields);
+            var fields = UiaFieldExtractor.ExtractFields(elements, detailMask.Fields);
             NormalizeTerminFelder(fields);
             TerminOrtFields.MergeOrtUndZusatz(fields);
             debugLog = FormatDebug(MaskKind.DetailUeberfuehrung, fields);

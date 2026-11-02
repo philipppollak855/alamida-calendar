@@ -81,6 +81,9 @@ public static class CalendarEventConverter
             return false;
         }
 
+        // Halb eingetippte Jahreszahlen ("28.05.202") nicht als Termin uebernehmen.
+        if (start.Year is < 2000 or > 2100) return false;
+
         hatUhrzeit = start.TimeOfDay != TimeSpan.Zero;
         if (!hatUhrzeit && !string.IsNullOrWhiteSpace(zeit))
         {
@@ -116,8 +119,11 @@ public static class CalendarEventConverter
             if (!TryParseStart(datum, zeit, out var start, out var hatUhrzeit)) return null;
 
             var k = Settings(kategorie);
-            var titel = $"{label ?? k.Name}: {Name}";
-            if (!string.IsNullOrWhiteSpace(zusatz)) titel += $" ({zusatz})";
+            // z.B. "⚰️ Beisetzung Anton Schellmann – Friedhof Ternitz" / "🚗 Überführung Anton Schellmann: A → B"
+            var titel = $"{label ?? k.Name} {Name}";
+            if (!string.IsNullOrWhiteSpace(k.Symbol)) titel = $"{k.Symbol.Trim()} {titel}";
+            if (!string.IsNullOrWhiteSpace(zusatz)) titel += $": {zusatz}";
+            else if (!string.IsNullOrWhiteSpace(ort)) titel += $" – {ort.Trim()}";
 
             var beschreibung = new List<string> { $"Sterbefall: {FallId} | {Name}" };
             if (!string.IsNullOrWhiteSpace(zusatz)) beschreibung.Add($"Route: {zusatz}");
