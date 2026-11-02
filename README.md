@@ -93,7 +93,21 @@ Mit `-ServiceAccountPath` wird der Schlüssel mitgeliefert – das ZIP dann nur 
 Siehe `scripts/GOOGLE-CALENDAR-SETUP.txt`: Calendar API aktivieren, Service Account anlegen, JSON-Schlüssel herunterladen, Kalender für die Service-Account-Adresse freigeben („Änderungen an Terminen vornehmen“).
 Als Kalender-ID die ID des freigegebenen Kalenders verwenden (Google Kalender → Einstellungen → „Kalender integrieren“). `primary` wäre der eigene, für niemanden sichtbare Kalender des Service Accounts.
 
-### Web-UI starten
+#### Empfohlene Aufteilung in mehrere Kalender
+
+1. In Google Kalender drei Kalender anlegen („Weitere Kalender“ → „+“ → „Neuen Kalender erstellen“): **Zeremonien**, **Fahrten**, **Gespräche**.
+2. Jeden Kalender für die Service-Account-Adresse freigeben („Änderungen an Terminen vornehmen“) und für die Mitarbeiter, die ihn sehen sollen.
+3. Kalender-IDs („Kalender integrieren“) in `appsettings.json` eintragen:
+
+| Kalender | Kategorien |
+|---|---|
+| Zeremonien | Beisetzung, Trauerfeier, Rosenkranz |
+| Fahrten | Abholung, Ueberfuehrung, Kremation |
+| Gespräche | Trauergespraech |
+
+4. In Google Kalender: Einstellungen → „Ansichtsoptionen“ → **„Kalender in der Tagesansicht nebeneinander anzeigen“**. Die Tagesansicht zeigt dann je Kalender eine Spalte; links lassen sich Kalender ein- und ausblenden (z. B. Fahrer sehen nur „Fahrten“).
+
+## Web-UI starten
 
 ```powershell
 cd web
@@ -106,15 +120,15 @@ npm run dev
 
 Jeder Termin aus der Maske (Tab „Termine“) wird einer Kategorie zugeordnet und bekommt deren Farbe:
 
-| Kategorie (Schlüssel) | Quelle in Alamida | Farbe (ColorId) |
-|---|---|---|
-| Beisetzung | Bestattung Datum/Zeit, „im Anschluss“ → nach der Trauerfeier | 8 Graphit |
-| Trauerfeier | Trauerfeier 1 und 2 | 3 Weintraube |
-| Rosenkranz | Rosenkranz | 1 Lavendel |
-| Trauergespraech | Trauergespräch / Aufnahme | 5 Banane |
-| Abholung | Überführungszeile 1 (Abholung) | 11 Tomate |
-| Ueberfuehrung | weitere Überführungszeilen | 9 Heidelbeere |
-| Kremation | Überführung ins Krematorium | 6 Mandarine |
+| Kategorie (Schlüssel) | Quelle in Alamida | Farbe (ColorId) | Symbol |
+|---|---|---|---|
+| Beisetzung | Bestattung Datum/Zeit, „im Anschluss“ → nach der Trauerfeier | 8 Graphit | ⚰️ |
+| Trauerfeier | Trauerfeier 1 und 2 | 3 Weintraube | 🕯️ |
+| Rosenkranz | Rosenkranz | 1 Lavendel | 📿 |
+| Trauergespraech | Trauergespräch / Aufnahme | 5 Banane | 💬 |
+| Abholung | Überführungszeile 1 (Abholung) | 11 Tomate | 🚐 |
+| Ueberfuehrung | weitere Überführungszeilen | 9 Heidelbeere | 🚗 |
+| Kremation | Überführung ins Krematorium | 6 Mandarine | 🔥 |
 
 Einstellungen in `%AppData%\AlamidaCalendar\appsettings.json`, Abschnitt `Kategorien`:
 
@@ -125,6 +139,7 @@ Einstellungen in `%AppData%\AlamidaCalendar\appsettings.json`, Abschnitt `Katego
 }
 ```
 
+- Termintitel: Symbol, Art, Verstorbener und Ort bzw. Route, z. B. „⚰️ Beisetzung Anton Schellmann – Friedhof Ternitz“ oder „🚗 Überführung Anton Schellmann: Kühlr. Grafenbach → St. Johann“. `Symbol` leer = ohne Symbol.
 - `CalendarId` leer = Standard-Kalender (`CalendarId` oben). So können beliebig viele Kalender genutzt werden, z. B. ein eigener Kalender für Überführungen.
 - Jeder Kalender muss für die Service-Account-Adresse mit „Änderungen an Terminen vornehmen“ freigegeben sein.
 - `ColorId` 1–11 (Google-Terminfarben), leer = Kalenderfarbe; `Aktiv: false` überträgt die Kategorie nicht.
@@ -139,17 +154,6 @@ npm run dev
 ```
 
 Öffnen Sie http://localhost:5173 für die Kalenderansicht.
-
-## Kategorien
-
-Der Agent erstellt Calendar Events für folgende Termine:
-
-- **Begraebnis**: Beisetzungen, Trauerfeiern, Rosenkränze
-- **Aufnahme**: Trauergespräche, Aufnahmetermine
-- **Vorsorge**: Vorsorgeverträge
-- **Bereitschaft**: Bereitschaftsdienste
-- **Abwesenheit**: Urlaub, Krankheit
-- **Sonstiges**: Alle anderen Termine
 
 ## Web-UI
 

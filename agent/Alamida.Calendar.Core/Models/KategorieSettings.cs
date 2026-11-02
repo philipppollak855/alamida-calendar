@@ -5,6 +5,9 @@ public sealed class KategorieSettings
 {
     public string Name { get; set; } = "";
 
+    /// <summary>Wird dem Termintitel vorangestellt (z.B. Emoji); leer = kein Symbol.</summary>
+    public string Symbol { get; set; } = "";
+
     /// <summary>Eigener Google-Kalender fuer diese Kategorie; leer = Standard-CalendarId.</summary>
     public string CalendarId { get; set; } = "";
 
@@ -16,12 +19,12 @@ public sealed class KategorieSettings
 
     public static Dictionary<EventCategory, KategorieSettings> Defaults() => new()
     {
-        [EventCategory.Beisetzung] = new() { Name = "Beisetzung", ColorId = "8" },
-        [EventCategory.Trauerfeier] = new() { Name = "Trauerfeier", ColorId = "3" },
-        [EventCategory.Rosenkranz] = new() { Name = "Rosenkranz", ColorId = "1" },
-        [EventCategory.Trauergespraech] = new() { Name = "Trauergespräch", ColorId = "5" },
-        [EventCategory.Abholung] = new() { Name = "Abholung", ColorId = "11" },
-        [EventCategory.Ueberfuehrung] = new() { Name = "Überführung", ColorId = "9", DauerMinuten = 120 },
-        [EventCategory.Kremation] = new() { Name = "Kremation", ColorId = "6" },
+        [EventCategory.Beisetzung] = new() { Name = "Beisetzung", Symbol = "⚰️", ColorId = "8" },
+        [EventCategory.Trauerfeier] = new() { Name = "Trauerfeier", Symbol = "🕯️", ColorId = "3" },
+        [EventCategory.Rosenkranz] = new() { Name = "Rosenkranz", Symbol = "📿", ColorId = "1" },
+        [EventCategory.Trauergespraech] = new() { Name = "Trauergespräch", Symbol = "💬", ColorId = "5" },
+        [EventCategory.Abholung] = new() { Name = "Abholung", Symbol = "🚐", ColorId = "11" },
+        [EventCategory.Ueberfuehrung] = new() { Name = "Überführung", Symbol = "🚗", ColorId = "9", DauerMinuten = 120 },
+        [EventCategory.Kremation] = new() { Name = "Kremation", Symbol = "🔥", ColorId = "6" },
     };
 }

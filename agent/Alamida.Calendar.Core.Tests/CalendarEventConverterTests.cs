@@ -43,7 +43,9 @@ public class CalendarEventConverterTests
         Assert.Equal(EventCategory.Beisetzung, events["260087|beisetzung"].Category);
         Assert.Equal(EventCategory.Trauerfeier, events["260087|trauerfeier"].Category);
         Assert.Equal(EventCategory.Trauerfeier, events["260087|trauerfeier2"].Category);
-        Assert.StartsWith("Trauerfeier 2:", events["260087|trauerfeier2"].Title);
+        Assert.Equal("🕯️ Trauerfeier 2 Anton Schellmann", events["260087|trauerfeier2"].Title);
+        Assert.Equal("⚰️ Beisetzung Anton Schellmann – Friedhof Ternitz", events["260087|beisetzung"].Title);
+        Assert.Equal("🚗 Überführung Anton Schellmann: Kühlr. Grafenbach → St. Johann", events["260087|schritt2"].Title);
         Assert.Equal(EventCategory.Rosenkranz, events["260087|rosenkranz"].Category);
         Assert.Equal(EventCategory.Trauergespraech, events["260087|aufnahme"].Category);
         Assert.Equal(new DateTime(2026, 5, 20, 10, 0, 0), events["260087|aufnahme"].Start);
