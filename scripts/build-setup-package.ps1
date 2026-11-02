@@ -69,7 +69,20 @@ $readme = @(
 [System.IO.File]::WriteAllText((Join-Path $staging 'LIESMICH.txt'), $readme, $utf8Bom)
 
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zipPath -Force
+# ZIP selbst schreiben: Compress-Archive (PowerShell 5.1) legt Eintraege mit Backslash an,
+# die andere Entpacker nicht als Ordner erkennen.
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$stagingFull = (Resolve-Path -LiteralPath $staging).Path.TrimEnd([IO.Path]::DirectorySeparatorChar)
+$zip = [System.IO.Compression.ZipFile]::Open($zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
+try {
+    Get-ChildItem -LiteralPath $stagingFull -Recurse -File | ForEach-Object {
+        $entryName = $_.FullName.Substring($stagingFull.Length + 1).Replace([IO.Path]::DirectorySeparatorChar, '/')
+        [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, $entryName, [System.IO.Compression.CompressionLevel]::Optimal)
+    }
+} finally {
+    $zip.Dispose()
+}
 Remove-Item $staging -Recurse -Force
 
 Write-Host ""
