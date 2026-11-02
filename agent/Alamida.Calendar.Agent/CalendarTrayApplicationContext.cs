@@ -162,7 +162,8 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
     private sealed record GeplanterTermin(CalendarEvent Event, string CalendarId, string ColorId)
     {
         public string Hash { get; } =
-            $"{ColorId}|{Event.Title}|{Event.Start:O}|{Event.End:O}|{Event.IsAllDay}|{Event.Location}|{Event.Description}";
+            $"{ColorId}|{Event.Title}|{Event.Start:O}|{Event.End:O}|{Event.IsAllDay}|{Event.Location}|{Event.Description}|"
+            + string.Join(";", Event.Details.OrderBy(d => d.Key, StringComparer.Ordinal).Select(d => $"{d.Key}={d.Value}"));
     }
 
     private void UpdateStatusLine(string text)

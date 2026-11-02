@@ -1,57 +1,160 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay } from 'date-fns';
+import { format, parse, startOfWeek, getDay, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './planung.css';
 import { anmelden, kalenderListe, termineLaden, type KalenderInfo } from './googleCalendar';
 import { demoTermine } from './demoDaten';
+import TerminDetail from './TerminDetail';
 import {
   GRUPPEN,
   KATEGORIEN,
   ausGoogleEvent,
+  checkliste,
+  countdown,
   fahrten,
   nachGruppe,
+  orte,
   plusTage,
   startDesTages,
   sterbefaelle,
+  suche,
   termineAmTag,
   warnungen,
+  type Gruppe,
   type Kategorie,
   type Termin,
 } from './planungLogic';
 
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek: (d: Date) => startOfWeek(d, { weekStartsOn: 1 }), getDay, locales: { de } });
 
-type Tab = 'tag' | 'kalender' | 'faelle' | 'fahrten' | 'hinweise';
+type Tab = 'tag' | 'kalender' | 'faelle' | 'fahrten' | 'orte' | 'hinweise';
+type Theme = 'dunkel' | 'hell';
 const LS_CLIENT = 'alamida.clientId';
 const LS_KALENDER = 'alamida.kalender';
+const LS_THEME = 'alamida.theme';
+const SS_TOKEN = 'alamida.token';
 const ENV_CLIENT = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? '';
 
-const uhrzeit = (d: Date) => format(d, 'HH:mm');
-const tagLabel = (d: Date) => format(d, 'EEEE, d. MMMM yyyy', { locale: de });
+const TABS: { id: Tab; label: string; icon: string; taste: string }[] = [
+  { id: 'tag', label: 'Tagesplan', icon: '◐', taste: '1' },
+  { id: 'kalender', label: 'Kalender', icon: '▦', taste: '2' },
+  { id: 'faelle', label: 'Sterbefälle', icon: '✦', taste: '3' },
+  { id: 'fahrten', label: 'Fahrten', icon: '➜', taste: '4' },
+  { id: 'orte', label: 'Orte', icon: '⌖', taste: '5' },
+  { id: 'hinweise', label: 'Hinweise', icon: '⚑', taste: '6' },
+];
+const GRUPPEN_ICON: Record<Gruppe, string> = { Zeremonien: '🕯️', Fahrten: '🚐', 'Gespräche': '💬', Sonstiges: '📌' };
 
-function TerminKarte({ t, mitDatum = false }: { t: Termin; mitDatum?: boolean }) {
+const uhrzeit = (d: Date) => format(d, 'HH:mm');
+
+function gespeichertesToken(): { token: string; gueltigBis: number } | null {
+  try {
+    const t = JSON.parse(sessionStorage.getItem(SS_TOKEN) ?? 'null');
+    return t && t.gueltigBis > Date.now() + 60_000 ? t : null;
+  } catch {
+    return null;
+  }
+}
+
+function TerminKarte({ t, mitDatum = false, onOeffnen }: { t: Termin; mitDatum?: boolean; onOeffnen: (t: Termin) => void }) {
   const k = KATEGORIEN[t.kategorie];
+  const cd = countdown(t, new Date());
   return (
-    <a className="termin" style={{ borderLeftColor: k.farbe }} href={t.link} target="_blank" rel="noreferrer">
+    <button
+      className={`termin ${cd === 'läuft' ? 'laeuft' : ''} ${t.ende < new Date() ? 'vorbei' : ''}`}
+      style={{ ['--kat' as string]: k.farbe }}
+      onClick={() => onOeffnen(t)}
+    >
       <div className="termin-zeit">
-        {mitDatum && <span>{format(t.start, 'EEE d.M.', { locale: de })} </span>}
-        {t.ganztaegig ? 'ganztägig' : `${uhrzeit(t.start)}–${uhrzeit(t.ende)}`}
+        <span>
+          {mitDatum && `${format(t.start, 'EEE d.M.', { locale: de })} · `}
+          {t.ganztaegig ? 'ganztägig' : `${uhrzeit(t.start)} – ${uhrzeit(t.ende)}`}
+          {t.details.imAnschluss && ' · im Anschluss'}
+        </span>
+        {cd && <span className={`countdown ${cd === 'läuft' ? 'live' : ''}`}>{cd}</span>}
       </div>
       <div className="termin-titel">
-        <span className="termin-symbol">{k.symbol}</span> {k.label}
-        {t.verstorbener && <strong> {t.verstorbener}</strong>}
+        <span className="termin-symbol">{k.symbol}</span>
+        <span>
+          <span className="termin-art">{t.details.art ?? k.label}</span>
+          {t.verstorbener && <strong> {t.verstorbener}</strong>}
+        </span>
       </div>
-      {t.ort && <div className="termin-ort">📍 {t.ort}</div>}
+      {t.details.route ? (
+        <div className="termin-ort">🧭 {t.details.route}</div>
+      ) : (
+        t.ort && <div className="termin-ort">📍 {t.ort}</div>
+      )}
       {!t.verstorbener && <div className="termin-ort">{t.titel}</div>}
-    </a>
+      {t.details.bestattungsart && <div className="termin-ort druck-nur">{t.details.bestattungsart}</div>}
+    </button>
+  );
+}
+
+interface PaletteEintrag {
+  id: string;
+  icon: string;
+  text: string;
+  sub?: string;
+  aktion: () => void;
+}
+
+function Palette({ eintraege, onSchliessen }: { eintraege: (q: string) => PaletteEintrag[]; onSchliessen: () => void }) {
+  const [q, setQ] = useState('');
+  const [i, setI] = useState(0);
+  const liste = eintraege(q);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => ref.current?.focus(), []);
+  useEffect(() => setI(0), [q]);
+  return (
+    <div className="modal-hintergrund oben" onClick={onSchliessen}>
+      <div className="palette" onClick={(e) => e.stopPropagation()}>
+        <input
+          ref={ref}
+          value={q}
+          placeholder="Suchen oder Befehl … (Name, Nr., Ort, „heute“, „drucken“)"
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') onSchliessen();
+            if (e.key === 'ArrowDown') setI((x) => Math.min(x + 1, liste.length - 1));
+            if (e.key === 'ArrowUp') setI((x) => Math.max(x - 1, 0));
+            if (e.key === 'Enter' && liste[i]) {
+              onSchliessen();
+              liste[i].aktion();
+            }
+          }}
+        />
+        <ul>
+          {liste.map((e, n) => (
+            <li key={e.id}>
+              <button
+                className={n === i ? 'aktiv' : ''}
+                onMouseEnter={() => setI(n)}
+                onClick={() => {
+                  onSchliessen();
+                  e.aktion();
+                }}
+              >
+                <span className="p-icon">{e.icon}</span>
+                <span className="p-text">{e.text}</span>
+                {e.sub && <span className="p-sub">{e.sub}</span>}
+              </button>
+            </li>
+          ))}
+          {liste.length === 0 && <li className="leer">Nichts gefunden</li>}
+        </ul>
+        <div className="palette-fuss">↑↓ auswählen · ↵ öffnen · Esc schließen</div>
+      </div>
+    </div>
   );
 }
 
 export default function PlanungPage() {
-  const [clientId, setClientId] = useState(() => localStorage.getItem(LS_CLIENT) ?? ENV_CLIENT);
-  const [token, setToken] = useState<string | null>(null);
+  const gespeichert = gespeichertesToken();
+  const [clientId, setClientId] = useState(() => localStorage.getItem(LS_CLIENT) || ENV_CLIENT);
+  const [token, setToken] = useState<string | null>(gespeichert?.token ?? null);
   const [kalender, setKalender] = useState<KalenderInfo[]>([]);
   const [auswahl, setAuswahl] = useState<string[]>(() => JSON.parse(localStorage.getItem(LS_KALENDER) ?? '[]'));
   const [termine, setTermine] = useState<Termin[]>(() => demoTermine());
@@ -64,10 +167,40 @@ export default function PlanungPage() {
   const [kalDatum, setKalDatum] = useState(new Date());
   const [aus, setAus] = useState<Kategorie[]>([]);
   const [einstellungen, setEinstellungen] = useState(false);
-  const demo = token === null;
+  const [suchtext, setSuchtext] = useState('');
+  const [offen, setOffen] = useState<Termin | null>(null);
+  const [palette, setPalette] = useState(false);
+  const [hilfe, setHilfe] = useState(false);
+  const [echteDaten, setEchteDaten] = useState(false);
+  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(LS_THEME) as Theme) || 'dunkel');
+  const [jetzt, setJetzt] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setJetzt(new Date()), 15_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(LS_THEME, theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dunkel' ? '#0b0d12' : '#f6f3ec');
+  }, [theme]);
+
+  const kalenderHolen = useCallback(async (tok: string) => {
+    try {
+      setKalender(await kalenderListe(tok));
+    } catch (e) {
+      setFehler((e as Error).message);
+      if ((e as Error).message === 'Anmeldung abgelaufen') setToken(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (gespeichert) void kalenderHolen(gespeichert.token);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const laden = useCallback(async () => {
-    if (!token) return;
+    if (!token || kalender.length === 0) return;
     setLaedt(true);
     try {
       const ids = auswahl.length ? auswahl : kalender.map((k) => k.id);
@@ -80,11 +213,15 @@ export default function PlanungPage() {
         }),
       );
       setTermine(listen.flat().filter((t): t is Termin => t !== null));
+      setEchteDaten(true);
       setStand(new Date());
       setFehler(null);
     } catch (e) {
       setFehler((e as Error).message);
-      if ((e as Error).message === 'Anmeldung abgelaufen') setToken(null);
+      if ((e as Error).message === 'Anmeldung abgelaufen') {
+        setToken(null);
+        sessionStorage.removeItem(SS_TOKEN);
+      }
     } finally {
       setLaedt(false);
     }
@@ -94,7 +231,12 @@ export default function PlanungPage() {
     void laden();
     if (!token) return;
     const timer = setInterval(() => void laden(), 60_000);
-    return () => clearInterval(timer);
+    const onFocus = () => void laden();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [laden, token]);
 
   async function onAnmelden() {
@@ -104,9 +246,9 @@ export default function PlanungPage() {
     }
     try {
       const r = await anmelden(clientId);
-      const liste = await kalenderListe(r.token);
-      setKalender(liste);
+      sessionStorage.setItem(SS_TOKEN, JSON.stringify(r));
       setToken(r.token);
+      await kalenderHolen(r.token);
       setTimeout(() => setToken(null), r.gueltigBis - Date.now() - 60_000);
     } catch (e) {
       setFehler((e as Error).message);
@@ -119,185 +261,493 @@ export default function PlanungPage() {
     localStorage.setItem(LS_KALENDER, JSON.stringify(neu));
   }
 
-  const sichtbar = useMemo(() => termine.filter((t) => !aus.includes(t.kategorie)), [termine, aus]);
-  const jetzt = new Date();
-  const hinweise = useMemo(() => warnungen(sichtbar, new Date()), [sichtbar]);
-  const tagGruppen = nachGruppe(termineAmTag(sichtbar, tag));
-  const spalten = [...GRUPPEN, ...(tagGruppen.Sonstiges.length ? (['Sonstiges'] as const) : [])];
+  const vollbild = () =>
+    document.fullscreenElement ? void document.exitFullscreen() : void document.documentElement.requestFullscreen?.();
+
+  const geheZu = useCallback((t: Termin) => {
+    setTag(startDesTages(t.start));
+    setOffen(t);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPalette((x) => !x);
+        return;
+      }
+      const ziel = e.target as HTMLElement;
+      if (offen || palette || ['INPUT', 'TEXTAREA', 'SELECT'].includes(ziel.tagName) || e.ctrlKey || e.metaKey || e.altKey) return;
+      const tabTaste = TABS.find((x) => x.taste === e.key);
+      if (tabTaste) setTab(tabTaste.id);
+      else if (e.key === '/') {
+        e.preventDefault();
+        setPalette(true);
+      } else if (e.key === '?') setHilfe((x) => !x);
+      else if (e.key.toLowerCase() === 't') {
+        setTag(startDesTages(new Date()));
+        setKalDatum(new Date());
+      } else if (e.key.toLowerCase() === 'd') setTheme((x) => (x === 'dunkel' ? 'hell' : 'dunkel'));
+      else if (e.key.toLowerCase() === 'f') vollbild();
+      else if (e.key.toLowerCase() === 'p') window.print();
+      else if (e.key.toLowerCase() === 'r') void laden();
+      else if (tab === 'tag' && (e.key === 'ArrowLeft' || e.key === 'j')) setTag((d) => plusTage(d, -1));
+      else if (tab === 'tag' && (e.key === 'ArrowRight' || e.key === 'k')) setTag((d) => plusTage(d, 1));
+      else if (e.key === 'Escape') setHilfe(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [offen, palette, tab, laden]);
+
+  const gefiltert = useMemo(() => suche(termine.filter((t) => !aus.includes(t.kategorie)), suchtext), [termine, aus, suchtext]);
+  const hinweise = useMemo(() => warnungen(gefiltert, new Date()), [gefiltert]);
+  const tagTermine = termineAmTag(gefiltert, tag);
+  const tagGruppen = nachGruppe(tagTermine);
+  const spalten: Gruppe[] = [...GRUPPEN, ...(tagGruppen.Sonstiges.length ? (['Sonstiges'] as Gruppe[]) : [])];
+  const istHeute = isSameDay(tag, jetzt);
+  const heute = termineAmTag(gefiltert, jetzt);
+  const naechster = gefiltert
+    .filter((t) => !t.ganztaegig && t.start > jetzt)
+    .sort((a, b) => a.start.getTime() - b.start.getTime())[0];
+  const fahrtenListe = fahrten(gefiltert, jetzt);
+  const faelle = sterbefaelle(gefiltert, jetzt);
+  const orteListe = orte(gefiltert, jetzt);
+  const zaehler: Partial<Record<Tab, number>> = {
+    tag: heute.length,
+    faelle: faelle.filter((f) => f.naechster).length,
+    fahrten: fahrtenListe.length,
+    hinweise: hinweise.length,
+  };
+
+  const paletteEintraege = (q: string): PaletteEintrag[] => {
+    const befehle: PaletteEintrag[] = [
+      ...TABS.map((x) => ({ id: `tab-${x.id}`, icon: x.icon, text: `Gehe zu ${x.label}`, sub: x.taste, aktion: () => setTab(x.id) })),
+      { id: 'heute', icon: '◉', text: 'Heute', sub: 'T', aktion: () => { setTag(startDesTages(new Date())); setTab('tag'); } },
+      { id: 'morgen', icon: '→', text: 'Morgen', aktion: () => { setTag(plusTage(startDesTages(new Date()), 1)); setTab('tag'); } },
+      { id: 'drucken', icon: '🖨', text: 'Tagesplan drucken', sub: 'P', aktion: () => { setTab('tag'); setTimeout(() => window.print(), 100); } },
+      { id: 'theme', icon: '◑', text: theme === 'dunkel' ? 'Helles Design' : 'Dunkles Design', sub: 'D', aktion: () => setTheme(theme === 'dunkel' ? 'hell' : 'dunkel') },
+      { id: 'vollbild', icon: '⛶', text: 'Vollbild / Wandmodus', sub: 'F', aktion: vollbild },
+      { id: 'neu', icon: '↻', text: 'Jetzt aktualisieren', sub: 'R', aktion: () => void laden() },
+    ];
+    const ql = q.trim().toLowerCase();
+    const b = ql ? befehle.filter((x) => x.text.toLowerCase().includes(ql)) : befehle.slice(6, 10);
+    const treffer = ql
+      ? suche(termine, q)
+          .sort((a, b2) => Math.abs(a.start.getTime() - Date.now()) - Math.abs(b2.start.getTime() - Date.now()))
+          .slice(0, 8)
+          .map((t) => ({
+            id: t.id,
+            icon: KATEGORIEN[t.kategorie].symbol,
+            text: `${t.details.art ?? KATEGORIEN[t.kategorie].label} ${t.verstorbener ?? t.titel}`,
+            sub: format(t.start, t.ganztaegig ? 'EEE d.M.' : 'EEE d.M. HH:mm', { locale: de }),
+            aktion: () => geheZu(t),
+          }))
+      : [];
+    return [...treffer, ...b];
+  };
+
+  const begruessung = jetzt.getHours() < 11 ? 'Guten Morgen' : jetzt.getHours() < 18 ? 'Guten Tag' : 'Guten Abend';
 
   return (
-    <div className="planung">
-      <header className="planung-kopf">
-        <h1>Alamida Planung</h1>
-        <nav className="planung-tabs">
-          {(
-            [
-              ['tag', 'Tagesplan'],
-              ['kalender', 'Woche / Monat'],
-              ['faelle', 'Sterbefälle'],
-              ['fahrten', 'Fahrten'],
-              ['hinweise', `Hinweise${hinweise.length ? ` (${hinweise.length})` : ''}`],
-            ] as [Tab, string][]
-          ).map(([id, label]) => (
-            <button key={id} className={tab === id ? 'aktiv' : ''} onClick={() => setTab(id)}>
-              {label}
+    <div className={`planung theme-${theme}`}>
+      <aside className="seitenleiste">
+        <div className="marke">
+          <div className="marke-logo">A</div>
+          <div>
+            <div className="marke-name">Alamida</div>
+            <div className="marke-sub">Planung</div>
+          </div>
+        </div>
+        <nav>
+          {TABS.map((x) => (
+            <button key={x.id} className={tab === x.id ? 'aktiv' : ''} onClick={() => setTab(x.id)} title={`${x.label} (${x.taste})`}>
+              <span className="nav-icon">{x.icon}</span>
+              <span className="nav-label">{x.label}</span>
+              {!!zaehler[x.id] && <span className={`nav-zahl ${x.id === 'hinweise' ? 'warn' : ''}`}>{zaehler[x.id]}</span>}
             </button>
           ))}
         </nav>
-        <div className="planung-konto">
-          {demo ? (
-            <button className="primaer" onClick={onAnmelden}>Mit Google anmelden</button>
-          ) : (
-            <button onClick={() => void laden()} disabled={laedt}>{laedt ? 'Lädt…' : '↻ Aktualisieren'}</button>
-          )}
+        <div className="seitenleiste-fuss">
+          <button onClick={() => setTheme(theme === 'dunkel' ? 'hell' : 'dunkel')} title="Design wechseln (D)">
+            {theme === 'dunkel' ? '☀' : '☾'}
+          </button>
+          <button onClick={vollbild} title="Vollbild (F)">⛶</button>
+          <button onClick={() => setHilfe(true)} title="Tastenkürzel (?)">⌨</button>
           <button onClick={() => setEinstellungen((x) => !x)} title="Einstellungen">⚙</button>
         </div>
-      </header>
+      </aside>
 
-      {demo && (
-        <div className="hinweis-leiste">Beispieldaten – nach der Google-Anmeldung erscheinen eure echten Termine.</div>
-      )}
-      {fehler && <div className="hinweis-leiste fehler">{fehler}</div>}
+      <main className="hauptbereich">
+        <header className="kopfzeile">
+          <div>
+            <div className="gruss">{begruessung}</div>
+            <h1>
+              {format(jetzt, 'EEEE, d. MMMM', { locale: de })} <span className="uhr">{uhrzeit(jetzt)}</span>
+            </h1>
+          </div>
+          <button className="suchfeld" onClick={() => setPalette(true)}>
+            <span>⌕</span> Suchen oder springen … <kbd>Strg K</kbd>
+          </button>
+          <div className="kopf-aktionen">
+            {stand && <span className="stand">● Live · {uhrzeit(stand)}</span>}
+            {token === null ? (
+              <button className="knopf primaer" onClick={onAnmelden}>
+                {echteDaten ? 'Erneut anmelden' : 'Mit Google anmelden'}
+              </button>
+            ) : (
+              <button className="knopf" onClick={() => void laden()} disabled={laedt}>
+                <span className={laedt ? 'dreht' : ''}>↻</span> Aktualisieren
+              </button>
+            )}
+          </div>
+        </header>
 
-      {einstellungen && (
-        <section className="einstellungen">
-          <label>
-            Google OAuth-Client-ID
-            <input
-              value={clientId}
-              placeholder="…apps.googleusercontent.com"
-              onChange={(e) => {
-                setClientId(e.target.value.trim());
-                localStorage.setItem(LS_CLIENT, e.target.value.trim());
-              }}
-            />
-          </label>
-          {kalender.length > 0 && (
-            <fieldset>
-              <legend>Kalender (keine Auswahl = alle)</legend>
-              {kalender.map((k) => (
-                <label key={k.id} className="check">
-                  <input type="checkbox" checked={auswahl.includes(k.id)} onChange={() => toggleKalender(k.id)} />
-                  <span className="punkt" style={{ background: k.farbe }} /> {k.name}
-                </label>
-              ))}
-            </fieldset>
+        {!echteDaten && <div className="banner">Beispieldaten – nach der Google-Anmeldung erscheinen eure echten Termine.</div>}
+        {echteDaten && token === null && (
+          <div className="banner">Anmeldung abgelaufen – angezeigt wird der Stand von {stand ? uhrzeit(stand) : '–'}.</div>
+        )}
+        {fehler && <div className="banner fehler">{fehler}</div>}
+
+        {einstellungen && (
+          <section className="einstellungen glas">
+            <label>
+              Google OAuth-Client-ID
+              <input
+                value={clientId}
+                placeholder="…apps.googleusercontent.com"
+                onChange={(e) => {
+                  setClientId(e.target.value.trim());
+                  localStorage.setItem(LS_CLIENT, e.target.value.trim());
+                }}
+              />
+            </label>
+            {kalender.length > 0 ? (
+              <fieldset>
+                <legend>Angezeigte Kalender (keine Auswahl = alle)</legend>
+                {kalender.map((k) => (
+                  <label key={k.id} className="check">
+                    <input type="checkbox" checked={auswahl.includes(k.id)} onChange={() => toggleKalender(k.id)} />
+                    <span className="punkt" style={{ background: k.farbe }} /> {k.name}
+                  </label>
+                ))}
+              </fieldset>
+            ) : (
+              <p className="leer">Nach der Anmeldung lassen sich hier die Kalender auswählen.</p>
+            )}
+          </section>
+        )}
+
+        <section className="kennzahlen">
+          <div className="kachel glas">
+            <div className="kachel-label">Heute</div>
+            <div className="kachel-wert">{heute.length}</div>
+            <div className="kachel-sub">Termine</div>
+          </div>
+          <div className="kachel glas">
+            <div className="kachel-label">Zeremonien heute</div>
+            <div className="kachel-wert">{nachGruppe(heute).Zeremonien.length}</div>
+            <div className="kachel-sub">Beisetzung · Feier · Rosenkranz</div>
+          </div>
+          <div className="kachel glas">
+            <div className="kachel-label">Fahrten 14 Tage</div>
+            <div className="kachel-wert">{fahrtenListe.length}</div>
+            <div className="kachel-sub">davon heute {nachGruppe(heute).Fahrten.length}</div>
+          </div>
+          <button className={`kachel glas ${hinweise.length ? 'warn' : ''}`} onClick={() => setTab('hinweise')}>
+            <div className="kachel-label">Hinweise</div>
+            <div className="kachel-wert">{hinweise.length}</div>
+            <div className="kachel-sub">{hinweise.length ? 'bitte prüfen' : 'alles in Ordnung'}</div>
+          </button>
+          {naechster && (
+            <button className="kachel glas naechster" style={{ ['--kat' as string]: KATEGORIEN[naechster.kategorie].farbe }} onClick={() => geheZu(naechster)}>
+              <div className="kachel-label">Nächster Termin · {countdown(naechster, jetzt) ?? format(naechster.start, 'EEE d.M.', { locale: de })}</div>
+              <div className="kachel-titel">
+                {KATEGORIEN[naechster.kategorie].symbol} {naechster.details.art ?? KATEGORIEN[naechster.kategorie].label} {naechster.verstorbener ?? ''}
+              </div>
+              <div className="kachel-sub">
+                {uhrzeit(naechster.start)} · {naechster.details.route ?? naechster.ort}
+              </div>
+            </button>
           )}
         </section>
-      )}
 
-      <div className="filter-leiste">
-        {(Object.keys(KATEGORIEN) as Kategorie[])
-          .filter((k) => k !== 'Sonstiges')
-          .map((k) => (
-            <button
-              key={k}
-              className={`chip ${aus.includes(k) ? 'aus' : ''}`}
-              style={{ borderColor: KATEGORIEN[k].farbe }}
-              onClick={() => setAus(aus.includes(k) ? aus.filter((x) => x !== k) : [...aus, k])}
-            >
-              {KATEGORIEN[k].symbol} {KATEGORIEN[k].label}
-            </button>
-          ))}
-        {stand && <span className="stand">Stand {uhrzeit(stand)}</span>}
-      </div>
-
-      {tab === 'tag' && (
-        <section>
-          <div className="tag-nav">
-            <button onClick={() => setTag(plusTage(tag, -1))}>←</button>
-            <button onClick={() => setTag(startDesTages(new Date()))}>Heute</button>
-            <button onClick={() => setTag(plusTage(tag, 1))}>→</button>
-            <h2>{tagLabel(tag)}</h2>
+        <div className="filter-leiste">
+          <div className="suche-inline">
+            <span>⌕</span>
+            <input type="search" placeholder="Filtern: Name, Nr., Ort …" value={suchtext} onChange={(e) => setSuchtext(e.target.value)} />
           </div>
-          <div className="spalten">
-            {spalten.map((g) => (
-              <div key={g} className="spalte">
-                <h3>
-                  {g} <span className="anzahl">{tagGruppen[g].length}</span>
-                </h3>
-                {tagGruppen[g].length === 0 && <p className="leer">Keine Termine</p>}
-                {tagGruppen[g].map((t) => (
-                  <TerminKarte key={t.id} t={t} />
-                ))}
-              </div>
+          {(Object.keys(KATEGORIEN) as Kategorie[])
+            .filter((k) => k !== 'Sonstiges')
+            .map((k) => (
+              <button
+                key={k}
+                className={`chip ${aus.includes(k) ? 'aus' : ''}`}
+                style={{ ['--kat' as string]: KATEGORIEN[k].farbe }}
+                onClick={() => setAus(aus.includes(k) ? aus.filter((x) => x !== k) : [...aus, k])}
+                onDoubleClick={() => setAus((Object.keys(KATEGORIEN) as Kategorie[]).filter((x) => x !== k))}
+                title="Klick: ein/aus · Doppelklick: nur diese"
+              >
+                <span className="chip-punkt" />
+                {KATEGORIEN[k].symbol} {KATEGORIEN[k].label}
+              </button>
             ))}
-          </div>
-        </section>
-      )}
+          {aus.length > 0 && (
+            <button className="chip zuruecksetzen" onClick={() => setAus([])}>
+              Alle zeigen
+            </button>
+          )}
+        </div>
 
-      {tab === 'kalender' && (
-        <section className="kalender-ansicht">
-          <Calendar
-            localizer={localizer}
-            culture="de"
-            events={sichtbar}
-            titleAccessor={(t: Termin) => `${KATEGORIEN[t.kategorie].symbol} ${t.verstorbener ?? t.titel}`}
-            startAccessor="start"
-            endAccessor="ende"
-            allDayAccessor="ganztaegig"
-            view={kalView}
-            onView={setKalView}
-            date={kalDatum}
-            onNavigate={setKalDatum}
-            views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
-            min={new Date(1970, 0, 1, 6)}
-            max={new Date(1970, 0, 1, 21)}
-            onSelectEvent={(t: Termin) => t.link && window.open(t.link, '_blank')}
-            eventPropGetter={(t: Termin) => ({ style: { backgroundColor: KATEGORIEN[t.kategorie].farbe, border: 'none' } })}
-            messages={{ today: 'Heute', previous: '←', next: '→', month: 'Monat', week: 'Woche', day: 'Tag', agenda: 'Liste', noEventsInRange: 'Keine Termine', showMore: (n: number) => `+${n} weitere` }}
-            style={{ height: 'calc(100vh - 230px)', minHeight: 520 }}
-          />
-        </section>
-      )}
-
-      {tab === 'faelle' && (
-        <section className="faelle">
-          {sterbefaelle(sichtbar, jetzt).map((f) => (
-            <article key={f.sterbefallId} className={`fall ${f.naechster ? '' : 'erledigt'}`}>
-              <h3>
-                {f.name} <span className="fall-nr">#{f.sterbefallId}</span>
-              </h3>
-              {f.naechster && (
-                <p className="naechster">
-                  Nächster Termin: {KATEGORIEN[f.naechster.kategorie].label}, {format(f.naechster.start, 'EEE d.M.', { locale: de })}
-                  {!f.naechster.ganztaegig && ` ${uhrzeit(f.naechster.start)}`}
-                </p>
-              )}
-              <ol className="zeitleiste">
-                {f.termine.map((t) => (
-                  <li key={t.id} className={t.ende < jetzt ? 'vorbei' : ''}>
-                    <TerminKarte t={t} mitDatum />
-                  </li>
-                ))}
-              </ol>
-            </article>
-          ))}
-        </section>
-      )}
-
-      {tab === 'fahrten' && (
-        <section className="liste">
-          <h2>Fahrten der nächsten 14 Tage</h2>
-          {fahrten(sichtbar, jetzt).map((t) => (
-            <TerminKarte key={t.id} t={t} mitDatum />
-          ))}
-          {fahrten(sichtbar, jetzt).length === 0 && <p className="leer">Keine Fahrten geplant</p>}
-        </section>
-      )}
-
-      {tab === 'hinweise' && (
-        <section className="liste">
-          <h2>Hinweise</h2>
-          {hinweise.length === 0 && <p className="leer">Keine Auffälligkeiten 👍</p>}
-          {hinweise.map((w, i) => (
-            <div key={i} className={`warnung ${w.art}`}>
-              <strong>{w.art === 'ueberschneidung' ? 'Überschneidung' : w.art === 'ohneUhrzeit' ? 'Ohne Uhrzeit' : 'Reihenfolge'}</strong>
-              <span>{w.text}</span>
-              <small>{w.termine.map((t) => format(t.start, t.ganztaegig ? 'd.M.' : 'd.M. HH:mm')).join(' / ')}</small>
+        {tab === 'tag' && (
+          <section className="ansicht">
+            <div className="tag-nav">
+              <div className="tag-nav-knoepfe">
+                <button onClick={() => setTag(plusTage(tag, -1))} title="Vorheriger Tag (←)">‹</button>
+                <button className={istHeute ? 'aktiv' : ''} onClick={() => setTag(startDesTages(new Date()))}>
+                  Heute
+                </button>
+                <button onClick={() => setTag(plusTage(tag, 1))} title="Nächster Tag (→)">›</button>
+              </div>
+              <h2>{format(tag, 'EEEE, d. MMMM yyyy', { locale: de })}</h2>
+              <input
+                type="date"
+                value={format(tag, 'yyyy-MM-dd')}
+                onChange={(e) => e.target.value && setTag(startDesTages(new Date(e.target.value + 'T00:00')))}
+              />
+              <button className="knopf" onClick={() => window.print()}>🖨 Drucken</button>
             </div>
-          ))}
-        </section>
+            <div className="wochenband">
+              {Array.from({ length: 7 }, (_, n) => plusTage(startOfWeek(tag, { weekStartsOn: 1 }), n)).map((d) => {
+                const anz = termineAmTag(gefiltert, d).length;
+                return (
+                  <button
+                    key={d.toISOString()}
+                    className={`${isSameDay(d, tag) ? 'aktiv' : ''} ${isSameDay(d, jetzt) ? 'heute' : ''}`}
+                    onClick={() => setTag(d)}
+                  >
+                    <span className="wb-tag">{format(d, 'EEE', { locale: de })}</span>
+                    <span className="wb-datum">{format(d, 'd')}</span>
+                    <span className="wb-punkte">{'•'.repeat(Math.min(anz, 5))}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="spalten">
+              {spalten.map((g) => {
+                const liste = tagGruppen[g];
+                const jetztIndex = istHeute ? liste.findIndex((t) => !t.ganztaegig && t.start > jetzt) : -1;
+                return (
+                  <div key={g} className="spalte glas">
+                    <h3>
+                      <span>
+                        {GRUPPEN_ICON[g]} {g}
+                      </span>
+                      <span className="anzahl">{liste.length}</span>
+                    </h3>
+                    {liste.length === 0 && <p className="leer">Keine Termine</p>}
+                    {liste.map((t, n) => (
+                      <div key={t.id} className="spalte-eintrag">
+                        {n === jetztIndex && (
+                          <div className="jetzt-linie">
+                            <span>Jetzt {uhrzeit(jetzt)}</span>
+                          </div>
+                        )}
+                        <TerminKarte t={t} onOeffnen={setOffen} />
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {tab === 'kalender' && (
+          <section className="ansicht kalender-ansicht glas">
+            <Calendar
+              localizer={localizer}
+              culture="de"
+              events={gefiltert}
+              titleAccessor={(t: Termin) => `${KATEGORIEN[t.kategorie].symbol} ${t.details.art ?? KATEGORIEN[t.kategorie].label} ${t.verstorbener ?? t.titel}`}
+              tooltipAccessor={(t: Termin) => `${t.titel}\n${t.details.route ?? t.ort}`}
+              startAccessor="start"
+              endAccessor="ende"
+              allDayAccessor="ganztaegig"
+              view={kalView}
+              onView={setKalView}
+              date={kalDatum}
+              onNavigate={setKalDatum}
+              views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
+              min={new Date(1970, 0, 1, 6)}
+              max={new Date(1970, 0, 1, 21)}
+              scrollToTime={new Date(1970, 0, 1, 7)}
+              formats={{
+                dayRangeHeaderFormat: ({ start, end }: { start: Date; end: Date }) =>
+                  `${format(start, 'd. MMM', { locale: de })} – ${format(end, 'd. MMM yyyy', { locale: de })}`,
+                dayHeaderFormat: (d: Date) => format(d, 'EEEE, d. MMMM yyyy', { locale: de }),
+                monthHeaderFormat: (d: Date) => format(d, 'MMMM yyyy', { locale: de }),
+                dayFormat: (d: Date) => format(d, 'EEE d.', { locale: de }),
+                timeGutterFormat: (d: Date) => format(d, 'HH:mm'),
+              }}
+              onSelectEvent={(t: Termin) => setOffen(t)}
+              onDrillDown={(d: Date) => {
+                setTag(startDesTages(d));
+                setTab('tag');
+              }}
+              eventPropGetter={(t: Termin) => ({ style: { ['--kat' as string]: KATEGORIEN[t.kategorie].farbe } as React.CSSProperties })}
+              messages={{
+                today: 'Heute',
+                previous: '‹',
+                next: '›',
+                month: 'Monat',
+                week: 'Woche',
+                day: 'Tag',
+                agenda: 'Liste',
+                date: 'Datum',
+                time: 'Zeit',
+                event: 'Termin',
+                allDay: 'ganztägig',
+                noEventsInRange: 'Keine Termine',
+                showMore: (n: number) => `+${n} weitere`,
+              }}
+              style={{ height: 'calc(100vh - 330px)', minHeight: 560 }}
+            />
+          </section>
+        )}
+
+        {tab === 'faelle' && (
+          <section className="ansicht raster">
+            {faelle.map((f) => {
+              const punkte = checkliste(f.termine);
+              const fertig = punkte.filter((p) => p.erledigt).length;
+              return (
+                <article key={f.sterbefallId} className={`fall glas ${f.naechster ? '' : 'erledigt'}`}>
+                  <div className="fall-kopf">
+                    <div className="avatar">{f.name.split(' ').map((w) => w[0]).slice(0, 2).join('')}</div>
+                    <div>
+                      <h3>{f.name}</h3>
+                      <div className="fall-nr">
+                        #{f.sterbefallId}
+                        {f.termine[0]?.details.bestattungsart && ` · ${f.termine[0].details.bestattungsart}`}
+                      </div>
+                    </div>
+                    <div className="fortschritt" style={{ ['--p' as string]: `${(fertig / punkte.length) * 100}%` }}>
+                      <span>
+                        {fertig}/{punkte.length}
+                      </span>
+                    </div>
+                  </div>
+                  {f.naechster && (
+                    <p className="naechster-text">
+                      Nächster: {f.naechster.details.art ?? KATEGORIEN[f.naechster.kategorie].label},{' '}
+                      {format(f.naechster.start, 'EEE d.M.', { locale: de })}
+                      {!f.naechster.ganztaegig && ` ${uhrzeit(f.naechster.start)}`}
+                    </p>
+                  )}
+                  <ul className="checkliste">
+                    {punkte.map((p) => (
+                      <li key={p.label} className={p.erledigt ? 'ok' : 'offen'}>
+                        {p.erledigt ? '✓' : '○'} {p.label}
+                      </li>
+                    ))}
+                  </ul>
+                  <ol className="zeitleiste">
+                    {f.termine.map((t) => (
+                      <li key={t.id}>
+                        <TerminKarte t={t} mitDatum onOeffnen={setOffen} />
+                      </li>
+                    ))}
+                  </ol>
+                </article>
+              );
+            })}
+            {faelle.length === 0 && <p className="leer">Keine Sterbefälle</p>}
+          </section>
+        )}
+
+        {tab === 'fahrten' && (
+          <section className="ansicht liste">
+            <h2>Fahrten der nächsten 14 Tage</h2>
+            {fahrtenListe.map((t, n) => {
+              const neuerTag = n === 0 || !isSameDay(t.start, fahrtenListe[n - 1].start);
+              return (
+                <div key={t.id}>
+                  {neuerTag && <div className="tag-trenner">{format(t.start, 'EEEE, d. MMMM', { locale: de })}</div>}
+                  <TerminKarte t={t} onOeffnen={setOffen} />
+                </div>
+              );
+            })}
+            {fahrtenListe.length === 0 && <p className="leer">Keine Fahrten geplant</p>}
+          </section>
+        )}
+
+        {tab === 'orte' && (
+          <section className="ansicht raster">
+            {orteListe.map((o) => (
+              <article key={o.ort} className="fall glas">
+                <div className="fall-kopf">
+                  <div className="avatar">📍</div>
+                  <div>
+                    <h3>{o.ort}</h3>
+                    <div className="fall-nr">{o.termine.length} Termine in 14 Tagen</div>
+                  </div>
+                </div>
+                <ol className="zeitleiste">
+                  {o.termine.map((t) => (
+                    <li key={t.id}>
+                      <TerminKarte t={t} mitDatum onOeffnen={setOffen} />
+                    </li>
+                  ))}
+                </ol>
+              </article>
+            ))}
+            {orteListe.length === 0 && <p className="leer">Keine Termine mit Ort</p>}
+          </section>
+        )}
+
+        {tab === 'hinweise' && (
+          <section className="ansicht liste">
+            <h2>Hinweise</h2>
+            {hinweise.length === 0 && <p className="leer gross">✓ Keine Auffälligkeiten</p>}
+            {hinweise.map((w, i) => (
+              <button key={i} className={`warnung ${w.art}`} onClick={() => geheZu(w.termine[0])}>
+                <strong>{w.art === 'ueberschneidung' ? 'Überschneidung' : w.art === 'ohneUhrzeit' ? 'Ohne Uhrzeit' : 'Reihenfolge'}</strong>
+                <span>{w.text}</span>
+                <small>{w.termine.map((t) => format(t.start, t.ganztaegig ? 'EEE d.M.' : 'EEE d.M. HH:mm', { locale: de })).join(' / ')}</small>
+              </button>
+            ))}
+          </section>
+        )}
+      </main>
+
+      {offen && <TerminDetail termin={offen} alle={termine} hinweise={hinweise} onWaehlen={setOffen} onSchliessen={() => setOffen(null)} />}
+      {palette && <Palette eintraege={paletteEintraege} onSchliessen={() => setPalette(false)} />}
+      {hilfe && (
+        <div className="modal-hintergrund" onClick={() => setHilfe(false)}>
+          <div className="hilfe glas" onClick={(e) => e.stopPropagation()}>
+            <h2>Tastenkürzel</h2>
+            <dl>
+              {[
+                ['Strg K  /  /', 'Suchen & springen'],
+                ['1 – 6', 'Ansicht wechseln'],
+                ['← →', 'Tag zurück / vor'],
+                ['T', 'Heute'],
+                ['R', 'Aktualisieren'],
+                ['P', 'Drucken'],
+                ['D', 'Hell / Dunkel'],
+                ['F', 'Vollbild (Wandmonitor)'],
+                ['Esc', 'Schließen'],
+              ].map(([k, v]) => (
+                <div key={k}>
+                  <dt>
+                    <kbd>{k}</kbd>
+                  </dt>
+                  <dd>{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </div>
       )}
     </div>
   );

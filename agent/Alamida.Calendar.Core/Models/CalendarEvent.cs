@@ -12,6 +12,9 @@ public class CalendarEvent
     public string Description { get; set; } = string.Empty;
     public string Location { get; set; } = string.Empty;
     public EventCategory Category { get; set; }
+
+    /// <summary>Strukturierte Zusatzdaten fuer die Planungsoberflaeche (Google extendedProperties.private).</summary>
+    public Dictionary<string, string> Details { get; set; } = new();
 }
 
 public enum EventCategory

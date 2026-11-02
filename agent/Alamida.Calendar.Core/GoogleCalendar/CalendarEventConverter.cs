@@ -25,7 +25,7 @@ public static class CalendarEventConverter
         if (fallId == null) return events;
 
         var name = string.IsNullOrWhiteSpace(snapshot.VerstorbenerName) ? fallId : snapshot.VerstorbenerName.Trim();
-        var ctx = new Kontext(events, kategorien, snapshot, fallId, name);
+        var ctx = new Kontext(events, new List<CalendarEvent>(), kategorien, snapshot, fallId, name);
 
         var trauerfeier = ctx.Add("trauerfeier", EventCategory.Trauerfeier, null,
             snapshot.TrauerfeierDatum, snapshot.TrauerfeierZeit, snapshot.TrauerfeierOrt);
@@ -47,7 +47,7 @@ public static class CalendarEventConverter
             beisetzung.IsAllDay = false;
             beisetzung.Start = trauerfeier.End ?? trauerfeier.Start.AddHours(1);
             beisetzung.End = beisetzung.Start.AddMinutes(Math.Max(15, dauer));
-            beisetzung.Description += "\nIm Anschluss an die Trauerfeier";
+            beisetzung.Details["imAnschluss"] = "1";
         }
 
         foreach (var schritt in snapshot.Schritte.OrderBy(s => s.Zeile))
@@ -62,10 +62,66 @@ public static class CalendarEventConverter
                 new[] { schritt.VonOrt, schritt.NachOrt }.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim()));
             ctx.Add($"schritt{schritt.Zeile}", kategorie, null, schritt.TerminAm, null,
                 kategorie == EventCategory.Abholung ? schritt.VonOrt : schritt.NachOrt,
-                string.IsNullOrWhiteSpace(route) ? null : route);
+                string.IsNullOrWhiteSpace(route) ? null : route,
+                schritt.VonOrt, schritt.NachOrt);
         }
 
+        foreach (var ev in ctx.Alle) ev.Description = Beschreibung(ev, ctx);
         return events;
+    }
+
+    private static readonly CultureInfo De = CultureInfo.GetCultureInfo("de-AT");
+
+    private static string Zeitpunkt(CalendarEvent ev, bool kurz) =>
+        ev.IsAllDay
+            ? ev.Start.ToString(kurz ? "ddd dd.MM." : "dddd, dd.MM.yyyy", De) + (kurz ? " ganztägig" : " · ganztägig")
+            : ev.Start.ToString(kurz ? "ddd dd.MM. HH:mm" : "dddd, dd.MM.yyyy · HH:mm 'Uhr'", De);
+
+    private static string Beschreibung(CalendarEvent ev, Kontext ctx)
+    {
+        var s = ctx.Snapshot;
+        var zeilen = new List<string>
+        {
+            $"Sterbefall: {ctx.FallId} | {ctx.Name}",
+            Zeitpunkt(ev, false) + (ev.Details.ContainsKey("imAnschluss") ? " · im Anschluss an die Trauerfeier" : ""),
+        };
+        if (ev.Details.TryGetValue("route", out var route)) zeilen.Add($"Route: {route}");
+        else if (!string.IsNullOrWhiteSpace(ev.Location)) zeilen.Add($"Ort: {ev.Location}");
+
+        zeilen.Add("");
+        foreach (var (label, key) in FallFelder)
+            if (ev.Details.TryGetValue(key, out var wert)) zeilen.Add($"{label}: {wert}");
+
+        if (ctx.Alle.Count > 1)
+        {
+            zeilen.Add("");
+            zeilen.Add("Alle Termine dieses Sterbefalls:");
+            foreach (var t in ctx.Alle.OrderBy(t => t.Start))
+            {
+                var k = ctx.Settings(t.Category);
+                var wo = t.Details.TryGetValue("route", out var r) ? r : t.Location;
+                var art = t.Details.TryGetValue("art", out var a) ? a : k.Name;
+                zeilen.Add($"{(t == ev ? "▶" : "•")} {Zeitpunkt(t, true)} – {art}{(string.IsNullOrWhiteSpace(wo) ? "" : $": {wo}")}");
+            }
+        }
+        zeilen.Add("");
+        zeilen.Add($"Kategorie: {ctx.Settings(ev.Category).Name}");
+        return string.Join("\n", zeilen).Replace("\n\n\n", "\n\n");
+    }
+
+    private static readonly (string Label, string Key)[] FallFelder =
+    [
+        ("Sterbedatum", "sterbedatum"),
+        ("Sterbeort", "sterbeort"),
+        ("Bestattungsart", "bestattungsart"),
+        ("Beisetzungsort", "endziel"),
+        ("Kühlraum", "kuehlraum"),
+        ("Aktueller Standort", "position"),
+    ];
+
+    private static void Setze(Dictionary<string, string> d, string key, string? wert)
+    {
+        if (!string.IsNullOrWhiteSpace(wert)) d[key] = wert.Trim();
     }
 
     public static bool TryParseStart(string? datum, string? zeit, out DateTime start, out bool hatUhrzeit)
@@ -105,6 +161,7 @@ public static class CalendarEventConverter
 
     private sealed record Kontext(
         List<CalendarEvent> Events,
+        List<CalendarEvent> Alle,
         IReadOnlyDictionary<EventCategory, KategorieSettings> Kategorien,
         DetailSnapshot Snapshot,
         string FallId,
@@ -114,7 +171,7 @@ public static class CalendarEventConverter
             Kategorien.TryGetValue(kategorie, out var k) ? k : KategorieSettings.Defaults()[kategorie];
 
         public CalendarEvent? Add(string art, EventCategory kategorie, string? label,
-            string? datum, string? zeit, string? ort, string? zusatz = null)
+            string? datum, string? zeit, string? ort, string? zusatz = null, string? von = null, string? nach = null)
         {
             if (!TryParseStart(datum, zeit, out var start, out var hatUhrzeit)) return null;
 
@@ -124,12 +181,6 @@ public static class CalendarEventConverter
             if (!string.IsNullOrWhiteSpace(k.Symbol)) titel = $"{k.Symbol.Trim()} {titel}";
             if (!string.IsNullOrWhiteSpace(zusatz)) titel += $": {zusatz}";
             else if (!string.IsNullOrWhiteSpace(ort)) titel += $" – {ort.Trim()}";
-
-            var beschreibung = new List<string> { $"Sterbefall: {FallId} | {Name}" };
-            if (!string.IsNullOrWhiteSpace(zusatz)) beschreibung.Add($"Route: {zusatz}");
-            if (!string.IsNullOrWhiteSpace(ort)) beschreibung.Add($"Ort: {ort.Trim()}");
-            if (!string.IsNullOrWhiteSpace(Snapshot.Bestattungsart)) beschreibung.Add($"Bestattungsart: {Snapshot.Bestattungsart}");
-            beschreibung.Add($"Kategorie: {k.Name}");
 
             var ev = new CalendarEvent
             {
@@ -141,8 +192,22 @@ public static class CalendarEventConverter
                 IsAllDay = !hatUhrzeit,
                 Start = hatUhrzeit ? start : start.Date,
                 End = hatUhrzeit ? start.AddMinutes(Math.Max(15, k.DauerMinuten)) : start.Date.AddDays(1),
-                Description = string.Join("\n", beschreibung),
             };
+            var d = ev.Details;
+            Setze(d, "art", label ?? k.Name);
+            Setze(d, "verstorbener", Name);
+            Setze(d, "ort", ort);
+            Setze(d, "route", zusatz);
+            Setze(d, "von", von);
+            Setze(d, "nach", nach);
+            Setze(d, "sterbedatum", Snapshot.Sterbedatum);
+            Setze(d, "sterbeort", Snapshot.Sterbeort);
+            Setze(d, "bestattungsart", Snapshot.Bestattungsart);
+            Setze(d, "endziel", Snapshot.Endziel);
+            Setze(d, "kuehlraum", string.Join(" / ",
+                new[] { Snapshot.Kuehlraum, Snapshot.Kuehlplatz }.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())));
+            Setze(d, "position", Snapshot.AktuellePosition);
+            Alle.Add(ev);
             if (k.Aktiv) Events.Add(ev);
             return ev;
         }
