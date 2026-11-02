@@ -21,7 +21,7 @@ if ($PSCommandPath -and $PSCommandPath.StartsWith($InstallDir, [StringComparison
     $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$tmp`"")
     if ($Silent) { $argList += '-Silent' }
     if ($RemoveConfig) { $argList += '-RemoveConfig' }
-    Start-Process powershell.exe -ArgumentList $argList
+    Start-Process powershell.exe -ArgumentList $argList -WindowStyle Hidden
     exit 0
 }
 
