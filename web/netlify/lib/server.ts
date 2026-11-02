@@ -1,6 +1,7 @@
 import { createHmac, createPublicKey, createSign, randomBytes, timingSafeEqual, verify } from 'node:crypto';
 import { getStore } from '@netlify/blobs';
 import { STANDARD_KONFIG, konfigPruefen, rechteFuer, type Konfiguration, type Rechte } from '../../src/shared/rechte';
+import type { Einsatz } from '../../src/shared/bereitschaft';
 
 export const SESSION_COOKIE = 'alamida_session';
 export const SESSION_TAGE = 90;
@@ -77,6 +78,15 @@ export async function konfigLaden(): Promise<Konfiguration> {
 
 export async function konfigSpeichern(k: Konfiguration): Promise<void> {
   await store().setJSON('konfiguration', k);
+}
+
+export async function bereitschaftLaden(): Promise<Einsatz[]> {
+  const l = (await store().get('bereitschaft', { type: 'json' })) as unknown;
+  return Array.isArray(l) ? (l as Einsatz[]) : [];
+}
+
+export async function bereitschaftSpeichern(l: Einsatz[]): Promise<void> {
+  await store().setJSON('bereitschaft', l);
 }
 
 /** Sitzung aus dem Cookie oder – eingebettet im Hub, wo fremde Cookies blockiert werden – aus „Authorization: Bearer“. */

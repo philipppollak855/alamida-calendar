@@ -384,3 +384,28 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .m-tagtitel { gap: 0.6rem; }
 .m-tagtitel .klein { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .m-kopf > div { min-width: 0; }
+
+/* Bereitschaft */
+.bereitschaft-seite { min-height: 100vh; }
+.bereitschaft-seite .inhalt { max-width: 860px; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
+.bereitschaft-kopf { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.pille-wahl { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--text-2); cursor: pointer; }
+.dienst { padding: 0.9rem 1rem; display: grid; gap: 0.6rem; }
+.dienst.aktuell { border-color: var(--akzent); box-shadow: 0 0 0 1px var(--akzent), var(--schatten); }
+.dienst.vorbei { opacity: 0.55; }
+.dienst-kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.6rem; }
+.dienst-feiertag { font-size: 0.82rem; color: var(--akzent); margin-top: 0.15rem; }
+.dienst-status { font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap; border: 1px solid var(--rand); }
+.dienst-status.offen { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
+.dienst-status.besetzt { color: var(--gruen); border-color: color-mix(in srgb, var(--gruen) 50%, transparent); }
+.dienst-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+.dienst-liste li { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; padding: 0.45rem 0.6rem; border-radius: 10px; background: var(--flaeche); border: 1px solid var(--rand); }
+.dienst-name { font-weight: 600; }
+.dienst-liste li .knopf { margin-left: auto; }
+.dienst-aktionen { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.dienst-form { display: grid; gap: 0.6rem; }
+.dienst-zeiten { display: flex; gap: 0.6rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-2); }
+.dienst-zeiten label { display: inline-flex; align-items: center; gap: 0.4rem; }
+.dienst-fehler { margin: 0; color: var(--rot); font-size: 0.85rem; }
+.bereitschaft-hinweis { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-2); }
+.bereitschaft-hinweis .pille { cursor: default; }

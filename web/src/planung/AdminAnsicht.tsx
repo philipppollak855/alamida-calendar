@@ -165,6 +165,12 @@ export default function AdminAnsicht() {
       </article>
 
       <article className="glas admin-block">
+        <h3>Bereitschaft</h3>
+        <p className="klein">Jeder trägt sich selbst ein. Mitglieder dieser Gruppen dürfen zusätzlich alle einteilen (Admins immer).</p>
+        <Auswahl werte={k.bereitschaftGruppen ?? []} optionen={gruppenOptionen} onChange={(w) => aendern({ bereitschaftGruppen: w })} />
+      </article>
+
+      <article className="glas admin-block">
         <h3>Ganze Firma freischalten</h3>
         <p className="klein">Alle Adressen einer Domain bekommen automatisch diese Gruppen (z. B. firma.at).</p>
         {k.domains.map((d, i) => (
