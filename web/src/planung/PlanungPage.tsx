@@ -489,7 +489,6 @@ export default function PlanungPage() {
         />
         {detail}
         {neuDialog}
-      {fallDialog}
         {iosDialog}
       </div>
     );
@@ -899,6 +898,7 @@ export default function PlanungPage() {
 
       {detail}
       {neuDialog}
+      {fallDialog}
       {iosDialog}
       {palette && <Palette eintraege={paletteEintraege} onSchliessen={() => setPalette(false)} />}
       {hilfe && (
