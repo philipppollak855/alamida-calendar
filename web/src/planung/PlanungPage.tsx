@@ -444,9 +444,10 @@ export default function PlanungPage() {
           ✕
         </button>
         <FallKarte
-          name={fall.name}
+          name={fall.gruppe ? `🚗 Überführungen ${format(fall.start, 'EEE d.M.', { locale: de })}` : fall.name}
           sterbefallId={fall.sterbefallId}
           termine={fall.termine}
+          mitName={!!fall.gruppe}
           onOeffnen={(t) => {
             setFall(null);
             setOffen(t);
@@ -724,7 +725,7 @@ export default function PlanungPage() {
         {tab === 'kalender' && (
           <section className="ansicht kalender-ansicht glas">
             <label className="kal-buendeln">
-              <input type="checkbox" checked={buendeln} onChange={(e) => setBuendeln(e.target.checked)} /> Zusammenhängende Termine eines Sterbefalls bündeln
+              <input type="checkbox" checked={buendeln} onChange={(e) => setBuendeln(e.target.checked)} /> Zusammenhängende Termine eines Sterbefalls und ganztägige Überführungen bündeln
             </label>
             <Calendar
               localizer={localizer}
@@ -732,12 +733,16 @@ export default function PlanungPage() {
               events={kalEintraege}
               titleAccessor={(t: KalEintrag) =>
                 istFall(t)
-                  ? `⚰️ ${t.name} · ${t.termine.map((x) => KATEGORIEN[x.kategorie].symbol).join(' ')}`
+                  ? t.gruppe
+                    ? `🚗 ${t.name}`
+                    : `⚰️ ${t.name} · ${t.termine.map((x) => KATEGORIEN[x.kategorie].symbol).join(' ')}`
                   : `${KATEGORIEN[t.kategorie].symbol} ${t.details.art ?? KATEGORIEN[t.kategorie].label} ${t.verstorbener ?? t.titel}`
               }
               tooltipAccessor={(t: KalEintrag) =>
                 istFall(t)
-                  ? t.termine.map((x) => `${format(x.start, 'EEE d.M. HH:mm', { locale: de })} ${KATEGORIEN[x.kategorie].label}`).join('\n')
+                  ? t.gruppe
+                    ? t.termine.map((x) => `${x.verstorbener ?? x.titel}${x.details.route ? ` · ${x.details.route}` : ''}`).join('\n')
+                    : t.termine.map((x) => `${format(x.start, 'EEE d.M. HH:mm', { locale: de })} ${KATEGORIEN[x.kategorie].label}`).join('\n')
                   : `${t.titel}\n${t.details.route ?? t.ort}`
               }
               startAccessor="start"
@@ -770,7 +775,7 @@ export default function PlanungPage() {
               }}
               components={{
                 event: ({ event: t, title }: { event: KalEintrag; title: string }) =>
-                  istFall(t) && kalView !== Views.MONTH && kalView !== Views.AGENDA ? (
+                  istFall(t) && !t.gruppe && kalView !== Views.MONTH && kalView !== Views.AGENDA ? (
                     <div className="kal-kette">
                       <strong>⚰️ {t.name}</strong>
                       {t.termine.map((x) => (
@@ -794,7 +799,7 @@ export default function PlanungPage() {
                   ),
               }}
               eventPropGetter={(t: KalEintrag) =>
-                istFall(t) ? { className: 'kal-fall' } : { style: { ['--kat' as string]: KATEGORIEN[t.kategorie].farbe } as React.CSSProperties }
+                istFall(t) ? (t.gruppe ? { style: { ['--kat' as string]: KATEGORIEN.Ueberfuehrung.farbe } as React.CSSProperties } : { className: 'kal-fall' }) : { style: { ['--kat' as string]: KATEGORIEN[t.kategorie].farbe } as React.CSSProperties }
               }
               messages={{
                 today: 'Heute',

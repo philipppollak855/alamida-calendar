@@ -220,17 +220,41 @@ export interface FallEintrag {
   termine: Termin[];
   start: Date;
   ende: Date;
-  ganztaegig: false;
+  ganztaegig: boolean;
+  /** Gesetzt bei ganztägigen Überführungen eines Tages, die zu einem Eintrag gebündelt sind. */
+  gruppe?: 'ueberfuehrungen';
 }
 export type KalEintrag = Termin | FallEintrag;
 export const istFall = (e: KalEintrag): e is FallEintrag => 'fall' in e;
 
+/** Ganztägige Überführungen, je Starttag gruppiert (nur Tage mit mindestens zwei). */
+export function ueberfuehrungenGanztags(termine: Termin[]): Termin[][] {
+  const tage = new Map<string, Termin[]>();
+  for (const t of sortiert(termine)) {
+    if (!t.ganztaegig || t.kategorie !== 'Ueberfuehrung') continue;
+    const k = t.start.toDateString();
+    tage.set(k, [...(tage.get(k) ?? []), t]);
+  }
+  return [...tage.values()].filter((g) => g.length > 1);
+}
+
 export function kalenderEintraege(termine: Termin[], buendeln: boolean): KalEintrag[] {
   if (!buendeln) return termine;
   const ks = ketten(termine);
-  const inKette = new Set(ks.flat().map((t) => t.id));
+  const ue = ueberfuehrungenGanztags(termine);
+  const gebuendelt = new Set([...ks, ...ue].flat().map((t) => t.id));
   return [
-    ...termine.filter((t) => !inKette.has(t.id)),
+    ...termine.filter((t) => !gebuendelt.has(t.id)),
+    ...ue.map((g) => ({
+      fall: true as const,
+      gruppe: 'ueberfuehrungen' as const,
+      id: `ueberfuehrungen:${g[0].id}`,
+      name: `${g.length} Überführungen`,
+      termine: g,
+      start: startDesTages(g[0].start),
+      ende: new Date(Math.max(...g.map((t) => t.ende.getTime()))),
+      ganztaegig: true,
+    })),
     ...ks.map((k) => ({
       fall: true as const,
       id: `kette:${k[0].id}`,

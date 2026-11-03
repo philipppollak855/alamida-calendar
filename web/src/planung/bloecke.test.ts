@@ -57,4 +57,30 @@ describe('kalenderEintraege', () => {
     expect(ketteVon(l, l[3])).toBeNull();
     expect(kalenderEintraege(l, false)).toHaveLength(7);
   });
+
+  it('bündelt ganztägige Überführungen je Tag zu einem Eintrag', () => {
+    const ganz = (id: string, kat: string, tag: string): GoogleEvent => ({
+      id,
+      summary: `${kat} ${id}`,
+      start: { date: tag },
+      end: { date: tag.replace(/\d\d$/, (d) => String(Number(d) + 1).padStart(2, '0')) },
+      extendedProperties: { private: { kategorie: kat } },
+    });
+    const l = [
+      t(ganz('u1', 'Ueberfuehrung', '2026-05-26')),
+      t(ganz('u2', 'Ueberfuehrung', '2026-05-26')),
+      t(ganz('u3', 'Ueberfuehrung', '2026-05-26')),
+      t(ganz('u4', 'Ueberfuehrung', '2026-05-27')),
+      t(ganz('k1', 'Kremation', '2026-05-26')),
+      t(ev('u5', 'Ueberfuehrung', '2026-05-26T08:00:00+02:00')),
+    ];
+    const r = kalenderEintraege(l, true);
+    const g = r.filter(istFall);
+    expect(g).toHaveLength(1);
+    expect(g[0].gruppe).toBe('ueberfuehrungen');
+    expect(g[0].ganztaegig).toBe(true);
+    expect(g[0].termine.map((x) => x.id)).toEqual(['cal/u1', 'cal/u2', 'cal/u3']);
+    expect(r).toHaveLength(4);
+    expect(kalenderEintraege(l, false)).toHaveLength(6);
+  });
 });
