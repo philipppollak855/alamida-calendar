@@ -16,7 +16,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 
 ## D. Hub
 - [x] D1 Hell/Dunkel app-übergreifend (Hub + Kalender + Unter-Apps), Präferenz bleibt gespeichert
-- [ ] D2 Tages-Dashboard über den App-Kacheln: wichtigste Termine heute / mich betreffend aus allen Unter-Apps, mit Klick-Verlinkung
+- [x] D2 Tages-Dashboard über den App-Kacheln: wichtigste Termine heute / mich betreffend aus allen Unter-Apps, mit Klick-Verlinkung
 - [ ] D3 App-Kacheln stabil klickbar machen
 - [ ] D4 Text „Neue App hinzufügen oder Rechte ändern: Apps & Rechte“ auf der Startseite entfernen
 

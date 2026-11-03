@@ -132,6 +132,16 @@ export async function angemeldet(req: Request): Promise<{ sitzung: Sitzung; rech
 
 /* ── Anmeldung über den Bestattung Stranz HUB ── */
 
+/** Wie angemeldet(), zusätzlich Server-zu-Server-Abruf des Hubs mit Ticket im Header „x-hub-ticket“ (z. B. /api/heute). */
+export async function angemeldetOderHub(req: Request): Promise<{ sitzung: Sitzung; rechte: Rechte; konfig: Konfiguration } | null> {
+  const ticket = req.headers.get('x-hub-ticket');
+  if (!ticket) return angemeldet(req);
+  const person = hubTicketPruefen(ticket, new URL(req.url).origin);
+  if (!person) return null;
+  const konfig = await konfigLaden();
+  return { sitzung: { ...person, exp: Date.now() + 60_000 }, konfig, rechte: rechteFuer(person.email, konfig, adminEmails()) };
+}
+
 /**
  * Prüft ein Hub-Ticket (Ed25519, 60 s gültig, an diese App gebunden).
  * HUB_SSO_PUBLIC_KEY = öffentlicher Schlüssel des Hubs (https://bestattung-stranz-hub.netlify.app/api/sso/schluessel).

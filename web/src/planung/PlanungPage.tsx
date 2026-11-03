@@ -192,6 +192,16 @@ export default function PlanungPage() {
     [ich],
   );
 
+  const zielTermin = useRef<string | null>(null);
+  useEffect(() => {
+    if (!zielTermin.current || !echteDaten) return;
+    const t = termine.find((x) => x.id === zielTermin.current);
+    if (t) {
+      zielTermin.current = null;
+      setOffen(t);
+    }
+  }, [termine, echteDaten]);
+
   const laden = useCallback(async () => {
     if (!freigeschaltet) return;
     setLaedt(true);
@@ -214,6 +224,14 @@ export default function PlanungPage() {
     const code = params.get('code');
     const state = params.get('state');
     const hubTicket = new URLSearchParams(location.hash.slice(1)).get('hub_ticket');
+    // Direktlink, z. B. aus dem Tages-Dashboard des Hubs: ?tag=JJJJ-MM-TT&termin=<kalenderId>/<eventId>
+    const zielTag = /^\d{4}-\d{2}-\d{2}$/.test(params.get('tag') ?? '') ? params.get('tag')! : null;
+    if (zielTag) {
+      const [j, m, t] = zielTag.split('-').map(Number);
+      setTag(new Date(j, m - 1, t));
+      setTab('tag');
+    }
+    zielTermin.current = params.get('termin');
     if (location.search || location.hash) history.replaceState(null, '', '/');
     (hubTicket
       ? hubAnmelden(hubTicket).catch((e: Error) => setFehler(e.message))
