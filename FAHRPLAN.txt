@@ -35,6 +35,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] F6 Kalenderansicht: zusammenhängende Termine eines Falls am selben Tag (direkt hintereinander, max. 2 h Lücke) als senkrechter Block mit Unter-Karten; kein Balken über mehrere Tage
 - [x] F7 Zusammenhängende Termine brauchen nur ein Personal: einmal je Fall und Tag (Ablauf) eintragen, gilt für alle Untertermine des Tages; einzelne Termine optional abweichend
 - [x] F8 Personal als „extern“ markierbar (Hub → Apps & Rechte): einteilbar, aber kein Urlaubskonto, keine Kranken-/Pflegestatistik
+- [x] F9 Kalenderansicht: ganztägige Überführungen je Tag zu einem Eintrag „🚗 N Überführungen“ gruppiert (Klick -> Liste -> Detail)
 
 ## G. Bereitschaft
 - [x] G1 Mobil: Spalte wird abgeschnitten, wenn Personal eingeplant wird -> beheben
@@ -43,11 +44,18 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] G3 Übersicht: Stunden entfernen; ganze Wochenenden, Bereitschaftstage und Feiertage zählen
 
 ## H. Hub-Start „Heute“
-- [ ] H1 Zuerst die eigenen eingeteilten Termine, darunter alle anderen (wenn berechtigt)
-- [ ] H2 Übersichtlich bei vielen Terminen: Termine eines Falls zusammengefasst, „+ weitere“
+- [x] H1 Zuerst die eigenen eingeteilten Termine, darunter alle anderen (wenn berechtigt)
+- [x] H2 Übersichtlich bei vielen Terminen: Termine eines Falls zusammengefasst, „+ weitere“
+- [x] H3 Überführungen und Gespräche je zu einer Zeile gruppiert (mit Shortlinks je Termin)
 
 ## I. Hub
-- [ ] I1 Desktop: Seitenleiste einklappbar (Zustand bleibt gespeichert)
+- [x] I1 Desktop: Seitenleiste einklappbar (Zustand bleibt gespeichert)
+
+## J. Urlaub / Krank: Zeitkonten und Buchhaltung
+- [ ] J1 Überstunden pflegen: Übertrag, neue Überstunden, Auszahlung, Saldo je Mitarbeiter und Monat
+- [ ] J2 Abwesenheiten je Monat: Krank, Urlaub, Sonstiges (Tage)
+- [ ] J3 Monatsbericht wie Vorlage „Monatsbericht MM/JJJJ“ (gruppiert nach Gruppe: Name, Mon., Ü-Übertrag, Ü-Neu, Ü-Ausz., Ü-Saldo, Kr., Ur., So.; Hinweis: Überstunden aus Monat M, Fehltage aus Monat M+1) generieren
+- [ ] J4 Export für die Buchhaltung (PDF + CSV/Excel)
 
 ## Nicht mehr
 - Urnenwald-PRs #41–#139: nicht weiter bearbeiten (Anweisung Nutzer)
