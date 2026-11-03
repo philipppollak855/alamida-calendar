@@ -12,7 +12,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 
 ## C. Rechte / Benutzer
 - [x] C1 Die zwei getrennten Gruppen-/Mitglieder-Einstellungen (Hub „Apps & Rechte“ und Kalender „Rechte“) zusammenführen: eine Quelle (Hub), Kalender liest sie
-- [ ] C2 Mitarbeiter auch ohne E-Mail anlegbar; PIN-Login (mind. 4 Ziffern) inkl. PIN-Verwaltung, für Kiosk-Modus
+- [x] C2 Mitarbeiter auch ohne E-Mail anlegbar; PIN-Login (mind. 4 Ziffern) inkl. PIN-Verwaltung, für Kiosk-Modus
 
 ## D. Hub
 - [x] D1 Hell/Dunkel app-übergreifend (Hub + Kalender + Unter-Apps), Präferenz bleibt gespeichert
@@ -21,7 +21,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [ ] D4 Text „Neue App hinzufügen oder Rechte ändern: Apps & Rechte“ auf der Startseite entfernen
 
 ## E. Kiosk-Modus (Tablet)
-- [ ] E1 Kiosk-Modus: Sitzung schließt nach einstellbarer Zeit, eleganter gut lesbarer Login-Screen (PIN)
+- [x] E1 Kiosk-Modus: Sitzung schließt nach einstellbarer Zeit, eleganter gut lesbarer Login-Screen (PIN)
 - [ ] E2 Tablet-optimiert; Mitarbeiter loggt sich kurz ein, sieht Daten / eigene Termine, plant, bequemer Logout + zeitgesteuert
 - [ ] E3 Login-Screen optional mit interaktivem Vollbild-Kalender oder Hub-Zugang (mehrere Apps)
 - [ ] E4 Verlassen der PWA verhindern außer mit Admin-Login

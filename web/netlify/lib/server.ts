@@ -24,6 +24,15 @@ export interface Sitzung {
   name?: string;
   bild?: string;
   exp: number;
+  /** Über ein Kiosk-Gerät des Hubs angemeldet: nie Administrator, Sitzung endet mit der Hub-Sitzung. */
+  kiosk?: boolean;
+}
+
+/** Rechte einer Sitzung; Kiosk-Sitzungen erhalten keine Admin-Rechte. */
+export function rechteFuerSitzung(s: Pick<Sitzung, 'email' | 'kiosk'>, konfig: Konfiguration): Rechte {
+  return s.kiosk
+    ? rechteFuer(s.email, { ...konfig, benutzer: konfig.benutzer.map((b) => ({ ...b, admin: false })) })
+    : rechteFuer(s.email, konfig, adminEmails());
 }
 
 function hmac(daten: string): string {
@@ -159,7 +168,7 @@ export async function angemeldet(req: Request): Promise<{ sitzung: Sitzung; rech
   const sitzung = sitzungPruefen(bearer ?? cookies(req)[SESSION_COOKIE]);
   if (!sitzung) return null;
   const konfig = await konfigLaden();
-  return { sitzung, konfig, rechte: rechteFuer(sitzung.email, konfig, adminEmails()) };
+  return { sitzung, konfig, rechte: rechteFuerSitzung(sitzung, konfig) };
 }
 
 /* ── Anmeldung über den Bestattung Stranz HUB ── */
@@ -171,23 +180,34 @@ export async function angemeldetOderHub(req: Request): Promise<{ sitzung: Sitzun
   const person = hubTicketPruefen(ticket, new URL(req.url).origin);
   if (!person) return null;
   const konfig = await konfigLaden();
-  return { sitzung: { ...person, exp: Date.now() + 60_000 }, konfig, rechte: rechteFuer(person.email, konfig, adminEmails()) };
+  const { sitzungBis: _bis, ...rest } = person;
+  return { sitzung: { ...rest, exp: Date.now() + 60_000 }, konfig, rechte: rechteFuerSitzung(rest, konfig) };
 }
 
 /**
  * Prüft ein Hub-Ticket (Ed25519, 60 s gültig, an diese App gebunden).
  * HUB_SSO_PUBLIC_KEY = öffentlicher Schlüssel des Hubs (https://bestattung-stranz-hub.netlify.app/api/sso/schluessel).
  */
-export function hubTicketPruefen(ticket: string, origin: string, jetzt = Date.now()): Omit<Sitzung, 'exp'> | null {
+export function hubTicketPruefen(ticket: string, origin: string, jetzt = Date.now()): (Omit<Sitzung, 'exp'> & { sitzungBis?: number }) | null {
   const pem = env('HUB_SSO_PUBLIC_KEY').replace(/\\n/g, '\n');
   if (!pem.includes('PUBLIC KEY')) throw new Error('HUB_SSO_PUBLIC_KEY fehlt');
   const [daten, sig] = ticket.split('.');
   if (!daten || !sig) return null;
   if (!verify(null, Buffer.from(daten), createPublicKey(pem), Buffer.from(sig, 'base64url'))) return null;
-  const p = JSON.parse(Buffer.from(daten, 'base64url').toString()) as { iss?: string; aud?: string; email?: string; name?: string; bild?: string; exp?: number };
+  const p = JSON.parse(Buffer.from(daten, 'base64url').toString()) as {
+    iss?: string;
+    aud?: string;
+    email?: string;
+    name?: string;
+    bild?: string;
+    exp?: number;
+    kiosk?: boolean;
+    sitzungBis?: number;
+  };
   if (p.iss !== 'bestattung-stranz-hub' || p.aud !== origin || typeof p.email !== 'string' || !p.email.includes('@')) return null;
   if (typeof p.exp !== 'number' || p.exp <= jetzt) return null;
-  return { email: p.email.toLowerCase(), name: p.name, bild: p.bild };
+  const person = { email: p.email.toLowerCase(), name: p.name, bild: p.bild };
+  return p.kiosk === true ? { ...person, kiosk: true, sitzungBis: typeof p.sitzungBis === 'number' ? p.sitzungBis : jetzt + 5 * 60_000 } : person;
 }
 
 /* ── Service Account ── */
