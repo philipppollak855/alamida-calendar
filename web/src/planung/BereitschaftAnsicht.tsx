@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { standText } from './offlineCache';
 import { Calendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
 import { endOfMonth, format, getDay, parse, startOfMonth, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -33,7 +34,7 @@ export function useBereitschaft(aktiv: boolean, ab?: string) {
     bereitschaftLaden(ab)
       .then((d) => {
         setDaten(d);
-        setFehler(null);
+        setFehler(d.offlineStand ? standText(d.offlineStand) : null);
       })
       .catch((e: Error) => setFehler(e.message));
   }, [aktiv, ab]);

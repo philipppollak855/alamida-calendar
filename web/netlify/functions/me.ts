@@ -11,6 +11,7 @@ export default async (req: Request) => {
     angemeldet: true,
     benutzer: { email: sitzung.email, name: sitzung.name, bild: sitzung.bild },
     rechte,
+    ...(sitzung.kiosk ? { kiosk: true } : {}),
     gruppenNamen: konfig.gruppen.filter((g) => rechte.gruppen.includes(g.id)).map((g) => g.name),
     anlegen: darfAnlegen(rechte, konfig) ? { darf: true, dauer: Object.fromEntries(KATEGORIE_SCHLUESSEL.map((k) => [k, standardDauer(konfig, k)])) } : { darf: false, dauer: {} },
   });

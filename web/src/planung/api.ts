@@ -4,6 +4,7 @@ import type { EinteilungPerson } from '../shared/einteilung';
 import type { NeuerTermin } from '../shared/neuerTermin';
 import type { AbwArt, Abwesenheit, Personal } from '../shared/abwesenheit';
 import { ausGoogleEvent, type GoogleEvent, type Termin } from './planungLogic';
+import { cacheLeeren, cacheLesen, cacheSchreiben, istOffline, OfflineFehler } from './offlineCache';
 
 export interface Ich {
   angemeldet: boolean;
@@ -11,6 +12,9 @@ export interface Ich {
   rechte?: Rechte;
   gruppenNamen?: string[];
   anlegen?: { darf: boolean; dauer: Record<string, number> };
+  kiosk?: boolean;
+  /** Gesetzt, wenn ohne Verbindung der zuletzt gespeicherte Stand verwendet wird. */
+  offline?: boolean;
 }
 
 export interface AdminDaten {
@@ -33,7 +37,48 @@ export interface AgentStatusInfo {
   zentral?: boolean;
 }
 
-const LS_CACHE = 'alamida.termineCache';
+const LS_CACHE_ALT = 'alamida.termineCache';
+const LS_ICH = 'alamida.ich';
+/** Benutzer, für den offline zwischengespeichert wird (leer = nichts speichern, z. B. Kiosk). */
+let benutzer = '';
+
+function ls(): Storage | null {
+  try {
+    return localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function gespeichertesIch(): Ich | null {
+  try {
+    return JSON.parse(ls()?.getItem(LS_ICH) ?? 'null') as Ich | null;
+  } catch {
+    return null;
+  }
+}
+
+function alleCachesLeeren() {
+  const s = ls();
+  if (!s) return;
+  cacheLeeren(s);
+  s.removeItem(LS_CACHE_ALT);
+  s.removeItem(LS_ICH);
+}
+
+/** Lädt vom Server und merkt sich das Ergebnis; ohne Verbindung kommt der letzte Stand (mit offlineStand). */
+async function mitCache<T extends object>(schluessel: string, laden: () => Promise<T>): Promise<T & { offlineStand?: number }> {
+  const s = ls();
+  try {
+    const d = await laden();
+    if (s) cacheSchreiben(s, benutzer, schluessel, d);
+    return d;
+  } catch (e) {
+    const c = istOffline(e) && s ? cacheLesen<T>(s, benutzer, schluessel) : null;
+    if (c) return { ...c.daten, offlineStand: c.zeit };
+    throw e;
+  }
+}
 /** Sitzung aus der Hub-Anmeldung (eingebettet im Hub werden Cookies blockiert, daher Bearer). */
 const SS_HUB = 'alamida.hubSitzung';
 
@@ -49,13 +94,31 @@ async function holen<T>(pfad: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   const hub = hubSitzung();
   if (hub) headers.set('authorization', `Bearer ${hub}`);
-  const res = await fetch(pfad, { credentials: 'same-origin', ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(pfad, { credentials: 'same-origin', ...init, headers });
+  } catch {
+    throw new OfflineFehler();
+  }
   const daten = (await res.json().catch(() => ({}))) as T & { fehler?: string };
   if (!res.ok) throw new Error(daten.fehler ?? `Fehler ${res.status}`);
   return daten;
 }
 
-export const ichLaden = () => holen<Ich>('/api/me');
+export async function ichLaden(): Promise<Ich> {
+  try {
+    const i = await holen<Ich>('/api/me');
+    benutzer = i.angemeldet && !i.kiosk ? (i.benutzer?.email ?? '').toLowerCase() : '';
+    if (benutzer) ls()?.setItem(LS_ICH, JSON.stringify(i));
+    else alleCachesLeeren();
+    return i;
+  } catch (e) {
+    const c = istOffline(e) ? gespeichertesIch() : null;
+    if (!c?.angemeldet) throw e;
+    benutzer = (c.benutzer?.email ?? '').toLowerCase();
+    return { ...c, offline: true };
+  }
+}
 
 /** Rückkehr von Google auf die Startseite (?code=…&state=…): Code an den Server weiterreichen. */
 export async function anmeldungAbschliessen(code: string, state: string): Promise<void> {
@@ -103,27 +166,23 @@ export async function termineLaden(): Promise<{ termine: Termin[]; fehler: strin
       .filter((t): t is Termin => t !== null)
       .map((t) => (personal.has(t.id) ? { ...t, personal: personal.get(t.id) } : t)),
   );
-  try {
-    localStorage.setItem(LS_CACHE, JSON.stringify({ zeit: Date.now(), termine }));
-  } catch {
-    /* Speicher voll */
-  }
+  const s = ls();
+  if (s) cacheSchreiben(s, benutzer, 'termine', termine);
   return { termine, fehler: r.fehler, einteilung: e ? { darf: e.darfEinteilen, personen: e.personen } : null };
 }
 
 /** Zuletzt geladene Termine (für Offline-Betrieb der App). */
 export function termineAusCache(): { zeit: Date; termine: Termin[] } | null {
-  try {
-    const c = JSON.parse(localStorage.getItem(LS_CACHE) ?? 'null') as { zeit: number; termine: (Termin & { start: string; ende: string })[] } | null;
-    if (!c) return null;
-    return { zeit: new Date(c.zeit), termine: c.termine.map((t) => ({ ...t, start: new Date(t.start), ende: new Date(t.ende) })) };
-  } catch {
-    return null;
-  }
+  const s = ls();
+  const wer = benutzer || (gespeichertesIch()?.benutzer?.email ?? '').toLowerCase();
+  const c = s ? cacheLesen<(Termin & { start: string; ende: string })[]>(s, wer, 'termine') : null;
+  if (!c || !Array.isArray(c.daten)) return null;
+  return { zeit: new Date(c.zeit), termine: c.daten.map((t) => ({ ...t, start: new Date(t.start), ende: new Date(t.ende) })) };
 }
 
 export async function abmelden(): Promise<void> {
-  localStorage.removeItem(LS_CACHE);
+  alleCachesLeeren();
+  benutzer = '';
   try {
     sessionStorage.removeItem(SS_HUB);
   } catch {
@@ -144,7 +203,7 @@ export interface BereitschaftDaten {
 }
 
 const mitVon = (pfad: string, von?: string) => (von ? `${pfad}${pfad.includes('?') ? '&' : '?'}von=${von}` : pfad);
-export const bereitschaftLaden = (von?: string) => holen<BereitschaftDaten>(mitVon('/api/bereitschaft', von));
+export const bereitschaftLaden = (von?: string) => mitCache(`bereitschaft:${von ?? ''}`, () => holen<BereitschaftDaten>(mitVon('/api/bereitschaft', von)));
 export const bereitschaftEintragen = (e: { email?: string; von: string; bis: string }, ab?: string) =>
   holen<BereitschaftDaten>(mitVon('/api/bereitschaft', ab), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(e) });
 export const bereitschaftAustragen = (id: string, ab?: string) =>
@@ -159,7 +218,7 @@ export interface AbwesenheitDaten {
 }
 
 const jsonInit = (method: string, daten: unknown): RequestInit => ({ method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(daten) });
-export const abwesenheitLaden = () => holen<AbwesenheitDaten>('/api/abwesenheit');
+export const abwesenheitLaden = () => mitCache('abwesenheit', () => holen<AbwesenheitDaten>('/api/abwesenheit'));
 export const abwesenheitEintragen = (e: { email?: string; art: AbwArt; von: string; bis: string; stunden?: number; notiz?: string }) =>
   holen<AbwesenheitDaten>('/api/abwesenheit', jsonInit('POST', e));
 export const abwesenheitEntscheiden = (id: string, status: 'genehmigt' | 'abgelehnt', grund?: string) =>
