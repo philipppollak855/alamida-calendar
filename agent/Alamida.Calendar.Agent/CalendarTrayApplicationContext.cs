@@ -22,6 +22,10 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
     private string? _offeneLoeschungen;
     private DateTime _pauseBis = DateTime.MinValue;
     private bool _isRunning = true;
+    private readonly ZentraleEinstellungen _zentral;
+    private string _statusText = "startet";
+    private string? _syncFehler;
+    private DateTime _letzterStatusVersand = DateTime.MinValue;
 
     public CalendarTrayApplicationContext(Core.Models.AgentConfig config, FieldMappingProfile profile)
     {
@@ -37,6 +41,8 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
         _watcher = new AlamidaMaskWatcher(profile);
         
         _statusZeile = new ToolStripMenuItem("Status: startet…") { Enabled = false };
+        _zentral = new ZentraleEinstellungen(config, Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlamidaCalendar", "zentrale-einstellungen.json"));
 
         _tray = new NotifyIcon
         {
@@ -49,6 +55,7 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
         _tray.DoubleClick += (_, _) => ZeigeStatusDialog();
 
         StartWatching();
+        StartZentraleEinstellungen();
         AktualisiereTrayText();
         
         ShowBalloon("Alamida Kalender gestartet", ToolTipIcon.Info);
@@ -75,6 +82,47 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
                 
                 await Task.Delay(_config.PollIntervalMs);
             }
+        });
+    }
+
+    private void StartZentraleEinstellungen()
+    {
+        _ = Task.Run(async () =>
+        {
+            while (_isRunning)
+            {
+                await _zentral.LadenAsync();
+                await StatusSendenAsync();
+                await Task.Delay(TimeSpan.FromMinutes(5));
+            }
+        });
+    }
+
+    private static string AgentVersion()
+    {
+        var v = typeof(CalendarTrayApplicationContext).Assembly.GetName().Version?.ToString(3) ?? "?";
+        try
+        {
+            if (Environment.ProcessPath is { } exe) v += $" ({File.GetLastWriteTime(exe):yyyy-MM-dd HH:mm})";
+        }
+        catch { /* nur Info */ }
+        return v;
+    }
+
+    private Task StatusSendenAsync()
+    {
+        _letzterStatusVersand = DateTime.Now;
+        return _zentral.StatusSendenAsync(new
+        {
+            station = _config.WorkstationId,
+            version = AgentVersion(),
+            status = _statusText,
+            fehler = _syncFehler ?? _zentral.LetzterFehler,
+            vorsorge = _watcher.VorsorgeDiagnose,
+            maske = _watcher.LetzteErkannteMaske.ToString(),
+            standardKalender = _config.CalendarId,
+            termine = _state.AnzahlTermine,
+            zentral = _zentral.ZuletztGeladen != null,
         });
     }
 
@@ -136,6 +184,7 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
             {
                 _pauseBis = DateTime.Now.AddSeconds(15);
                 var meldung = _calendarService.BeschreibeFehler(ex, aktuellerKalender);
+                _syncFehler = $"{DateTime.Now:dd.MM. HH:mm} {fallId}: {meldung}";
                 Console.WriteLine($"Fehler beim Synchronisieren: {meldung}");
                 UpdateStatusLine($"Status: Fehler - {meldung}");
                 return;
@@ -151,6 +200,7 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
             catch (Exception ex) { Console.WriteLine($"Sync-Status nicht gespeichert: {ex.Message}"); }
 
             _pauseBis = DateTime.MinValue;
+            _syncFehler = null;
             UpdateStatusLine($"Status: {DateTime.Now:HH:mm:ss} - {fallId}: {geaendert.Count} aktualisiert, {entfernt.Count} geloescht");
         }
         finally
@@ -168,6 +218,8 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
 
     private void UpdateStatusLine(string text)
     {
+        _statusText = text;
+        if (DateTime.Now - _letzterStatusVersand > TimeSpan.FromSeconds(10)) _ = StatusSendenAsync();
         void Apply()
         {
             _statusZeile.Text = text.Length > 200 ? text[..200] + "..." : text;
@@ -222,6 +274,9 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
                   string.Join("\n", _config.Kategorien
                       .Where(k => k.Value.Aktiv && !string.IsNullOrWhiteSpace(k.Value.CalendarId))
                       .Select(k => $"{k.Value.Name}: {k.Value.CalendarId}")) +
+                  $"\nZentrale Einstellungen: {(_zentral.ZuletztGeladen is { } z ? $"geladen {z:HH:mm}" : "nicht geladen")}"
+                  + (_zentral.LetzterFehler is { } f ? $" ({f})" : "") +
+                  $"\nVorsorge: {_watcher.VorsorgeDiagnose ?? "noch keine erkannt"}" +
                   $"\n\nStatus: {_statusZeile.Text}";
         
         MessageBox.Show(msg, "Status", MessageBoxButtons.OK, MessageBoxIcon.Information);

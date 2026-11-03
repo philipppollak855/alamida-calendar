@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ALLE, KATEGORIE_SCHLUESSEL, type Gruppe, type Konfiguration } from '../shared/rechte';
+import { AGENT_KATEGORIEN, AGENT_STANDARD_DAUER, ALLE, KATEGORIE_SCHLUESSEL, type AgentKategorie, type Gruppe, type Konfiguration } from '../shared/rechte';
 import { adminLaden, adminSpeichern, type AdminDaten } from './api';
 import { KATEGORIEN, type Kategorie } from './planungLogic';
 
@@ -57,6 +57,12 @@ export default function AdminAnsicht() {
   const aendern = (neu: Partial<Konfiguration>) => {
     setK({ ...k, ...neu });
     setStatus('Ungespeicherte Änderungen');
+  };
+  const ag = k.agent ?? { kategorien: {} };
+  const agentKat = (key: string, neu: Partial<AgentKategorie>) => {
+    const e: AgentKategorie = { ...ag.kategorien[key], ...neu };
+    (Object.keys(e) as (keyof AgentKategorie)[]).forEach((x) => e[x] === undefined && delete e[x]);
+    aendern({ agent: { ...ag, kategorien: { ...ag.kategorien, [key]: e } } });
   };
   const gruppeAendern = (id: string, neu: Partial<Gruppe>) => aendern({ gruppen: k.gruppen.map((g) => (g.id === id ? { ...g, ...neu } : g)) });
 
@@ -231,6 +237,82 @@ export default function AdminAnsicht() {
         </button>
         {daten.kalenderGefunden.length > 0 && (
           <p className="klein">Gefunden: {daten.kalenderGefunden.map((x) => x.name).join(', ')}</p>
+        )}
+      </article>
+
+      <article className="glas admin-block">
+        <h3>Alamida-Agent: Kalender & Dauer je Kategorie</h3>
+        <p className="klein">
+          Gilt für alle PCs mit dem Agent und wird spätestens nach 5 Minuten übernommen. Jeder Kalender muss oben unter „Kalender“ stehen und in Google für den
+          Service Account mit „Änderungen an Terminen vornehmen“ freigegeben sein.
+        </p>
+        <div className="admin-zeile agent-zeile">
+          <strong>Standard-Kalender</strong>
+          <select
+            className="feld"
+            value={ag.standardKalender ?? ''}
+            onChange={(e) => aendern({ agent: { ...ag, standardKalender: e.target.value || undefined } })}
+          >
+            <option value="">wie am PC eingestellt</option>
+            {kalenderOptionen.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {AGENT_KATEGORIEN.map((key) => {
+          const e = ag.kategorien[key] ?? {};
+          const info = KATEGORIEN[key as Kategorie];
+          return (
+            <div key={key} className="admin-zeile agent-zeile">
+              <span>
+                {info.symbol} {info.label}
+              </span>
+              <select className="feld" value={e.kalender ?? ''} onChange={(ev) => agentKat(key, { kalender: ev.target.value || undefined })}>
+                <option value="">Standard-Kalender</option>
+                {kalenderOptionen.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <label className="agent-dauer">
+                <input
+                  className="feld"
+                  type="number"
+                  min={15}
+                  max={1440}
+                  step={15}
+                  value={e.dauer ?? ''}
+                  placeholder={String(AGENT_STANDARD_DAUER[key] ?? 60)}
+                  onChange={(ev) => agentKat(key, { dauer: ev.target.value ? Number(ev.target.value) : undefined })}
+                />
+                <span className="klein">Min.</span>
+              </label>
+              <label className="klein">
+                <input type="checkbox" checked={e.aktiv !== false} onChange={(ev) => agentKat(key, { aktiv: ev.target.checked ? undefined : false })} />{' '}
+                übertragen
+              </label>
+            </div>
+          );
+        })}
+        <h4>Agent-PCs</h4>
+        {(daten.agentStatus ?? []).length === 0 ? (
+          <p className="klein">Noch kein Agent hat sich gemeldet. Ab der neuen Agent-Version stehen hier PC, Version, letzter Abgleich und Fehler.</p>
+        ) : (
+          (daten.agentStatus ?? []).map((s) => (
+            <div key={s.station} className="agent-status">
+              <strong>{s.station}</strong>
+              <span className="klein">
+                Version {s.version} · gemeldet {new Date(s.zeit).toLocaleString('de-AT')} · {s.termine ?? 0} Termine · Einstellungen{' '}
+                {s.zentral ? 'übernommen' : 'noch nicht geladen'}
+              </span>
+              <span className="klein">{s.status}</span>
+              {s.vorsorge && <span className="klein">Vorsorge: {s.vorsorge}</span>}
+              {s.fehler && <span className="klein agent-fehler">⚠ {s.fehler}</span>}
+            </div>
+          ))
         )}
       </article>
     </section>

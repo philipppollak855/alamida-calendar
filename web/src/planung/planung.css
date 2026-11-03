@@ -494,3 +494,12 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .ab-tage label { display: grid; font-size: 0.68rem; color: var(--text-3); }
 .ab-dashboard, .ab-personal { display: grid; gap: 0.9rem; }
 @media (max-width: 700px) { .ab-eintrag { flex-direction: column; align-items: flex-start; } .ab-eintrag-rechts { justify-content: flex-start; } }
+
+.agent-zeile { grid-template-columns: minmax(150px, 200px) 1fr auto auto; }
+.agent-dauer { display: flex; align-items: center; gap: 0.35rem; }
+.agent-dauer .feld { width: 5.5rem; }
+.agent-status { display: grid; gap: 0.15rem; padding: 0.55rem 0; border-bottom: 1px solid var(--rand); }
+.agent-fehler { color: #e74c3c; }
+@media (max-width: 700px) {
+  .agent-zeile { grid-template-columns: 1fr 1fr; }
+}

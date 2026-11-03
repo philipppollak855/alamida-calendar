@@ -40,6 +40,21 @@ export interface DomainRegel {
   gruppen: string[];
 }
 
+/** Vorgaben für den Alamida-Agent je Kategorie (leer = Einstellung am PC). */
+export interface AgentKategorie {
+  kalender?: string;
+  dauer?: number;
+  aktiv?: boolean;
+}
+
+export interface AgentEinstellungen {
+  standardKalender?: string;
+  kategorien: Record<string, AgentKategorie>;
+}
+
+export const AGENT_KATEGORIEN = KATEGORIE_SCHLUESSEL.filter((k) => k !== 'Sonstiges');
+export const AGENT_STANDARD_DAUER: Record<string, number> = { Ueberfuehrung: 120 };
+
 export interface Konfiguration {
   kalender: KalenderEintrag[];
   gruppen: Gruppe[];
@@ -49,6 +64,7 @@ export interface Konfiguration {
   bereitschaftGruppen?: string[];
   /** Gruppen, die Urlaub/Krank aller sehen und genehmigen (Admins immer). */
   abwesenheitGruppen?: string[];
+  agent?: AgentEinstellungen;
 }
 
 export interface Rechte {
@@ -112,6 +128,24 @@ export function darfSehen(r: Rechte, kalenderId: string, kategorie: string): boo
 const text = (x: unknown, max = 200) => (typeof x === 'string' ? x.trim().slice(0, max) : '');
 const texte = (x: unknown) => (Array.isArray(x) ? x.map((y) => text(y)).filter(Boolean) : []);
 
+export function agentPruefen(x: unknown): AgentEinstellungen {
+  const o = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
+  const ko = (o.kategorien && typeof o.kategorien === 'object' ? o.kategorien : {}) as Record<string, unknown>;
+  const kategorien: Record<string, AgentKategorie> = {};
+  for (const k of AGENT_KATEGORIEN) {
+    const e = ko[k] as Record<string, unknown> | undefined;
+    if (!e || typeof e !== 'object') continue;
+    const dauer = Math.round(Number(e.dauer));
+    const r: AgentKategorie = {};
+    if (text(e.kalender, 300)) r.kalender = text(e.kalender, 300);
+    if (dauer >= 15 && dauer <= 1440) r.dauer = dauer;
+    if (e.aktiv === false) r.aktiv = false;
+    if (Object.keys(r).length) kategorien[k] = r;
+  }
+  const standardKalender = text(o.standardKalender, 300);
+  return standardKalender ? { standardKalender, kategorien } : { kategorien };
+}
+
 /** Bereinigt eine vom Browser gesendete Konfiguration. */
 export function konfigPruefen(x: unknown): Konfiguration {
   const o = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
@@ -138,5 +172,6 @@ export function konfigPruefen(x: unknown): Konfiguration {
       .filter((d) => d.domain.includes('.')),
     bereitschaftGruppen: texte(o.bereitschaftGruppen).filter((g) => g === ALLE || gruppenIds.has(g)),
     abwesenheitGruppen: texte(o.abwesenheitGruppen).filter((g) => g === ALLE || gruppenIds.has(g)),
+    agent: agentPruefen(o.agent),
   };
 }
