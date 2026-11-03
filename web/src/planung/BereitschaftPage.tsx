@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import './planung.css';
+import { useTheme } from './theme';
 import { hubAnmelden, ichLaden, type Ich } from './api';
 import BereitschaftAnsicht, { NACH_ANMELDUNG } from './BereitschaftAnsicht';
 
@@ -7,7 +8,7 @@ import BereitschaftAnsicht, { NACH_ANMELDUNG } from './BereitschaftAnsicht';
 export default function BereitschaftPage() {
   const [ich, setIch] = useState<Ich | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
-  const theme = localStorage.getItem('alamida.theme') === 'hell' ? 'hell' : 'dunkel';
+  const [theme] = useTheme();
 
   useEffect(() => {
     const ticket = new URLSearchParams(location.hash.slice(1)).get('hub_ticket');
