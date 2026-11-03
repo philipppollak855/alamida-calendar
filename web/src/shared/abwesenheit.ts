@@ -56,6 +56,14 @@ export interface Abwesenheit {
 
 export const STANDARD_TAGE = [8, 8, 8, 8, 8, 0, 0];
 export const wochenstunden = (p: Pick<Personal, 'tage'>) => p.tage.reduce((s, h) => s + h, 0);
+/** Durchschnittliche Stunden je Arbeitstag (Umrechnung Urlaub Stunden ↔ Tage, auch bei Teilzeit). */
+export const stundenJeTag = (p: Pick<Personal, 'tage'>) => Math.round((wochenstunden(p) / (p.tage.filter((h) => h > 0).length || 5)) * 100) / 100;
+/** Stunden als Arbeitstage, z. B. „12,5 Tage“ / „1 Tag“. */
+export function tageAnzeige(stunden: number, proTag: number): string {
+  if (!(proTag > 0)) return `${stunden.toLocaleString('de-AT', { maximumFractionDigits: 1 })} h`;
+  const t = Math.round((stunden / proTag) * 10) / 10;
+  return `${t.toLocaleString('de-AT', { maximumFractionDigits: 1 })} ${Math.abs(t) === 1 ? 'Tag' : 'Tage'}`;
+}
 export const zaehlt = (a: Pick<Abwesenheit, 'status'>) => a.status === 'genehmigt' || a.status === 'gemeldet';
 
 const ftCache = new Map<number, Set<string>>();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { altdatenLesen, darfVerwalten, stundenVon, tageZuZeitraeumen, urlaubskonto, type Abwesenheit, type Personal } from './abwesenheit';
+import { altdatenLesen, darfVerwalten, stundenJeTag, stundenVon, tageAnzeige, tageZuZeitraeumen, urlaubskonto, type Abwesenheit, type Personal } from './abwesenheit';
 import type { Konfiguration, Rechte } from './rechte';
 
 const anna: Personal = { email: 'anna@x.at', name: 'Anna', eintritt: '2020-03-01', tage: [8, 8, 8, 8, 8, 0, 0] };
@@ -68,5 +68,16 @@ describe('abwesenheit', () => {
     expect(b.personal.urlaubStartSaldo).toBe(276);
     expect(b.abwesenheiten).toContainEqual({ art: 'krank', von: '2026-05-06', bis: '2026-05-06', status: 'gemeldet' });
     expect(b.abwesenheiten).toContainEqual({ art: 'urlaub', von: '2026-05-04', bis: '2026-05-05', status: 'genehmigt' });
+  });
+});
+
+describe('Urlaub in Tagen', () => {
+  it('rechnet Stunden in Arbeitstage um, auch bei Teilzeit', () => {
+    expect(stundenJeTag({ tage: [8, 8, 8, 8, 8, 0, 0] })).toBe(8);
+    expect(stundenJeTag({ tage: [6, 6, 6, 2, 0, 0, 0] })).toBe(5);
+    expect(tageAnzeige(200, 8)).toBe('25 Tage');
+    expect(tageAnzeige(8, 8)).toBe('1 Tag');
+    expect(tageAnzeige(12, 8)).toBe('1,5 Tage');
+    expect(tageAnzeige(-4, 8)).toBe('-0,5 Tage');
   });
 });

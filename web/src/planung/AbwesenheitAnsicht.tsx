@@ -24,8 +24,7 @@ import {
   type AbwArt,
   type Abwesenheit,
   type AltMitarbeiter,
-  type Personal,
-} from '../shared/abwesenheit';
+  type Personal, stundenJeTag, tageAnzeige } from '../shared/abwesenheit';
 import { ausText, datumText, plusTage } from '../shared/bereitschaft';
 import { useBereitschaft } from './BereitschaftAnsicht';
 
@@ -53,7 +52,7 @@ export function useAbwesenheit(aktiv: boolean) {
 
 const heute = () => datumText(new Date());
 const std = (n: number) => `${n.toLocaleString('de-AT', { maximumFractionDigits: 1 })} h`;
-const tageText = (h: number, proTag: number) => (proTag > 0 ? `≈ ${(h / proTag).toLocaleString('de-AT', { maximumFractionDigits: 1 })} Tage` : '');
+const tage = tageAnzeige;
 const kurz = (email: string) => email.split('@')[0];
 const artInfo = (e: Abwesenheit) => (e.verdeckt ? { label: 'abwesend', symbol: '•', farbe: '#7f8c8d' } : ARTEN[e.art]);
 const STATUS: Record<Abwesenheit['status'], string> = { beantragt: 'offen', genehmigt: 'genehmigt', abgelehnt: 'abgelehnt', gemeldet: 'gemeldet' };
@@ -117,10 +116,10 @@ function KontoKacheln({ p, eintraege }: { p: Personal; eintraege: Abwesenheit[] 
   const k = useMemo(() => urlaubskonto(p, eintraege, heute()), [p, eintraege]);
   return (
     <div className="bs-kacheln ab-kacheln">
-      <Kachel label="Resturlaub" wert={std(k.rest)} klein={tageText(k.rest, k.stundenProTag)} klasse={k.rest < 0 ? 'bs-warn' : 'bs-ok'} />
-      <Kachel label="Verplant / beantragt" wert={std(k.verplant)} klein={tageText(k.verplant, k.stundenProTag)} klasse="bs-klein" />
-      <Kachel label="Verfällt in 3 Monaten" wert={std(k.verfaelltBald)} klasse={k.verfaelltBald > 0 ? 'bs-warn bs-klein' : 'bs-klein'} />
-      <Kachel label="Pflegefreistellung" wert={`${std(k.pflege.verbraucht)} / ${std(k.pflege.anspruch)}`} klasse="bs-klein" />
+      <Kachel label="Resturlaub" wert={tage(k.rest, k.stundenProTag)} klasse={k.rest < 0 ? 'bs-warn' : 'bs-ok'} />
+      <Kachel label="Verplant / beantragt" wert={tage(k.verplant, k.stundenProTag)} klasse="bs-klein" />
+      <Kachel label="Verfällt in 3 Monaten" wert={tage(k.verfaelltBald, k.stundenProTag)} klasse={k.verfaelltBald > 0 ? 'bs-warn bs-klein' : 'bs-klein'} />
+      <Kachel label="Pflegefreistellung" wert={`${tage(k.pflege.verbraucht, k.stundenProTag)} / ${tage(k.pflege.anspruch, k.stundenProTag)}`} klasse="bs-klein" />
       <Kachel label={`Krankentage ${new Date().getFullYear()}`} wert={krankTageImJahr(p, eintraege, new Date().getFullYear())} klasse="bs-klein" />
     </div>
   );
@@ -209,7 +208,8 @@ function Formular({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhei
       <textarea className="feld" rows={2} placeholder={art === 'krank' ? 'Notiz (optional, z. B. voraussichtliche Dauer)' : 'Notiz (optional)'} value={notiz} onChange={(e) => setNotiz(e.target.value)} />
       {kosten != null && (
         <p className="klein">
-          {ARTEN[art].label}: {std(kosten)} an Arbeitstagen{art === 'urlaub' ? ' werden vom Urlaubskonto abgezogen' : ''}.
+          {ARTEN[art].label}: {p && (art === 'urlaub' || art === 'pflege') ? tage(kosten, stundenJeTag(p)) : `${std(kosten)} an Arbeitstagen`}
+          {art === 'urlaub' ? ' werden vom Urlaubskonto abgezogen' : ''}.
           {!ARTEN[art].genehmigung || d.darfVerwalten ? '' : ' Muss genehmigt werden.'}
         </p>
       )}
@@ -397,8 +397,8 @@ function Dashboard({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhe
                   </b>
                   <div className="klein">
                     {zeitraumText(e)}
-                    {p ? ` · ${std(stundenVon(p, e))}` : ''}
-                    {k && e.art === 'urlaub' ? ` · Rest ${std(k.rest)}` : ''}
+                    {p ? ` · ${e.art === 'urlaub' || e.art === 'pflege' ? tage(stundenVon(p, e), stundenJeTag(p)) : std(stundenVon(p, e))}` : ''}
+                    {k && e.art === 'urlaub' ? ` · Rest ${tage(k.rest, k.stundenProTag)}` : ''}
                   </div>
                   {e.notiz && <div className="klein">„{e.notiz}“</div>}
                 </div>
@@ -445,10 +445,10 @@ function Dashboard({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhe
                 <tr key={p.email}>
                   <td>{p.name}</td>
                   <td className={k.rest < 0 ? 'ab-rot' : ''}>
-                    {std(k.rest)} <small className="klein">{tageText(k.rest, k.stundenProTag)}</small>
+                    {tage(k.rest, k.stundenProTag)}
                   </td>
-                  <td>{std(k.verplant)}</td>
-                  <td className={k.verfaelltBald > 0 ? 'ab-rot' : ''}>{std(k.verfaelltBald)}</td>
+                  <td>{tage(k.verplant, k.stundenProTag)}</td>
+                  <td className={k.verfaelltBald > 0 ? 'ab-rot' : ''}>{tage(k.verfaelltBald, k.stundenProTag)}</td>
                   <td>{krank} Tage</td>
                 </tr>
               ))}
@@ -511,7 +511,7 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
       <section className="glas admin-block bs-block">
         <h3>Personal-Stammdaten</h3>
         <p className="klein">
-          Urlaubsanspruch nach Urlaubsgesetz: 5 Wochen je Arbeitsjahr ab Eintritt (ab 25 Dienstjahren inkl. Vordienstzeiten 6), im ersten halben Jahr aliquot, Verfall 2 Jahre nach Ende des Urlaubsjahres. Gerechnet wird in Stunden laut Wochenplan.
+          Urlaubsanspruch nach Urlaubsgesetz: 5 Wochen je Arbeitsjahr ab Eintritt (ab 25 Dienstjahren inkl. Vordienstzeiten 6), im ersten halben Jahr aliquot, Verfall 2 Jahre nach Ende des Urlaubsjahres. Angezeigt in Arbeitstagen (bei Teilzeit umgerechnet mit den durchschnittlichen Stunden je Arbeitstag laut Wochenplan).
         </p>
         <table className="bs-tabelle ab-stamm">
           <thead>
@@ -551,7 +551,15 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
                 </td>
                 <td>
                   <input className="feld" type="date" title="Resturlaub übernommen am" value={p.saldoAb ?? ''} onChange={(e) => aendern(i, { saldoAb: e.target.value || undefined })} />
-                  <input className="feld" type="number" step={0.5} title="Übernommener Resturlaub (Stunden)" placeholder="Rest h" value={p.urlaubStartSaldo ?? ''} onChange={(e) => aendern(i, { urlaubStartSaldo: e.target.value ? Number(e.target.value) : undefined })} />
+                  <input
+                    className="feld"
+                    type="number"
+                    step={0.5}
+                    title="Übernommener Resturlaub (Arbeitstage)"
+                    placeholder="Rest Tage"
+                    value={p.urlaubStartSaldo != null && stundenJeTag(p) > 0 ? Math.round((p.urlaubStartSaldo / stundenJeTag(p)) * 100) / 100 : ''}
+                    onChange={(e) => aendern(i, { urlaubStartSaldo: e.target.value ? Math.round(Number(e.target.value) * stundenJeTag(p) * 100) / 100 : undefined })}
+                  />
                 </td>
                 <td>
                   <button className="knopf klein" onClick={() => setListe(liste.filter((_, j) => j !== i))} aria-label="Entfernen">✕</button>
