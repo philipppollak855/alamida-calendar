@@ -520,3 +520,13 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
   .bs-tabelle th { font-size: 0.62rem; letter-spacing: 0.02em; white-space: normal; }
   .bs-legende { font-size: 0.72rem; gap: 0.2rem 0.8rem; }
 }
+
+/* Personalplanung */
+.personal-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.personal-chip { padding: 0.3rem 0.65rem; border-radius: 999px; background: var(--flaeche-hover); border: 1px solid var(--rand-stark); font-size: 0.9rem; }
+.personal-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.4rem; margin-bottom: 0.6rem; }
+.personal-wahl { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; min-height: 44px; padding: 0.5rem 0.7rem; border-radius: 12px; border: 1px solid var(--rand-stark); background: var(--flaeche); color: inherit; text-align: left; cursor: pointer; font: inherit; }
+.personal-wahl.an { border-color: var(--akzent); background: color-mix(in srgb, var(--akzent) 18%, transparent); }
+.personal-wahl:disabled { opacity: 0.45; cursor: not-allowed; }
+.personal-wahl .warnung-text { flex-basis: 100%; color: #e8a33d; }
+.termin-personal, .m-personal { color: var(--akzent); }

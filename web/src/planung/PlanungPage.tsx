@@ -5,7 +5,7 @@ import { de } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './planung.css';
 import { useTheme } from './theme';
-import { abmelden, anmeldungAbschliessen, hubAnmelden, ichLaden, termineAusCache, termineLaden, type Ich } from './api';
+import { abmelden, anmeldungAbschliessen, einteilungSpeichern, hubAnmelden, ichLaden, termineAusCache, termineLaden, type EinteilungRecht, type Ich } from './api';
 import AdminAnsicht from './AdminAnsicht';
 import AbwesenheitAnsicht, { AbwesenheitZeile, abwesendAm, useAbwesenheit } from './AbwesenheitAnsicht';
 import BereitschaftAnsicht, { BereitschaftZeile, NACH_ANMELDUNG, bereitschaftAm, useBereitschaft } from './BereitschaftAnsicht';
@@ -29,8 +29,7 @@ import {
   warnungen,
   type Gruppe,
   type Kategorie,
-  type Termin,
-} from './planungLogic';
+  type Termin, personalText } from './planungLogic';
 
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek: (d: Date) => startOfWeek(d, { weekStartsOn: 1 }), getDay, locales: { de } });
 
@@ -93,6 +92,7 @@ export function TerminKarte({ t, mitDatum = false, onOeffnen }: { t: Termin; mit
       )}
       {!t.verstorbener && <div className="termin-ort">{t.titel}</div>}
       {t.details.bestattungsart && <div className="termin-ort druck-nur">{t.details.bestattungsart}</div>}
+      {!!t.personal?.length && <div className="termin-ort termin-personal">👥 {personalText(t)}</div>}
     </button>
   );
 }
@@ -169,6 +169,7 @@ export default function PlanungPage() {
   const [aus, setAus] = useState<Kategorie[]>([]);
   const [suchtext, setSuchtext] = useState('');
   const [offen, setOffen] = useState<Termin | null>(null);
+  const [einteilung, setEinteilung] = useState<EinteilungRecht | null>(null);
   const [palette, setPalette] = useState(false);
   const [hilfe, setHilfe] = useState(false);
   const [echteDaten, setEchteDaten] = useState(!!cache);
@@ -208,6 +209,7 @@ export default function PlanungPage() {
     try {
       const r = await termineLaden();
       setTermine(r.termine);
+      setEinteilung(r.einteilung);
       setEchteDaten(true);
       setStand(new Date());
       setFehler(r.fehler.length ? r.fehler.join(' · ') : null);
@@ -286,6 +288,13 @@ export default function PlanungPage() {
 
   const vollbild = () =>
     document.fullscreenElement ? void document.exitFullscreen() : void document.documentElement.requestFullscreen?.();
+
+  const einteilen = useCallback(async (t: Termin, emails: string[]) => {
+    const r = await einteilungSpeichern(t.id, emails);
+    const personal = r.personen.length ? r.personen : undefined;
+    setTermine((l) => l.map((x) => (x.id === t.id ? { ...x, personal } : x)));
+    setOffen((o) => (o && o.id === t.id ? { ...o, personal } : o));
+  }, []);
 
   const geheZu = useCallback((t: Termin) => {
     setTag(startDesTages(t.start));
@@ -372,7 +381,15 @@ export default function PlanungPage() {
   const begruessung = jetzt.getHours() < 11 ? 'Guten Morgen' : jetzt.getHours() < 18 ? 'Guten Tag' : 'Guten Abend';
 
   const detail = offen && (
-    <TerminDetail termin={offen} alle={termine} hinweise={hinweise} onWaehlen={setOffen} onSchliessen={() => setOffen(null)} />
+    <TerminDetail
+      termin={offen}
+      alle={termine}
+      hinweise={hinweise}
+      einteilung={echteDaten ? einteilung : null}
+      onEinteilen={einteilen}
+      onWaehlen={setOffen}
+      onSchliessen={() => setOffen(null)}
+    />
   );
   const iosDialog = iosHilfe && (
     <div className="modal-hintergrund" onClick={() => setIosHilfe(false)}>

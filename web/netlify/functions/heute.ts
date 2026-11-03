@@ -4,7 +4,7 @@ import { abwesendHeute, bereitschaftHeute, heuteText, termineHeute, type HeuteHi
 import { darfKalender, darfSehen } from '../../src/shared/rechte';
 import { KATEGORIEN, kategorieAus, type GoogleEvent } from '../../src/planung/planungLogic';
 import { alleKalender } from '../lib/kalender';
-import { abwesenheitenLaden, angemeldetOderHub, bereitschaftLaden, env, googleGet, json, personalLaden } from '../lib/server';
+import { abwesenheitenLaden, angemeldetOderHub, bereitschaftLaden, einteilungenLaden, env, googleGet, json, personalLaden } from '../lib/server';
 
 /** Tagesübersicht für das Dashboard im Hub: heutige Termine, Bereitschaft, Abwesenheiten – gefiltert nach den Rechten der Person. */
 export default async (req: Request) => {
@@ -19,7 +19,7 @@ export default async (req: Request) => {
   const verwalter = darfVerwalten(a.rechte, a.konfig);
 
   const kalender = (await alleKalender(a.konfig, env('CALENDAR_IDS'))).filter((k) => darfKalender(a.rechte, k.id));
-  const [ergebnisse, einsaetze, abwesenheiten, personal] = await Promise.all([
+  const [ergebnisse, einsaetze, abwesenheiten, personal, einteilungen] = await Promise.all([
     Promise.allSettled(
       kalender.map(async (k) => {
         const r = await googleGet<{ items?: GoogleEvent[] }>(`/calendars/${encodeURIComponent(k.id)}/events`, {
@@ -37,6 +37,7 @@ export default async (req: Request) => {
     bereitschaftLaden(heute).catch(() => []),
     abwesenheitenLaden().catch(() => []),
     personalLaden().catch(() => []),
+    einteilungenLaden().catch(() => []),
   ]);
 
   const namen = new Map<string, string>([...a.konfig.benutzer.map((b) => [b.email, b.name ?? ''] as [string, string]), ...personal.map((p) => [p.email, p.name] as [string, string])]);
@@ -45,6 +46,7 @@ export default async (req: Request) => {
     heute,
     ich,
     origin,
+    new Map(einteilungen.map((e) => [e.termin, e.personen])),
   ).map((t) => {
     const symbol = KATEGORIEN[t.kategorie as keyof typeof KATEGORIEN]?.symbol;
     // Agent-Titel beginnen schon mit dem Symbol („🚐 Abholung …“) – im Dashboard nicht doppelt zeigen.

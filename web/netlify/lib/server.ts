@@ -4,6 +4,7 @@ import { STANDARD_KONFIG, konfigPruefen, rechteFuer, verzeichnisAnwenden, verzei
 import type { Einsatz } from '../../src/shared/bereitschaft';
 import { personalPruefen, type Abwesenheit, type Personal } from '../../src/shared/abwesenheit';
 import type { AgentStatus } from './agent';
+import type { Einteilung } from '../../src/shared/einteilung';
 
 export const SESSION_COOKIE = 'alamida_session';
 export const SESSION_TAGE = 90;
@@ -161,6 +162,19 @@ export const abwesenheitSpeichern = (e: Abwesenheit) => store().setJSON(abwSchlu
 export const abwesenheitLoeschen = (e: Pick<Abwesenheit, 'id'>) => store().delete(abwSchluessel(e.id));
 export const personalLaden = async (): Promise<Personal[]> => personalPruefen(await store().get('abwesenheit-personal', { type: 'json' }));
 export const personalSpeichern = (p: Personal[]) => store().setJSON('abwesenheit-personal', p);
+
+/* Personalplanung: ein Blob je Termin. */
+const einteilungSchluessel = (termin: string) => `einteilung/${Buffer.from(termin).toString('base64url')}`;
+
+export async function einteilungenLaden(): Promise<Einteilung[]> {
+  const s = store();
+  const { blobs } = await s.list({ prefix: 'einteilung/' });
+  const l = await Promise.all(blobs.map((b) => s.get(b.key, { type: 'json' }) as Promise<Einteilung | null>));
+  return l.filter((e): e is Einteilung => !!e?.termin && Array.isArray(e.personen));
+}
+
+export const einteilungSpeichern = (e: Einteilung) => store().setJSON(einteilungSchluessel(e.termin), e);
+export const einteilungLoeschen = (termin: string) => store().delete(einteilungSchluessel(termin));
 
 /** Sitzung aus dem Cookie oder – eingebettet im Hub, wo fremde Cookies blockiert werden – aus „Authorization: Bearer“. */
 export async function angemeldet(req: Request): Promise<{ sitzung: Sitzung; rechte: Rechte; konfig: Konfiguration } | null> {

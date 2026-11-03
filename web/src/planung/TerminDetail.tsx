@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { KATEGORIEN, checkliste, fallDaten, mapsLink, type Termin, type Warnung } from './planungLogic';
+import { maxPersonen, personName } from '../shared/einteilung';
+import type { EinteilungRecht } from './api';
 
 const FELDER: [string, string][] = [
   ['sterbedatum', 'Sterbedatum'],
@@ -17,16 +19,123 @@ export function zeitText(t: Termin, mitDatum = true): string {
   return datum + (t.ganztaegig ? 'ganztägig' : `${format(t.start, 'HH:mm')}–${format(t.ende, 'HH:mm')} Uhr`);
 }
 
+function PersonalBlock({
+  termin,
+  alle,
+  einteilung,
+  onEinteilen,
+}: {
+  termin: Termin;
+  alle: Termin[];
+  einteilung: EinteilungRecht | null;
+  onEinteilen: (t: Termin, emails: string[]) => Promise<void>;
+}) {
+  const aktuell = (termin.personal ?? []).map((p) => p.email);
+  const [bearbeiten, setBearbeiten] = useState(false);
+  const [wahl, setWahl] = useState<string[]>(aktuell);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [laeuft, setLaeuft] = useState(false);
+  const schluessel = `${termin.id}|${aktuell.join(',')}`;
+  useEffect(() => {
+    setWahl(schluessel.split('|')[1] ? schluessel.split('|')[1].split(',') : []);
+    setFehler(null);
+  }, [schluessel]);
+  useEffect(() => setBearbeiten(false), [termin.id]);
+
+  const darf = !!einteilung?.darf;
+  if (!darf && !aktuell.length) return null;
+  const max = maxPersonen(termin.kategorie);
+  // Zeitgleich anderswo eingeteilt?
+  const konflikt = (email: string) =>
+    alle.find((t) => t.id !== termin.id && t.start < termin.ende && t.ende > termin.start && t.personal?.some((p) => p.email === email));
+  const umschalten = (email: string) => {
+    if (wahl.includes(email)) setWahl(wahl.filter((x) => x !== email));
+    else if (max === 1) setWahl([email]);
+    else if (wahl.length < max) setWahl([...wahl, email]);
+  };
+  async function speichern() {
+    setLaeuft(true);
+    setFehler(null);
+    try {
+      await onEinteilen(termin, wahl);
+      setBearbeiten(false);
+    } catch (e) {
+      setFehler((e as Error).message);
+    } finally {
+      setLaeuft(false);
+    }
+  }
+
+  return (
+    <section className="modal-block">
+      <h3>
+        Personal <span className="klein">{max === 1 ? '(1 Person)' : `(bis ${max} Personen)`}</span>
+      </h3>
+      {!bearbeiten && (
+        <div className="personal-chips">
+          {(termin.personal ?? []).map((p) => (
+            <span key={p.email} className="personal-chip">
+              👤 {personName(p)}
+              {konflikt(p.email) && <span title={`Zeitgleich: ${konflikt(p.email)!.titel}`}> ⚠️</span>}
+            </span>
+          ))}
+          {!aktuell.length && <span className="klein">Noch niemand eingeteilt.</span>}
+          {darf && (
+            <button className="knopf" onClick={() => setBearbeiten(true)}>
+              {aktuell.length ? 'Ändern' : 'Personal einteilen'}
+            </button>
+          )}
+        </div>
+      )}
+      {bearbeiten && einteilung && (
+        <>
+          <div className="personal-liste">
+            {einteilung.personen.map((p) => {
+              const an = wahl.includes(p.email);
+              const k = konflikt(p.email);
+              return (
+                <button
+                  key={p.email}
+                  className={`personal-wahl ${an ? 'an' : ''}`}
+                  disabled={!an && max > 1 && wahl.length >= max}
+                  onClick={() => umschalten(p.email)}
+                >
+                  <span>{an ? '✓' : '○'}</span>
+                  <span>{personName(p)}</span>
+                  {k && <span className="klein warnung-text">⚠️ zeitgleich: {k.verstorbener ?? k.titel}</span>}
+                </button>
+              );
+            })}
+          </div>
+          {fehler && <div className="warnung">{fehler}</div>}
+          <div className="aktionen">
+            <button className="knopf primaer" disabled={laeuft} onClick={() => void speichern()}>
+              {laeuft ? 'Speichert …' : `Speichern (${wahl.length}/${max})`}
+            </button>
+            <button className="knopf" disabled={laeuft} onClick={() => setBearbeiten(false)}>
+              Abbrechen
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function TerminDetail({
   termin,
   alle,
   hinweise,
+  einteilung = null,
+  onEinteilen,
   onWaehlen,
   onSchliessen,
 }: {
   termin: Termin;
   alle: Termin[];
   hinweise: Warnung[];
+  einteilung?: EinteilungRecht | null;
+  onEinteilen?: (t: Termin, emails: string[]) => Promise<void>;
   onWaehlen: (t: Termin) => void;
   onSchliessen: () => void;
 }) {
@@ -100,6 +209,8 @@ export default function TerminDetail({
               )}
             </div>
           </section>
+
+          {onEinteilen && <PersonalBlock termin={termin} alle={alle} einteilung={einteilung} onEinteilen={onEinteilen} />}
 
           {FELDER.some(([key]) => daten[key]) && (
             <section className="modal-block">

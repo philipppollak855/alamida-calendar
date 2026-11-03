@@ -41,7 +41,11 @@ export interface Termin {
   link?: string;
   /** Strukturierte Daten des Agents (extendedProperties.private): art, ort, route, von, nach, sterbedatum, ... */
   details: Record<string, string>;
+  /** Eingeteiltes Personal (Personalplanung). */
+  personal?: { email: string; name?: string }[];
 }
+
+export const personalText = (t: Termin) => (t.personal ?? []).map((p) => p.name || p.email.split('@')[0]).join(', ');
 
 /** Ausschnitt aus der Google Calendar API (events.list). */
 export interface GoogleEvent {
@@ -241,7 +245,7 @@ export function suche(termine: Termin[], text: string): Termin[] {
   const woerter = text.toLowerCase().split(/\s+/).filter(Boolean);
   if (!woerter.length) return termine;
   return termine.filter((t) => {
-    const heu = [t.titel, t.ort, t.verstorbener, t.sterbefallId, KATEGORIEN[t.kategorie].label, ...Object.values(t.details)]
+    const heu = [t.titel, t.ort, t.verstorbener, t.sterbefallId, KATEGORIEN[t.kategorie].label, personalText(t), ...Object.values(t.details)]
       .join(' ')
       .toLowerCase();
     return woerter.every((w) => heu.includes(w));
