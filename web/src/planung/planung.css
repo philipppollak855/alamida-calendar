@@ -547,3 +547,15 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .fall-text .countdown { margin-left: 0.4rem; }
 .fall-personal { color: var(--akzent) !important; }
 .fall-pfeil { color: var(--text-2); font-size: 1.2rem; }
+
+/* Neuer Termin */
+.neu-termin .modal-inhalt { display: grid; gap: 0.7rem; }
+.neu-kategorien { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.4rem; }
+.neu-kategorie { min-height: 44px; padding: 0.45rem 0.6rem; border-radius: 11px; border: 1px solid var(--rand-stark); border-left: 4px solid var(--kat); background: var(--flaeche); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.neu-kategorie.an { background: color-mix(in srgb, var(--kat) 28%, transparent); border-color: var(--kat); }
+.neu-feld { display: grid; gap: 0.25rem; font-size: 0.85rem; color: var(--text-2); }
+.neu-feld .feld { font-size: 1rem; color: var(--text); background: var(--flaeche-fest); border: 1px solid var(--rand-stark); border-radius: 10px; padding: 0.55rem 0.7rem; font-family: inherit; }
+.neu-zeile { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.6rem; }
+.neu-check { display: flex; gap: 0.4rem; align-items: center; }
+.m-neu { margin-left: auto; }
+.rbc-day-bg, .rbc-time-slot { cursor: pointer; }

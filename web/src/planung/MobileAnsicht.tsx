@@ -37,6 +37,7 @@ interface Props {
   onAbmelden: () => void;
   onInstallieren: () => void;
   onOeffnen: (t: Termin) => void;
+  onNeu?: (datum: string) => void;
   bereitschaft: Einsatz[];
 }
 
@@ -149,6 +150,11 @@ export default function MobileAnsicht(p: Props) {
             <div className="m-tagtitel">
               <h2>{isSameDay(tag, jetzt) ? 'Heute' : format(tag, 'EEEE, d. MMMM', { locale: de })}</h2>
               <span className="klein">{tagListe.length} Termine · wischen für Tag ←→</span>
+              {p.onNeu && (
+                <button className="knopf primaer m-neu" onClick={() => p.onNeu!(format(tag, 'yyyy-MM-dd'))}>
+                  ＋ Termin
+                </button>
+              )}
             </div>
             <BereitschaftZeile eintraege={bereitschaftAm(p.bereitschaft, tag)} />
             <div className="m-liste" {...wischen}>

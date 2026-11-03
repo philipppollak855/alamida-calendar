@@ -1,6 +1,7 @@
 import type { Konfiguration, KalenderEintrag, Rechte } from '../shared/rechte';
 import type { Einsatz } from '../shared/bereitschaft';
 import type { EinteilungPerson } from '../shared/einteilung';
+import type { NeuerTermin } from '../shared/neuerTermin';
 import type { AbwArt, Abwesenheit, Personal } from '../shared/abwesenheit';
 import { ausGoogleEvent, type GoogleEvent, type Termin } from './planungLogic';
 
@@ -9,6 +10,7 @@ export interface Ich {
   benutzer?: { email: string; name?: string; bild?: string };
   rechte?: Rechte;
   gruppenNamen?: string[];
+  anlegen?: { darf: boolean; dauer: Record<string, number> };
 }
 
 export interface AdminDaten {
@@ -169,3 +171,12 @@ export const altdatenImportieren = (daten: { personal: Personal[]; abwesenheiten
 
 export const einteilungSpeichern = (termin: string, personen: string[]) =>
   holen<{ termin: string; personen: EinteilungPerson[] }>('/api/einteilung', jsonInit('PUT', { termin, personen }));
+
+export async function terminAnlegen(t: NeuerTermin): Promise<Termin> {
+  const r = await holen<{ kalender: KalenderEintrag; event: GoogleEvent }>('/api/termin', jsonInit('POST', t));
+  const termin = ausGoogleEvent(r.event, r.kalender.id, r.kalender.name);
+  if (!termin) throw new Error('Termin konnte nicht gelesen werden');
+  return termin;
+}
+
+export const terminLoeschen = (id: string) => holen<{ ok: boolean }>(`/api/termin?id=${encodeURIComponent(id)}`, { method: 'DELETE' });

@@ -219,6 +219,15 @@ export default function AdminAnsicht() {
       </article>
 
       <article className="glas admin-block">
+        <h3>Termine anlegen</h3>
+        <p className="klein">
+          Mitglieder dieser Gruppen legen per Klick auf einen Tag neue Termine an (Admins immer). Ziel-Kalender und Dauer kommen aus „Kalender &amp; Dauer je
+          Kategorie“. Der Service Account braucht dafür im Google-Kalender „Änderungen an Terminen vornehmen“.
+        </p>
+        <Auswahl werte={k.anlegenGruppen ?? []} optionen={gruppenOptionen} onChange={(w) => aendern({ anlegenGruppen: w })} />
+      </article>
+
+      <article className="glas admin-block">
         <h3>Personalplanung</h3>
         <p className="klein">Mitglieder dieser Gruppen teilen Personal bei Terminen ein: Gespräche 1 Person, Überführungen, Begräbnisse usw. höchstens 5 (Admins immer).</p>
         <Auswahl werte={k.personalGruppen ?? []} optionen={gruppenOptionen} onChange={(w) => aendern({ personalGruppen: w })} />
