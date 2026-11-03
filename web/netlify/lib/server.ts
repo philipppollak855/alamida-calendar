@@ -231,7 +231,9 @@ interface ServiceAccount {
   private_key: string;
 }
 
-let saToken: { token: string; bis: number } | null = null;
+const LESEN = 'https://www.googleapis.com/auth/calendar.readonly';
+const SCHREIBEN = 'https://www.googleapis.com/auth/calendar.events';
+const saTokens = new Map<string, { token: string; bis: number }>();
 
 export function serviceAccount(): ServiceAccount {
   let roh = env('GOOGLE_SERVICE_ACCOUNT_JSON');
@@ -240,7 +242,8 @@ export function serviceAccount(): ServiceAccount {
   return JSON.parse(roh) as ServiceAccount;
 }
 
-export async function serviceAccountToken(): Promise<string> {
+export async function serviceAccountToken(scope = LESEN): Promise<string> {
+  const saToken = saTokens.get(scope);
   if (saToken && saToken.bis > Date.now() + 60_000) return saToken.token;
   const sa = serviceAccount();
   const jetzt = Math.floor(Date.now() / 1000);
@@ -248,7 +251,7 @@ export async function serviceAccountToken(): Promise<string> {
   const inhalt = b64url(
     JSON.stringify({
       iss: sa.client_email,
-      scope: 'https://www.googleapis.com/auth/calendar.readonly',
+      scope,
       aud: 'https://oauth2.googleapis.com/token',
       iat: jetzt,
       exp: jetzt + 3600,
@@ -262,7 +265,7 @@ export async function serviceAccountToken(): Promise<string> {
   });
   if (!res.ok) throw new Error(`Service Account: ${res.status} ${await res.text()}`);
   const r = (await res.json()) as { access_token: string; expires_in: number };
-  saToken = { token: r.access_token, bis: Date.now() + r.expires_in * 1000 };
+  saTokens.set(scope, { token: r.access_token, bis: Date.now() + r.expires_in * 1000 });
   return r.access_token;
 }
 
@@ -272,4 +275,15 @@ export async function googleGet<T>(pfad: string, params: Record<string, string> 
   const res = await fetch(url, { headers: { authorization: `Bearer ${await serviceAccountToken()}` } });
   if (!res.ok) throw new Error(`Google Kalender ${pfad}: ${res.status}`);
   return (await res.json()) as T;
+}
+
+/** Schreibender Zugriff (Termine anlegen/löschen) – der Service Account braucht im Kalender „Änderungen an Terminen vornehmen“. */
+export async function googleSenden<T = unknown>(methode: 'POST' | 'PATCH' | 'DELETE', pfad: string, daten?: unknown): Promise<T> {
+  const res = await fetch(`https://www.googleapis.com/calendar/v3${pfad}`, {
+    method: methode,
+    headers: { authorization: `Bearer ${await serviceAccountToken(SCHREIBEN)}`, ...(daten ? { 'content-type': 'application/json' } : {}) },
+    ...(daten ? { body: JSON.stringify(daten) } : {}),
+  });
+  if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
+  return (res.status === 204 ? null : await res.json()) as T;
 }

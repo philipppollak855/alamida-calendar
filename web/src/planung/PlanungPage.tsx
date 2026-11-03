@@ -5,7 +5,8 @@ import { de } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './planung.css';
 import { useTheme } from './theme';
-import { abmelden, anmeldungAbschliessen, einteilungSpeichern, hubAnmelden, ichLaden, termineAusCache, termineLaden, type EinteilungRecht, type Ich } from './api';
+import NeuerTerminDialog from './NeuerTerminDialog';
+import { abmelden, anmeldungAbschliessen, einteilungSpeichern, terminLoeschen, hubAnmelden, ichLaden, termineAusCache, termineLaden, type EinteilungRecht, type Ich } from './api';
 import AdminAnsicht from './AdminAnsicht';
 import AbwesenheitAnsicht, { AbwesenheitZeile, abwesendAm, useAbwesenheit } from './AbwesenheitAnsicht';
 import BereitschaftAnsicht, { BereitschaftZeile, NACH_ANMELDUNG, bereitschaftAm, useBereitschaft } from './BereitschaftAnsicht';
@@ -171,6 +172,7 @@ export default function PlanungPage() {
   const [suchtext, setSuchtext] = useState('');
   const [offen, setOffen] = useState<Termin | null>(null);
   const [einteilung, setEinteilung] = useState<EinteilungRecht | null>(null);
+  const [neu, setNeu] = useState<{ datum: string; zeit?: string } | null>(null);
   const [palette, setPalette] = useState(false);
   const [hilfe, setHilfe] = useState(false);
   const [echteDaten, setEchteDaten] = useState(!!cache);
@@ -297,6 +299,13 @@ export default function PlanungPage() {
     setOffen((o) => (o && o.id === t.id ? { ...o, personal } : o));
   }, []);
 
+  const loeschen = useCallback(async (t: Termin) => {
+    if (!confirm(`Termin „${t.titel}“ wirklich löschen?`)) return;
+    await terminLoeschen(t.id);
+    setTermine((l) => l.filter((x) => x.id !== t.id));
+    setOffen(null);
+  }, []);
+
   const geheZu = useCallback((t: Termin) => {
     setTag(startDesTages(t.start));
     setOffen(t);
@@ -390,8 +399,27 @@ export default function PlanungPage() {
       hinweise={hinweise}
       einteilung={echteDaten ? einteilung : null}
       onEinteilen={einteilen}
+      onLoeschen={
+        echteDaten && offen.details.quelle === 'web' && (offen.details.angelegtVon === ich?.benutzer?.email?.toLowerCase() || ich?.rechte?.admin)
+          ? loeschen
+          : undefined
+      }
       onWaehlen={setOffen}
       onSchliessen={() => setOffen(null)}
+    />
+  );
+  const darfAnlegen = echteDaten && !!ich?.anlegen?.darf;
+  const neuDialog = neu && ich?.anlegen && (
+    <NeuerTerminDialog
+      datum={neu.datum}
+      zeit={neu.zeit}
+      dauer={ich.anlegen.dauer}
+      onSchliessen={() => setNeu(null)}
+      onAngelegt={(t) => {
+        setTermine((l) => [...l, t]);
+        setNeu(null);
+        setOffen(t);
+      }}
     />
   );
   const iosDialog = iosHilfe && (
@@ -428,9 +456,11 @@ export default function PlanungPage() {
           onAbmelden={onAbmelden}
           onInstallieren={onInstallieren}
           onOeffnen={setOffen}
+          onNeu={darfAnlegen ? (datum) => setNeu({ datum }) : undefined}
           bereitschaft={bereitschaft.daten?.eintraege ?? []}
         />
         {detail}
+        {neuDialog}
         {iosDialog}
       </div>
     );
@@ -594,6 +624,11 @@ export default function PlanungPage() {
                 value={format(tag, 'yyyy-MM-dd')}
                 onChange={(e) => e.target.value && setTag(startDesTages(new Date(e.target.value + 'T00:00')))}
               />
+              {darfAnlegen && (
+                <button className="knopf primaer" onClick={() => setNeu({ datum: format(tag, 'yyyy-MM-dd') })}>
+                  ＋ Termin
+                </button>
+              )}
               <button className="knopf" onClick={() => window.print()}>🖨 Drucken</button>
             </div>
             <BereitschaftZeile eintraege={bereitschaftAm(bereitschaft.daten?.eintraege ?? [], tag)} />
@@ -681,6 +716,10 @@ export default function PlanungPage() {
                 timeGutterFormat: (d: Date) => format(d, 'HH:mm'),
               }}
               onSelectEvent={(t: Termin) => setOffen(t)}
+              selectable={darfAnlegen}
+              onSelectSlot={(s: { start: Date }) =>
+                setNeu({ datum: format(s.start, 'yyyy-MM-dd'), ...(kalView === Views.MONTH ? {} : { zeit: format(s.start, 'HH:mm') }) })
+              }
               onDrillDown={(d: Date) => {
                 setTag(startDesTages(d));
                 setTab('tag');
@@ -817,6 +856,7 @@ export default function PlanungPage() {
       </main>
 
       {detail}
+      {neuDialog}
       {iosDialog}
       {palette && <Palette eintraege={paletteEintraege} onSchliessen={() => setPalette(false)} />}
       {hilfe && (
