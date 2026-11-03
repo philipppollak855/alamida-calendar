@@ -48,3 +48,15 @@ export function useTheme(): [Theme, (t: Theme | ((alt: Theme) => Theme)) => void
 
   return [theme, setTheme];
 }
+
+/** Eingebettet im Hub: Bedienung melden, damit der Hub die Kiosk-Sitzung nicht wegen Untätigkeit beendet. */
+if (typeof window !== 'undefined' && window.parent !== window) {
+  let zuletzt = 0;
+  const melden = () => {
+    const jetzt = Date.now();
+    if (jetzt - zuletzt < 15_000) return;
+    zuletzt = jetzt;
+    window.parent.postMessage({ typ: 'hub-aktiv' }, HUB_HERKUNFT);
+  };
+  for (const t of ['pointerdown', 'keydown', 'wheel', 'touchstart']) window.addEventListener(t, melden, { passive: true });
+}
