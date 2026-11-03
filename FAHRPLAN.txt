@@ -11,7 +11,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] B3 Dauer je Terminkategorie in der Anwendung einstellbar (Agent übernimmt sie)
 
 ## C. Rechte / Benutzer
-- [ ] C1 Die zwei getrennten Gruppen-/Mitglieder-Einstellungen (Hub „Apps & Rechte“ und Kalender „Rechte“) zusammenführen: eine Quelle (Hub), Kalender liest sie
+- [x] C1 Die zwei getrennten Gruppen-/Mitglieder-Einstellungen (Hub „Apps & Rechte“ und Kalender „Rechte“) zusammenführen: eine Quelle (Hub), Kalender liest sie
 - [ ] C2 Mitarbeiter auch ohne E-Mail anlegbar; PIN-Login (mind. 4 Ziffern) inkl. PIN-Verwaltung, für Kiosk-Modus
 
 ## D. Hub

@@ -65,6 +65,8 @@ export interface Konfiguration {
   /** Gruppen, die Urlaub/Krank aller sehen und genehmigen (Admins immer). */
   abwesenheitGruppen?: string[];
   agent?: AgentEinstellungen;
+  /** Mitarbeiter/Gruppen/Domains kommen aus dem Hub (nur lesend, nicht gespeichert). */
+  hubVerwaltet?: boolean;
 }
 
 export interface Rechte {
@@ -173,5 +175,50 @@ export function konfigPruefen(x: unknown): Konfiguration {
     bereitschaftGruppen: texte(o.bereitschaftGruppen).filter((g) => g === ALLE || gruppenIds.has(g)),
     abwesenheitGruppen: texte(o.abwesenheitGruppen).filter((g) => g === ALLE || gruppenIds.has(g)),
     agent: agentPruefen(o.agent),
+  };
+}
+
+/* ── Eine Quelle für Mitarbeiter und Gruppen: der Bestattung Stranz HUB ── */
+
+/** Mitarbeiter, Gruppen und Domain-Regeln aus dem Hub (/api/verzeichnis). */
+export interface Verzeichnis {
+  gruppen: { id: string; name: string }[];
+  benutzer: Benutzer[];
+  domains: DomainRegel[];
+}
+
+export function verzeichnisPruefen(x: unknown): Verzeichnis | null {
+  const o = (x && typeof x === 'object' ? x : null) as Record<string, unknown> | null;
+  if (!o || !Array.isArray(o.gruppen) || !Array.isArray(o.benutzer)) return null;
+  const arr = (k: string) => (Array.isArray(o[k]) ? (o[k] as Record<string, unknown>[]) : []);
+  const gruppen = arr('gruppen')
+    .map((g) => ({ id: text(g.id, 60), name: text(g.name, 80) }))
+    .filter((g) => g.id && g.name);
+  const ids = new Set(gruppen.map((g) => g.id));
+  return {
+    gruppen,
+    benutzer: arr('benutzer')
+      .map((b) => ({ email: text(b.email).toLowerCase(), name: text(b.name) || undefined, gruppen: texte(b.gruppen).filter((g) => ids.has(g)), admin: b.admin === true }))
+      .filter((b) => b.email.includes('@')),
+    domains: arr('domains')
+      .map((d) => ({ domain: text(d.domain).toLowerCase(), gruppen: texte(d.gruppen).filter((g) => ids.has(g)) }))
+      .filter((d) => d.domain.includes('.')),
+  };
+}
+
+/**
+ * Legt das Hub-Verzeichnis über die Kalender-Konfiguration: Mitarbeiter, Gruppen (Namen) und Domains kommen aus dem Hub,
+ * der Kalender ergänzt je Gruppe nur, welche Kalender und Kategorien sie sieht (neue Hub-Gruppen: noch nichts).
+ */
+export function verzeichnisAnwenden(lokal: Konfiguration, v: Verzeichnis): Konfiguration {
+  return {
+    ...lokal,
+    gruppen: v.gruppen.map((g) => {
+      const l = lokal.gruppen.find((x) => x.id === g.id);
+      return { id: g.id, name: g.name, kategorien: l?.kategorien ?? [], kalender: l?.kalender ?? [] };
+    }),
+    benutzer: v.benutzer,
+    domains: v.domains,
+    hubVerwaltet: true,
   };
 }
