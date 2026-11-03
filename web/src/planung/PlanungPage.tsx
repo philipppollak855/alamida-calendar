@@ -4,6 +4,7 @@ import { format, parse, startOfWeek, getDay, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './planung.css';
+import { useTheme } from './theme';
 import { abmelden, anmeldungAbschliessen, hubAnmelden, ichLaden, termineAusCache, termineLaden, type Ich } from './api';
 import AdminAnsicht from './AdminAnsicht';
 import AbwesenheitAnsicht, { AbwesenheitZeile, abwesendAm, useAbwesenheit } from './AbwesenheitAnsicht';
@@ -34,8 +35,6 @@ import {
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek: (d: Date) => startOfWeek(d, { weekStartsOn: 1 }), getDay, locales: { de } });
 
 type Tab = 'tag' | 'kalender' | 'faelle' | 'fahrten' | 'orte' | 'hinweise' | 'bereitschaft' | 'abwesenheit' | 'admin';
-type Theme = 'dunkel' | 'hell';
-const LS_THEME = 'alamida.theme';
 
 const TABS: { id: Tab; label: string; icon: string; taste: string }[] = [
   { id: 'tag', label: 'Tagesplan', icon: '◐', taste: '1' },
@@ -176,7 +175,7 @@ export default function PlanungPage() {
   const mobil = useMobil();
   const install = useInstallieren();
   const [iosHilfe, setIosHilfe] = useState(false);
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(LS_THEME) as Theme) || 'dunkel');
+  const [theme, setTheme] = useTheme();
   const [jetzt, setJetzt] = useState(() => new Date());
 
   useEffect(() => {
@@ -184,10 +183,6 @@ export default function PlanungPage() {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem(LS_THEME, theme);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dunkel' ? '#0b0d12' : '#f6f3ec');
-  }, [theme]);
 
   const freigeschaltet = !!ich?.rechte?.freigeschaltet;
   const bereitschaft = useBereitschaft(freigeschaltet);

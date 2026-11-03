@@ -15,7 +15,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [ ] C2 Mitarbeiter auch ohne E-Mail anlegbar; PIN-Login (mind. 4 Ziffern) inkl. PIN-Verwaltung, für Kiosk-Modus
 
 ## D. Hub
-- [ ] D1 Hell/Dunkel app-übergreifend (Hub + Kalender + Unter-Apps), Präferenz bleibt gespeichert
+- [x] D1 Hell/Dunkel app-übergreifend (Hub + Kalender + Unter-Apps), Präferenz bleibt gespeichert
 - [ ] D2 Tages-Dashboard über den App-Kacheln: wichtigste Termine heute / mich betreffend aus allen Unter-Apps, mit Klick-Verlinkung
 - [ ] D3 App-Kacheln stabil klickbar machen
 - [ ] D4 Text „Neue App hinzufügen oder Rechte ändern: Apps & Rechte“ auf der Startseite entfernen
