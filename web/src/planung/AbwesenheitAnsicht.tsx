@@ -425,7 +425,7 @@ function TeamMonat({ d }: { d: AbwesenheitDaten }) {
   });
   const tage = tageListe(datumText(monat), datumText(new Date(monat.getFullYear(), monat.getMonth() + 1, 0)));
   const relevant = d.eintraege.filter((e) => e.status !== 'abgelehnt' && e.bis >= tage[0] && e.von <= tage[tage.length - 1]);
-  const emails = [...new Set([...d.personal.filter((p) => !p.austritt || p.austritt >= tage[0]).map((p) => p.email), ...relevant.map((e) => e.email)])].sort((a, b) =>
+  const emails = [...new Set([...d.personal.filter((p) => !p.austritt || p.austritt >= tage[0]).map((p) => p.email), ...relevant.map((e) => e.email)])].filter((m) => !d.externe?.includes(m)).sort((a, b) =>
     nameVon(d, a).localeCompare(nameVon(d, b)),
   );
   const zelle = (email: string, tag: string) => relevant.find((e) => e.email === email && e.von <= tag && e.bis >= tag);
@@ -520,7 +520,7 @@ function Dashboard({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhe
       return d.eintraege.filter((e) => e.email === b.email && e.status !== 'abgelehnt' && e.von <= ende && e.bis >= b.von.slice(0, 10)).map((e) => ({ b, e }));
     });
   const konten = d.personal
-    .filter((p) => !p.austritt || p.austritt >= t)
+    .filter((p) => (!p.austritt || p.austritt >= t) && !d.externe?.includes(p.email))
     .map((p) => ({ p, k: urlaubskonto(p, d.eintraege, t), krank: krankTageImJahr(p, d.eintraege, new Date().getFullYear()) }))
     .sort((a, b) => a.p.name.localeCompare(b.p.name));
   const entscheiden = (e: Abwesenheit, status: 'genehmigt' | 'abgelehnt') => {

@@ -28,6 +28,8 @@ export interface Benutzer {
   name?: string;
   gruppen: string[];
   admin?: boolean;
+  /** Externe Kraft: einteilbar, aber ohne Urlaub / Krank. */
+  extern?: boolean;
 }
 
 export interface KalenderEintrag {
@@ -170,7 +172,7 @@ export function konfigPruefen(x: unknown): Konfiguration {
         email: norm(text(b.email, 200)),
         name: text(b.name, 80) || undefined,
         gruppen: texte(b.gruppen).filter((g) => gruppenIds.has(g)),
-        admin: b.admin === true,
+        admin: b.admin === true, ...(b.extern === true ? { extern: true } : {}),
       }))
       .filter((b) => b.email.includes('@')),
     domains: arr('domains')
@@ -204,7 +206,7 @@ export function verzeichnisPruefen(x: unknown): Verzeichnis | null {
   return {
     gruppen,
     benutzer: arr('benutzer')
-      .map((b) => ({ email: text(b.email).toLowerCase(), name: text(b.name) || undefined, gruppen: texte(b.gruppen).filter((g) => ids.has(g)), admin: b.admin === true }))
+      .map((b) => ({ email: text(b.email).toLowerCase(), name: text(b.name) || undefined, gruppen: texte(b.gruppen).filter((g) => ids.has(g)), admin: b.admin === true, ...(b.extern === true ? { extern: true } : {}) }))
       .filter((b) => b.email.includes('@')),
     domains: arr('domains')
       .map((d) => ({ domain: text(d.domain).toLowerCase(), gruppen: texte(d.gruppen).filter((g) => ids.has(g)) }))

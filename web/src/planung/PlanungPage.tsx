@@ -719,7 +719,7 @@ export default function PlanungPage() {
         {tab === 'kalender' && (
           <section className="ansicht kalender-ansicht glas">
             <label className="kal-buendeln">
-              <input type="checkbox" checked={buendeln} onChange={(e) => setBuendeln(e.target.checked)} /> Termine eines Sterbefalls bündeln
+              <input type="checkbox" checked={buendeln} onChange={(e) => setBuendeln(e.target.checked)} /> Zusammenhängende Termine eines Sterbefalls bündeln
             </label>
             <Calendar
               localizer={localizer}
@@ -762,6 +762,31 @@ export default function PlanungPage() {
               onDrillDown={(d: Date) => {
                 setTag(startDesTages(d));
                 setTab('tag');
+              }}
+              components={{
+                event: ({ event: t, title }: { event: KalEintrag; title: string }) =>
+                  istFall(t) && kalView !== Views.MONTH && kalView !== Views.AGENDA ? (
+                    <div className="kal-kette">
+                      <strong>⚰️ {t.name}</strong>
+                      {t.termine.map((x) => (
+                        <button
+                          key={x.id}
+                          type="button"
+                          className="kal-kette-termin"
+                          style={{ ['--kat' as string]: KATEGORIEN[x.kategorie].farbe } as React.CSSProperties}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOffen(x);
+                          }}
+                        >
+                          {format(x.start, 'HH:mm')} {KATEGORIEN[x.kategorie].symbol} {x.details.art ?? KATEGORIEN[x.kategorie].label}
+                          {x.personal?.length ? ` · 👤${x.personal.length}` : ''}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <span>{title}</span>
+                  ),
               }}
               eventPropGetter={(t: KalEintrag) =>
                 istFall(t) ? { className: 'kal-fall' } : { style: { ['--kat' as string]: KATEGORIEN[t.kategorie].farbe } as React.CSSProperties }

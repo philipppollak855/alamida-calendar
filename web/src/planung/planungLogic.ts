@@ -171,7 +171,42 @@ export function bloecke(termine: Termin[]): Block[] {
 
 export const blockStart = (b: Block) => (b.art === 'einzel' ? b.termin : b.termine[0]);
 
-/** Kalenderansicht: Termine eines Sterbefalls als ein Balken vom ersten bis zum letzten Termin. */
+/** Gespräche gehören nicht zu einem Ablauf (Überführung → Rosenkranz → Trauerfeier → Beisetzung). */
+const GESPRAECH_KATEGORIEN = new Set<Kategorie>(['Trauergespraech', 'Vorsorge']);
+/** Höchstens so viele Minuten zwischen zwei Terminen, damit sie noch zusammenhängen. */
+export const KETTE_LUECKE_MIN = 120;
+
+const fallSchluessel = (t: Termin) => t.sterbefallId ?? (t.verstorbener ? `name:${t.verstorbener.toLowerCase()}` : null);
+
+/** Zusammenhängende Termine: derselbe Sterbefall, derselbe Tag, direkt hintereinander (nicht ganztägig, keine Gespräche). */
+export function ketten(termine: Termin[]): Termin[][] {
+  const gruppen = new Map<string, Termin[]>();
+  for (const t of sortiert(termine)) {
+    const k = fallSchluessel(t);
+    if (!k || t.ganztaegig || GESPRAECH_KATEGORIEN.has(t.kategorie)) continue;
+    const g = `${k}|${t.start.toDateString()}`;
+    gruppen.set(g, [...(gruppen.get(g) ?? []), t]);
+  }
+  const r: Termin[][] = [];
+  for (const g of gruppen.values()) {
+    let akt = [g[0]];
+    let ende = g[0].ende.getTime();
+    for (const t of g.slice(1)) {
+      if (t.start.getTime() - ende <= KETTE_LUECKE_MIN * 60_000) akt.push(t);
+      else {
+        if (akt.length > 1) r.push(akt);
+        akt = [t];
+      }
+      ende = Math.max(ende, t.ende.getTime());
+    }
+    if (akt.length > 1) r.push(akt);
+  }
+  return r;
+}
+
+export const ketteVon = (termine: Termin[], t: Termin): Termin[] | null => ketten(termine).find((k) => k.some((x) => x.id === t.id)) ?? null;
+
+/** Kalenderansicht: zusammenhängende Termine eines Sterbefalls als ein Block (senkrecht, vom ersten bis zum letzten Termin). */
 export interface FallEintrag {
   fall: true;
   id: string;
@@ -180,27 +215,28 @@ export interface FallEintrag {
   termine: Termin[];
   start: Date;
   ende: Date;
-  ganztaegig: true;
+  ganztaegig: false;
 }
 export type KalEintrag = Termin | FallEintrag;
 export const istFall = (e: KalEintrag): e is FallEintrag => 'fall' in e;
 
 export function kalenderEintraege(termine: Termin[], buendeln: boolean): KalEintrag[] {
   if (!buendeln) return termine;
-  return bloecke(termine).map((b) =>
-    b.art === 'einzel'
-      ? b.termin
-      : {
-          fall: true as const,
-          id: `fall:${b.schluessel}`,
-          name: b.name,
-          sterbefallId: b.sterbefallId,
-          termine: b.termine,
-          start: startDesTages(b.termine[0].start),
-          ende: new Date(Math.max(...b.termine.map((t) => t.ende.getTime()))),
-          ganztaegig: true as const,
-        },
-  );
+  const ks = ketten(termine);
+  const inKette = new Set(ks.flat().map((t) => t.id));
+  return [
+    ...termine.filter((t) => !inKette.has(t.id)),
+    ...ks.map((k) => ({
+      fall: true as const,
+      id: `kette:${k[0].id}`,
+      name: k.find((x) => x.verstorbener)?.verstorbener ?? k[0].sterbefallId ?? k[0].titel,
+      sterbefallId: k[0].sterbefallId,
+      termine: k,
+      start: k[0].start,
+      ende: new Date(Math.max(...k.map((t) => t.ende.getTime()))),
+      ganztaegig: false as const,
+    })),
+  ];
 }
 
 export interface Fall {

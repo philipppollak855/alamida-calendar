@@ -193,8 +193,14 @@ export default async (req: Request) => {
             ? mitName(e)
             : mitName({ id: e.id, email: e.email, art: 'sonstiges', von: e.von, bis: e.bis, ...(e.stunden != null ? { stunden: e.stunden } : {}), status: 'genehmigt', verdeckt: true }),
         );
+  const externe = a.konfig.benutzer.filter((x) => x.extern).map((x) => x.email);
   const personen = verwalter
-    ? [...new Map([...personal.map((p) => [p.email, { email: p.email, name: p.name }] as const), ...a.konfig.benutzer.map((x) => [x.email, { email: x.email, name: x.name ?? nameVon(x.email) }] as const)]).values()]
+    ? [
+        ...new Map([
+          ...personal.map((p) => [p.email, { email: p.email, name: p.name }] as const),
+          ...a.konfig.benutzer.filter((x) => !x.extern).map((x) => [x.email, { email: x.email, name: x.name ?? nameVon(x.email) }] as const),
+        ]).values(),
+      ].filter((p) => !externe.includes(p.email))
     : [];
   return json({
     ich: { email: ich, name: a.sitzung.name },
@@ -202,6 +208,7 @@ export default async (req: Request) => {
     personal: verwalter ? personal : personal.filter((p) => p.email === ich),
     eintraege,
     personen,
+    externe: verwalter ? externe : [],
   });
 };
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ausGoogleEvent, bloecke, istFall, kalenderEintraege, type GoogleEvent } from './planungLogic';
+import { ausGoogleEvent, bloecke, istFall, kalenderEintraege, ketteVon, type GoogleEvent } from './planungLogic';
 
 const ev = (id: string, kat: string, start: string, fall?: string): GoogleEvent => ({
   id,
@@ -35,19 +35,26 @@ describe('bloecke', () => {
 });
 
 describe('kalenderEintraege', () => {
-  it('bündelt einen Sterbefall über mehrere Tage zu einem Balken', () => {
+  it('bündelt zusammenhängende Termine eines Sterbefalls am selben Tag zu einem Block', () => {
     const l = [
       t(ev('a', 'Ueberfuehrung', '2026-05-26T08:00:00+02:00', '1 | Anton Huber')),
-      t(ev('b', 'Beisetzung', '2026-05-29T14:00:00+02:00', '1 | Anton Huber')),
-      t(ev('x', 'Trauergespraech', '2026-05-28T09:00:00+02:00')),
+      t(ev('b', 'Rosenkranz', '2026-05-26T10:00:00+02:00', '1 | Anton Huber')),
+      t(ev('c', 'Beisetzung', '2026-05-26T11:00:00+02:00', '1 | Anton Huber')),
+      t(ev('d', 'Trauerfeier', '2026-05-26T16:00:00+02:00', '1 | Anton Huber')),
+      t(ev('e', 'Beisetzung', '2026-05-27T14:00:00+02:00', '1 | Anton Huber')),
+      t(ev('g', 'Trauergespraech', '2026-05-26T09:00:00+02:00', '1 | Anton Huber')),
+      t(ev('x', 'Abholung', '2026-05-26T09:00:00+02:00')),
     ];
     const r = kalenderEintraege(l, true);
-    expect(r).toHaveLength(2);
-    const f = r.find(istFall)!;
-    expect(f.name).toBe('Anton Huber');
-    expect(f.termine.map((x) => x.id)).toEqual(['cal/a', 'cal/b']);
-    expect(f.start.getHours()).toBe(0);
-    expect(f.ende.toISOString()).toBe(new Date('2026-05-29T15:00:00+02:00').toISOString());
-    expect(kalenderEintraege(l, false)).toHaveLength(3);
+    const f = r.filter(istFall);
+    expect(f).toHaveLength(1);
+    expect(f[0].termine.map((x) => x.id)).toEqual(['cal/a', 'cal/b', 'cal/c']);
+    expect(f[0].ganztaegig).toBe(false);
+    expect(f[0].start.toISOString()).toBe(new Date('2026-05-26T08:00:00+02:00').toISOString());
+    expect(f[0].ende.toISOString()).toBe(new Date('2026-05-26T12:00:00+02:00').toISOString());
+    expect(r).toHaveLength(5);
+    expect(ketteVon(l, l[1])?.length).toBe(3);
+    expect(ketteVon(l, l[3])).toBeNull();
+    expect(kalenderEintraege(l, false)).toHaveLength(7);
   });
 });

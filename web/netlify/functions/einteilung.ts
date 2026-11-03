@@ -42,7 +42,7 @@ export default async (req: Request) => {
     // Namen aus dem aktuellen Verzeichnis (falls im Hub umbenannt).
     einteilungen: alle.map((e) => ({ termin: e.termin, personen: e.personen.map((p) => ({ ...p, name: benutzer.get(p.email) ?? p.name })) })),
     darfEinteilen: darf,
-    personen: darf ? a.konfig.benutzer.map((x) => ({ email: x.email.toLowerCase(), name: x.name })) : [],
+    personen: darf ? a.konfig.benutzer.map((x) => ({ email: x.email.toLowerCase(), name: x.name, ...(x.extern ? { extern: true } : {}) })) : [],
   });
 };
 
