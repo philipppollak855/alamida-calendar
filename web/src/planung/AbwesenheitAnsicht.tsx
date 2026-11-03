@@ -25,7 +25,7 @@ import {
   type AbwArt,
   type Abwesenheit,
   type AltMitarbeiter,
-  type Personal, stundenJeTag, tageAnzeige } from '../shared/abwesenheit';
+  type Personal, internesKonto, istOhneEmail, stundenJeTag, tageAnzeige } from '../shared/abwesenheit';
 import { ausText, datumText, plusTage } from '../shared/bereitschaft';
 import { useBereitschaft } from './BereitschaftAnsicht';
 
@@ -463,11 +463,40 @@ function Dashboard({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhe
 
 const WOCHENTAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
+/** Konto-Auswahl: Mitarbeiter aus dem Hub (auch PIN-Konten ohne E-Mail), intern ohne E-Mail oder andere Adresse. */
+function KontoWahl({ wert, personen, leer, neu, onWahl }: { wert: string; personen: { email: string; name?: string }[]; leer: string; neu: () => string; onWahl: (email: string) => void }) {
+  const bekannt = personen.some((p) => p.email === wert);
+  return (
+    <select
+      className="feld"
+      value={wert}
+      onChange={(e) => {
+        const v = e.target.value;
+        if (v === '__neu') onWahl(neu());
+        else if (v === '__andere') {
+          const x = prompt('E-Mail-Adresse (Google-Konto)')?.trim().toLowerCase();
+          if (x?.includes('@')) onWahl(x);
+        } else onWahl(v);
+      }}
+    >
+      <option value="">{leer}</option>
+      {wert && !bekannt && <option value={wert}>{istOhneEmail(wert) ? 'ohne E-Mail (nur hier)' : wert}</option>}
+      {personen.map((p) => (
+        <option key={p.email} value={p.email}>
+          {p.name ?? p.email} · {istOhneEmail(p.email) ? 'ohne E-Mail (PIN)' : p.email}
+        </option>
+      ))}
+      <option value="__neu">＋ ohne E-Mail anlegen</option>
+      <option value="__andere">＋ andere E-Mail …</option>
+    </select>
+  );
+}
+
 function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: AbwesenheitDaten) => void }) {
-  const [liste, setListe] = useState<Personal[]>(d.personal);
+  const [liste, setListe] = useState<(Personal & { vorher?: string })[]>(() => d.personal.map((p) => ({ ...p, vorher: p.email })));
   const [imp, setImp] = useState<{ alt: AltMitarbeiter[]; zuordnung: Record<string, string> } | null>(null);
   const [meldung, setMeldung] = useState<{ ok: boolean; text: string } | null>(null);
-  useEffect(() => setListe(d.personal), [d.personal]);
+  useEffect(() => setListe(d.personal.map((p) => ({ ...p, vorher: p.email }))), [d.personal]);
   const aendern = (i: number, x: Partial<Personal>) => setListe(liste.map((p, j) => (j === i ? { ...p, ...x } : p)));
   const fehlend = d.personen.filter((p) => !liste.some((x) => x.email === p.email));
   const fertig = (x: AbwesenheitDaten, text: string) => {
@@ -482,7 +511,7 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
         const zuordnung: Record<string, string> = {};
         for (const a of alt) {
           const treffer = d.personen.find((p) => p.name && p.name.toLowerCase() === a.name.toLowerCase()) ?? liste.find((p) => p.name.toLowerCase() === a.name.toLowerCase());
-          if (treffer) zuordnung[a.mId] = treffer.email;
+          zuordnung[a.mId] = treffer ? treffer.email : internesKonto(a.name, a.mId);
         }
         setImp({ alt, zuordnung });
         setMeldung(null);
@@ -530,7 +559,7 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
               <tr key={i}>
                 <td>
                   <input className="feld" value={p.name} placeholder="Name" onChange={(e) => aendern(i, { name: e.target.value })} />
-                  <input className="feld" value={p.email} placeholder="E-Mail (Google)" list="ab-emails" onChange={(e) => aendern(i, { email: e.target.value.trim().toLowerCase() })} />
+                  <KontoWahl wert={p.email} personen={d.personen} leer="Konto wählen …" neu={() => internesKonto(p.name, Date.now().toString(36))} onWahl={(email) => aendern(i, { email })} />
                 </td>
                 <td>
                   <input className="feld" type="date" value={p.eintritt} onChange={(e) => aendern(i, { eintritt: e.target.value })} />
@@ -590,7 +619,7 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
       <section className="glas admin-block bs-block">
         <h3>Import aus dem bisherigen Programm</h3>
         <p className="klein">
-          <code>personal_daten.json</code> auswählen. Übernommen werden Mitarbeiter (Eintritt, Austritt, Sollstunden, Gruppe, Überstunden-Startsaldo), alle Abwesenheiten aus dem Kalender und der heutige Resturlaub als Startsaldo.
+          <code>personal_daten.json</code> auswählen. Mitarbeiter werden per Name dem Hub zugeordnet, sonst ohne E-Mail angelegt (später unter „Konto“ zuordenbar). Übernommen werden Mitarbeiter (Eintritt, Austritt, Sollstunden, Gruppe, Überstunden-Startsaldo), alle Abwesenheiten aus dem Kalender und der heutige Resturlaub als Startsaldo.
         </p>
         <input type="file" accept=".json,application/json" onChange={(e) => e.target.files?.[0] && dateiLesen(e.target.files[0])} />
         {imp && (
@@ -599,7 +628,7 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
               <thead>
                 <tr>
                   <th>Alt</th>
-                  <th>Google-Konto</th>
+                  <th>Konto</th>
                   <th>Abwesenheiten</th>
                   <th>Resturlaub alt</th>
                 </tr>
@@ -609,12 +638,12 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
                   <tr key={a.mId}>
                     <td>{a.name}</td>
                     <td>
-                      <input
-                        className="feld"
-                        list="ab-emails"
-                        placeholder="nicht importieren"
-                        value={imp.zuordnung[a.mId] ?? ''}
-                        onChange={(e) => setImp({ ...imp, zuordnung: { ...imp.zuordnung, [a.mId]: e.target.value.trim().toLowerCase() } })}
+                      <KontoWahl
+                        wert={imp.zuordnung[a.mId] ?? ''}
+                        personen={d.personen}
+                        leer="nicht importieren"
+                        neu={() => internesKonto(a.name, a.mId)}
+                        onWahl={(email) => setImp({ ...imp, zuordnung: { ...imp.zuordnung, [a.mId]: email } })}
                       />
                     </td>
                     <td>{a.abwesenheiten.length}</td>

@@ -170,6 +170,38 @@ export function bloecke(termine: Termin[]): Block[] {
 
 export const blockStart = (b: Block) => (b.art === 'einzel' ? b.termin : b.termine[0]);
 
+/** Kalenderansicht: Termine eines Sterbefalls als ein Balken vom ersten bis zum letzten Termin. */
+export interface FallEintrag {
+  fall: true;
+  id: string;
+  name: string;
+  sterbefallId?: string;
+  termine: Termin[];
+  start: Date;
+  ende: Date;
+  ganztaegig: true;
+}
+export type KalEintrag = Termin | FallEintrag;
+export const istFall = (e: KalEintrag): e is FallEintrag => 'fall' in e;
+
+export function kalenderEintraege(termine: Termin[], buendeln: boolean): KalEintrag[] {
+  if (!buendeln) return termine;
+  return bloecke(termine).map((b) =>
+    b.art === 'einzel'
+      ? b.termin
+      : {
+          fall: true as const,
+          id: `fall:${b.schluessel}`,
+          name: b.name,
+          sterbefallId: b.sterbefallId,
+          termine: b.termine,
+          start: startDesTages(b.termine[0].start),
+          ende: new Date(Math.max(...b.termine.map((t) => t.ende.getTime()))),
+          ganztaegig: true as const,
+        },
+  );
+}
+
 export interface Fall {
   sterbefallId: string;
   name: string;
