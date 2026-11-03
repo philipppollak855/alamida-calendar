@@ -202,7 +202,23 @@ const LS_MODUS = 'alamida.bereitschaftModus';
 const FARBEN = ['#d4b06a', '#60a5fa', '#34d399', '#f472b6', '#a78bfa', '#f97316', '#22d3ee', '#facc15'];
 const farbeFuer = (email: string) => FARBEN[[...email].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % FARBEN.length];
 const ganzerTag = (e: { von: string; bis: string }) => e.von.endsWith('T00:00') && e.bis.endsWith('T00:00');
-const stunden = (n: number) => `${n.toLocaleString('de-AT', { maximumFractionDigits: 1 })} h`;
+const kuerzel = (e: { email: string; name?: string }) =>
+  anzeigeName(e)
+    .split(/[\s.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join('');
+function useSchmal(px = 760) {
+  const [schmal, setSchmal] = useState(() => window.matchMedia(`(max-width: ${px}px)`).matches);
+  useEffect(() => {
+    const m = window.matchMedia(`(max-width: ${px}px)`);
+    const f = () => setSchmal(m.matches);
+    m.addEventListener('change', f);
+    return () => m.removeEventListener('change', f);
+  }, [px]);
+  return schmal;
+}
 const minText = (a: string, b: string) => (a < b ? a : b);
 
 interface KalEintrag {
@@ -234,6 +250,8 @@ function DienstModal({ d, onSchliessen, ...props }: Omit<KartenProps, 'd'> & { d
 
 function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: BereitschaftDaten; datum: Date; setDatum: (d: Date) => void; onWahl: (d: Dienst) => void }) {
   const [ansicht, setAnsicht] = useState<View>(Views.MONTH);
+  const schmal = useSchmal();
+  const kurz = schmal && ansicht === Views.MONTH;
   const { liste, eintraege, tage } = useMemo(() => {
     const liste = dienste(plusTage(startOfMonth(datum), -14), plusTage(endOfMonth(datum), 14));
     const eintraege: KalEintrag[] = [];
@@ -242,11 +260,13 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
     for (const d of liste) {
       for (let t = ausText(d.von); t < ausText(d.bis); t = plusTage(t, 1)) tage.set(datumText(t), d);
       const belegt = einsaetzeIn(daten.eintraege, d);
-      if (!belegt.length && d.bis > jetzt) eintraege.push({ id: `offen-${d.id}`, titel: '+ offen', start: ausText(d.von), ende: ausText(d.bis), ganz: true, dienst: d, farbe: 'var(--warn)', offen: true });
+      if (!belegt.length && d.bis > jetzt) eintraege.push({ id: `offen-${d.id}`, titel: kurz ? '+' : '+ offen', start: ausText(d.von), ende: ausText(d.bis), ganz: true, dienst: d, farbe: 'var(--warn)', offen: true });
       for (const e of belegt)
         eintraege.push({
           id: `${d.id}-${e.id}`,
-          titel: `${e.email === daten.ich.email ? '★ ' : ''}${anzeigeName(e)}${ganzerTag(e) ? '' : ` ${e.von.slice(11)}–${e.bis.slice(11)}`}`,
+          titel: kurz
+            ? `${e.email === daten.ich.email ? '★' : ''}${kuerzel(e)}${ganzerTag(e) ? '' : '◔'}`
+            : `${e.email === daten.ich.email ? '★ ' : ''}${anzeigeName(e)}${ganzerTag(e) ? '' : ` ${e.von.slice(11)}–${e.bis.slice(11)}`}`,
           start: ausText(e.von < d.von ? d.von : e.von),
           ende: ausText(e.bis > d.bis ? d.bis : e.bis),
           ganz: ganzerTag(e),
@@ -255,7 +275,7 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
         });
     }
     return { liste, eintraege, tage };
-  }, [daten, datum]);
+  }, [daten, datum, kurz]);
   const feiertagsTage = useMemo(() => new Set(liste.flatMap((d) => (d.art === 'feiertag' ? [d.von.slice(0, 10)] : []))), [liste]);
 
   return (
@@ -266,6 +286,7 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
         events={eintraege}
         titleAccessor={(t: KalEintrag) => t.titel}
         tooltipAccessor={(t: KalEintrag) => (t.offen ? 'Noch niemand eingeteilt – klicken zum Einteilen' : t.titel)}
+        className={kurz ? 'bs-kurz' : ''}
         startAccessor="start"
         endAccessor="ende"
         allDayAccessor="ganz"
@@ -307,12 +328,13 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
           noEventsInRange: 'Keine Dienste',
           showMore: (n: number) => `+${n} weitere`,
         }}
-        style={{ height: 'calc(100vh - 260px)', minHeight: 560 }}
+        style={{ height: schmal ? 'calc(100dvh - 210px)' : 'calc(100dvh - 240px)', minHeight: schmal ? 380 : 480 }}
       />
       <div className="bs-legende klein">
         <span><i className="bs-punkt bs-p-dienst" /> Wochenende / Feiertag</span>
         <span><i className="bs-punkt bs-p-feiertag" /> Feiertag</span>
         <span><i className="bs-punkt bs-p-offen" /> noch offen</span>
+        {kurz && <span>Kürzel = Initialen · ◔ = Teilzeit</span>}
         <span>★ ich · Klick auf einen Tag oder Eintrag zum {daten.darfPlanen ? 'Einteilen' : 'Eintragen'}</span>
       </div>
     </section>
@@ -331,10 +353,10 @@ function Uebersicht({ daten, jahr, setJahr, onWahl }: { daten: BereitschaftDaten
     const bekannt = new Set(stat.map((p) => p.email));
     const ohne = [...daten.personen, daten.ich]
       .filter((p) => !bekannt.has(p.email) && (bekannt.add(p.email), true))
-      .map((p): PersonStatistik => ({ email: p.email, name: p.name, einsaetze: 0, wochenenden: 0, feiertage: 0, stunden: 0 }));
+      .map((p): PersonStatistik => ({ email: p.email, name: p.name, einsaetze: 0, ganzeWochenenden: 0, tage: 0, feiertage: 0 }));
     return [...stat, ...ohne];
   }, [daten, jahr, jetzt]);
-  const max = Math.max(1, ...personen.map((p) => p.stunden));
+  const max = Math.max(1, ...personen.map((p) => p.tage));
   const meinNaechster = daten.eintraege.filter((e) => e.email === daten.ich.email && e.bis > jetzt).sort((a, b) => a.von.localeCompare(b.von))[0];
 
   return (
@@ -371,9 +393,9 @@ function Uebersicht({ daten, jahr, setJahr, onWahl }: { daten: BereitschaftDaten
             <thead>
               <tr>
                 <th>Mitarbeiter</th>
-                <th>Wochenenden</th>
+                <th title="Ganze Wochenenden Fr–So">Ganze WE</th>
+                <th>Bereitschaftstage</th>
                 <th>Feiertage</th>
-                <th>Stunden</th>
                 <th>Nächster</th>
               </tr>
             </thead>
@@ -383,12 +405,12 @@ function Uebersicht({ daten, jahr, setJahr, onWahl }: { daten: BereitschaftDaten
                   <td>
                     <span className="bs-punkt" style={{ background: farbeFuer(p.email) }} /> {anzeigeName(p)}
                   </td>
-                  <td>{p.wochenenden}</td>
-                  <td>{p.feiertage}</td>
+                  <td>{p.ganzeWochenenden}</td>
                   <td className="bs-balken-zelle">
-                    <span className="bs-balken" style={{ width: `${(p.stunden / max) * 100}%`, background: farbeFuer(p.email) }} />
-                    <span>{stunden(p.stunden)}</span>
+                    <span className="bs-balken" style={{ width: `${(p.tage / max) * 100}%`, background: farbeFuer(p.email) }} />
+                    <span>{p.tage}</span>
                   </td>
+                  <td>{p.feiertage}</td>
                   <td className="klein">{p.naechster ? format(ausText(p.naechster.von), 'd.M.yyyy') : '–'}</td>
                 </tr>
               ))}

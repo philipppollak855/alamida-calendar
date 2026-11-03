@@ -6,9 +6,9 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] A1 Urlaub / Krank fertig: PR mergen, Hub-App „Urlaub / Krank“ anlegen (/abwesenheit, Gruppen wie Kalender)
 
 ## B. Vorsorge / Kalender-Agent
-- [ ] B1 Vorsorge-Termine kommen nicht an -> Ursache finden (Agent nicht neu installiert? Kategorie/Kalender-Zuordnung? OCR?) und beheben
-- [ ] B2 Verknüpfung Kategorie -> Google-Kalender in den Settings der Web-App (inkl. Vorsorge)
-- [ ] B3 Dauer je Terminkategorie in der Anwendung einstellbar (Agent übernimmt sie)
+- [~] B1 Vorsorge-Termine kommen nicht an -> Ursache finden (Agent nicht neu installiert? Kategorie/Kalender-Zuordnung? OCR?) und beheben -> Agent schreibt nachweislich (1 Vorsorge-Termin im Kalender); Statusmeldung der Agent-PCs eingebaut, wartet auf Neuinstallation am PC
+- [x] B2 Verknüpfung Kategorie -> Google-Kalender in den Settings der Web-App (inkl. Vorsorge)
+- [x] B3 Dauer je Terminkategorie in der Anwendung einstellbar (Agent übernimmt sie)
 
 ## C. Rechte / Benutzer
 - [ ] C1 Die zwei getrennten Gruppen-/Mitglieder-Einstellungen (Hub „Apps & Rechte“ und Kalender „Rechte“) zusammenführen: eine Quelle (Hub), Kalender liest sie
@@ -33,9 +33,9 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [ ] F4 Offline-Cache, v. a. Termine und Details
 
 ## G. Bereitschaft
-- [ ] G1 Mobil: Spalte wird abgeschnitten, wenn Personal eingeplant wird -> beheben
-- [ ] G2 Alles auf einen Bildschirm passend
-- [ ] G3 Übersicht: Stunden entfernen; ganze Wochenenden, Bereitschaftstage und Feiertage zählen
+- [x] G1 Mobil: Spalte wird abgeschnitten, wenn Personal eingeplant wird -> beheben
+- [x] G2 Alles auf einen Bildschirm passend
+- [x] G3 Übersicht: Stunden entfernen; ganze Wochenenden, Bereitschaftstage und Feiertage zählen
 
 ## Nicht mehr
 - Urnenwald-PRs #41–#139: nicht weiter bearbeiten (Anweisung Nutzer)

@@ -123,37 +123,54 @@ export interface PersonStatistik {
   email: string;
   name?: string;
   einsaetze: number;
-  wochenenden: number;
+  /** Wochenenden Fr 0:00 – Mo 0:00, die die Person vollständig abdeckt. */
+  ganzeWochenenden: number;
+  /** Kalendertage mit Bereitschaft (Wochenend- oder Feiertag, auch teilweise). */
+  tage: number;
+  /** Davon gesetzliche Feiertage. */
   feiertage: number;
-  stunden: number;
   naechster?: Einsatz;
 }
 
-/** Jahresübersicht pro Person: Einsätze, Wochenenden, Feiertage und Stunden im Jahr (aufs Jahr begrenzt) und der nächste Einsatz. */
+function deckt(z: { von: string; bis: string }, teile: { von: string; bis: string }[]): boolean {
+  let bis = z.von;
+  for (const t of [...teile].sort((a, b) => a.von.localeCompare(b.von))) {
+    if (t.von > bis) break;
+    if (t.bis > bis) bis = t.bis;
+  }
+  return bis >= z.bis;
+}
+
+/** Jahresübersicht pro Person: ganze Wochenenden, Bereitschaftstage und Feiertage im Jahr und der nächste Einsatz. */
 export function jahresUebersicht(eintraege: Einsatz[], jahr: number, jetzt: string): PersonStatistik[] {
   const jahrVon = `${jahr}-01-01T00:00`;
   const jahrBis = `${jahr + 1}-01-01T00:00`;
   const ds = dienste(new Date(jahr, 0, 1), new Date(jahr, 11, 31));
-  const m = new Map<string, PersonStatistik & { dienstIds: Set<string> }>();
+  const ft = new Set(feiertage(jahr).map((f) => f.datum));
+  const dienstTage = new Set<string>();
+  for (const d of ds)
+    for (let t = ausText(d.von); zeitText(t) < d.bis; t = plusTage(t, 1)) if (t.getFullYear() === jahr) dienstTage.add(datumText(t));
+  const m = new Map<string, { p: PersonStatistik; tage: Set<string>; eigene: Einsatz[] }>();
   for (const e of eintraege) {
-    let p = m.get(e.email);
-    if (!p) m.set(e.email, (p = { email: e.email, einsaetze: 0, wochenenden: 0, feiertage: 0, stunden: 0, dienstIds: new Set() }));
-    if (!p.name && e.name) p.name = e.name;
-    if (e.bis > jetzt && (!p.naechster || e.von < p.naechster.von)) p.naechster = e;
+    let x = m.get(e.email);
+    if (!x) m.set(e.email, (x = { p: { email: e.email, einsaetze: 0, ganzeWochenenden: 0, tage: 0, feiertage: 0 }, tage: new Set(), eigene: [] }));
+    if (!x.p.name && e.name) x.p.name = e.name;
+    if (e.bis > jetzt && (!x.p.naechster || e.von < x.p.naechster.von)) x.p.naechster = e;
     if (!ueberschneidet(e, { von: jahrVon, bis: jahrBis })) continue;
-    p.einsaetze++;
-    const a = e.von > jahrVon ? e.von : jahrVon;
-    const b = e.bis < jahrBis ? e.bis : jahrBis;
-    p.stunden += (ausText(b).getTime() - ausText(a).getTime()) / 3_600_000;
-    for (const d of ds) {
-      if (!ueberschneidet(e, d) || p.dienstIds.has(d.id)) continue;
-      p.dienstIds.add(d.id);
-      if (d.art === 'wochenende') p.wochenenden++;
-      else p.feiertage++;
+    x.p.einsaetze++;
+    x.eigene.push(e);
+    for (let t = ausText(e.von.slice(0, 10)); zeitText(t) < e.bis; t = plusTage(t, 1)) {
+      const tag = datumText(t);
+      if (dienstTage.has(tag) && ueberschneidet(e, { von: `${tag}T00:00`, bis: `${datumText(plusTage(t, 1))}T00:00` })) x.tage.add(tag);
     }
   }
   return [...m.values()]
-    .map(({ dienstIds: _d, ...p }) => ({ ...p, stunden: Math.round(p.stunden * 10) / 10 }))
+    .map(({ p, tage, eigene }) => ({
+      ...p,
+      tage: tage.size,
+      feiertage: [...tage].filter((t) => ft.has(t)).length,
+      ganzeWochenenden: ds.filter((d) => d.art === 'wochenende' && d.von >= jahrVon && deckt(d, eigene.filter((e) => ueberschneidet(e, d)))).length,
+    }))
     .filter((p) => p.einsaetze > 0 || p.naechster)
-    .sort((a, b) => b.stunden - a.stunden || (a.name ?? a.email).localeCompare(b.name ?? b.email));
+    .sort((a, b) => b.tage - a.tage || (a.name ?? a.email).localeCompare(b.name ?? b.email));
 }
