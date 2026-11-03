@@ -1,5 +1,6 @@
 import type { Konfiguration, KalenderEintrag, Rechte } from '../shared/rechte';
 import type { Einsatz } from '../shared/bereitschaft';
+import type { AbwArt, Abwesenheit, Personal } from '../shared/abwesenheit';
 import { ausGoogleEvent, type GoogleEvent, type Termin } from './planungLogic';
 
 export interface Ich {
@@ -113,3 +114,22 @@ export const bereitschaftEintragen = (e: { email?: string; von: string; bis: str
   holen<BereitschaftDaten>(mitVon('/api/bereitschaft', ab), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(e) });
 export const bereitschaftAustragen = (id: string, ab?: string) =>
   holen<BereitschaftDaten>(mitVon(`/api/bereitschaft?id=${encodeURIComponent(id)}`, ab), { method: 'DELETE' });
+
+export interface AbwesenheitDaten {
+  ich: { email: string; name?: string };
+  darfVerwalten: boolean;
+  personal: Personal[];
+  eintraege: Abwesenheit[];
+  personen: { email: string; name?: string }[];
+}
+
+const jsonInit = (method: string, daten: unknown): RequestInit => ({ method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(daten) });
+export const abwesenheitLaden = () => holen<AbwesenheitDaten>('/api/abwesenheit');
+export const abwesenheitEintragen = (e: { email?: string; art: AbwArt; von: string; bis: string; stunden?: number; notiz?: string }) =>
+  holen<AbwesenheitDaten>('/api/abwesenheit', jsonInit('POST', e));
+export const abwesenheitEntscheiden = (id: string, status: 'genehmigt' | 'abgelehnt', grund?: string) =>
+  holen<AbwesenheitDaten>('/api/abwesenheit?aktion=entscheiden', jsonInit('POST', { id, status, grund }));
+export const abwesenheitLoeschen = (id: string) => holen<AbwesenheitDaten>(`/api/abwesenheit?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+export const personalSpeichern = (personal: Personal[]) => holen<AbwesenheitDaten>('/api/abwesenheit?aktion=personal', jsonInit('PUT', { personal }));
+export const altdatenImportieren = (daten: { personal: Personal[]; abwesenheiten: Pick<Abwesenheit, 'email' | 'art' | 'von' | 'bis'>[] }) =>
+  holen<AbwesenheitDaten>('/api/abwesenheit?aktion=import', jsonInit('POST', daten));

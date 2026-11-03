@@ -171,6 +171,12 @@ export default function AdminAnsicht() {
       </article>
 
       <article className="glas admin-block">
+        <h3>Urlaub / Krank</h3>
+        <p className="klein">Mitglieder dieser Gruppen sehen alle Abwesenheiten, genehmigen Anträge und pflegen die Personal-Stammdaten (Admins immer).</p>
+        <Auswahl werte={k.abwesenheitGruppen ?? []} optionen={gruppenOptionen} onChange={(w) => aendern({ abwesenheitGruppen: w })} />
+      </article>
+
+      <article className="glas admin-block">
         <h3>Ganze Firma freischalten</h3>
         <p className="klein">Alle Adressen einer Domain bekommen automatisch diese Gruppen (z. B. firma.at).</p>
         {k.domains.map((d, i) => (

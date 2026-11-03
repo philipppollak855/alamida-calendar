@@ -47,6 +47,8 @@ export interface Konfiguration {
   domains: DomainRegel[];
   /** Gruppen, deren Mitglieder alle zur Bereitschaft einteilen dürfen (Admins dürfen immer). */
   bereitschaftGruppen?: string[];
+  /** Gruppen, die Urlaub/Krank aller sehen und genehmigen (Admins immer). */
+  abwesenheitGruppen?: string[];
 }
 
 export interface Rechte {
@@ -135,5 +137,6 @@ export function konfigPruefen(x: unknown): Konfiguration {
       .map((d) => ({ domain: norm(text(d.domain, 100)).replace(/^@/, ''), gruppen: texte(d.gruppen).filter((g) => gruppenIds.has(g)) }))
       .filter((d) => d.domain.includes('.')),
     bereitschaftGruppen: texte(o.bereitschaftGruppen).filter((g) => g === ALLE || gruppenIds.has(g)),
+    abwesenheitGruppen: texte(o.abwesenheitGruppen).filter((g) => g === ALLE || gruppenIds.has(g)),
   };
 }
