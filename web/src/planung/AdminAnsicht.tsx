@@ -3,6 +3,8 @@ import { AGENT_KATEGORIEN, AGENT_STANDARD_DAUER, ALLE, KATEGORIE_SCHLUESSEL, typ
 import { adminLaden, adminSpeichern, type AdminDaten } from './api';
 import { KATEGORIEN, type Kategorie } from './planungLogic';
 
+const HUB_URL = 'https://bestattung-stranz-hub.netlify.app';
+
 const neueId = (name: string) =>
   name.toLowerCase().normalize('NFD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '') || `gruppe-${Date.now()}`;
 
@@ -86,61 +88,98 @@ export default function AdminAnsicht() {
         </button>
       </div>
 
-      <article className="glas admin-block">
-        <h3>Benutzer</h3>
-        <p className="klein">Wer sich mit Google anmeldet, sieht nur die Termine seiner Gruppen. Unbekannte Adressen sehen nichts.</p>
-        <div className="admin-tabelle">
-          {k.benutzer.map((b, i) => (
-            <div key={b.email} className="admin-zeile">
-              <div>
-                <strong>{b.email}</strong>
-                <input
-                  className="feld klein-feld"
-                  placeholder="Name"
-                  value={b.name ?? ''}
-                  onChange={(e) => aendern({ benutzer: k.benutzer.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })}
-                />
+      {k.hubVerwaltet ? (
+        <article className="glas admin-block">
+          <h3>Mitarbeiter (aus dem Hub)</h3>
+          <p className="klein">
+            Mitarbeiter, Gruppen und Admins pflegst du zentral im Hub unter{' '}
+            <a href={`${HUB_URL}/verwaltung`} target="_top" rel="noopener">
+              Apps &amp; Rechte
+            </a>
+            . Hier legst du je Gruppe nur fest, welche Kalender und Kategorien sie sieht.
+          </p>
+          <div className="admin-tabelle">
+            {k.benutzer.map((b) => (
+              <div key={b.email} className="admin-zeile">
+                <div>
+                  <strong>{b.name || b.email}</strong>
+                  {b.name && <div className="klein">{b.email}</div>}
+                </div>
+                <div className="auswahl">
+                  {b.gruppen.map((g) => (
+                    <span key={g} className="pille an">
+                      {k.gruppen.find((x) => x.id === g)?.name ?? g}
+                    </span>
+                  ))}
+                  {b.admin && <span className="pille an">Admin</span>}
+                  {!b.gruppen.length && !b.admin && <span className="klein">keine Gruppe</span>}
+                </div>
               </div>
-              <Auswahl
-                werte={b.gruppen}
-                optionen={gruppenOptionen}
-                onChange={(w) => aendern({ benutzer: k.benutzer.map((x, j) => (j === i ? { ...x, gruppen: w.filter((g) => g !== ALLE) } : x)) })}
-              />
-              <label className={`pille ${b.admin ? 'an' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={!!b.admin}
-                  onChange={() => aendern({ benutzer: k.benutzer.map((x, j) => (j === i ? { ...x, admin: !x.admin } : x)) })}
+            ))}
+          </div>
+        </article>
+      ) : (
+        <article className="glas admin-block">
+          <h3>Benutzer</h3>
+          <p className="klein">Wer sich mit Google anmeldet, sieht nur die Termine seiner Gruppen. Unbekannte Adressen sehen nichts.</p>
+          <div className="admin-tabelle">
+            {k.benutzer.map((b, i) => (
+              <div key={b.email} className="admin-zeile">
+                <div>
+                  <strong>{b.email}</strong>
+                  <input
+                    className="feld klein-feld"
+                    placeholder="Name"
+                    value={b.name ?? ''}
+                    onChange={(e) => aendern({ benutzer: k.benutzer.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })}
+                  />
+                </div>
+                <Auswahl
+                  werte={b.gruppen}
+                  optionen={gruppenOptionen}
+                  onChange={(w) => aendern({ benutzer: k.benutzer.map((x, j) => (j === i ? { ...x, gruppen: w.filter((g) => g !== ALLE) } : x)) })}
                 />
-                Admin
-              </label>
-              <button className="knopf klein-knopf" onClick={() => aendern({ benutzer: k.benutzer.filter((_, j) => j !== i) })}>
-                Entfernen
-              </button>
-            </div>
-          ))}
-        </div>
-        <form
-          className="admin-neu"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const email = neuEmail.trim().toLowerCase();
-            if (!email.includes('@') || k.benutzer.some((b) => b.email === email)) return;
-            aendern({ benutzer: [...k.benutzer, { email, gruppen: [] }] });
-            setNeuEmail('');
-          }}
-        >
-          <input className="feld" type="email" placeholder="name@firma.at" value={neuEmail} onChange={(e) => setNeuEmail(e.target.value)} />
-          <button className="knopf">+ Benutzer</button>
-        </form>
-      </article>
+                <label className={`pille ${b.admin ? 'an' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={!!b.admin}
+                    onChange={() => aendern({ benutzer: k.benutzer.map((x, j) => (j === i ? { ...x, admin: !x.admin } : x)) })}
+                  />
+                  Admin
+                </label>
+                <button className="knopf klein-knopf" onClick={() => aendern({ benutzer: k.benutzer.filter((_, j) => j !== i) })}>
+                  Entfernen
+                </button>
+              </div>
+            ))}
+          </div>
+          <form
+            className="admin-neu"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const email = neuEmail.trim().toLowerCase();
+              if (!email.includes('@') || k.benutzer.some((b) => b.email === email)) return;
+              aendern({ benutzer: [...k.benutzer, { email, gruppen: [] }] });
+              setNeuEmail('');
+            }}
+          >
+            <input className="feld" type="email" placeholder="name@firma.at" value={neuEmail} onChange={(e) => setNeuEmail(e.target.value)} />
+            <button className="knopf">+ Benutzer</button>
+          </form>
+        </article>
+      )}
 
       <article className="glas admin-block">
         <h3>Gruppen</h3>
         {k.gruppen.map((g) => (
           <div key={g.id} className="admin-gruppe">
             <div className="admin-gruppe-kopf">
-              <input className="feld" value={g.name} onChange={(e) => gruppeAendern(g.id, { name: e.target.value })} />
+              {k.hubVerwaltet ? (
+                <strong>{g.name}</strong>
+              ) : (
+                <input className="feld" value={g.name} onChange={(e) => gruppeAendern(g.id, { name: e.target.value })} />
+              )}
+              {!k.hubVerwaltet && (
               <button
                 className="knopf klein-knopf"
                 onClick={() =>
@@ -152,6 +191,7 @@ export default function AdminAnsicht() {
               >
                 Löschen
               </button>
+              )}
             </div>
             <div className="klein">Kategorien</div>
             <Auswahl werte={g.kategorien} optionen={kategorieOptionen} onChange={(w) => gruppeAendern(g.id, { kategorien: w })} />
@@ -159,6 +199,7 @@ export default function AdminAnsicht() {
             <Auswahl werte={g.kalender} optionen={kalenderOptionen} onChange={(w) => gruppeAendern(g.id, { kalender: w })} />
           </div>
         ))}
+        {!k.hubVerwaltet && (
         <button
           className="knopf"
           onClick={() => {
@@ -168,6 +209,7 @@ export default function AdminAnsicht() {
         >
           + Gruppe
         </button>
+        )}
       </article>
 
       <article className="glas admin-block">
@@ -182,6 +224,7 @@ export default function AdminAnsicht() {
         <Auswahl werte={k.abwesenheitGruppen ?? []} optionen={gruppenOptionen} onChange={(w) => aendern({ abwesenheitGruppen: w })} />
       </article>
 
+      {!k.hubVerwaltet && (
       <article className="glas admin-block">
         <h3>Ganze Firma freischalten</h3>
         <p className="klein">Alle Adressen einer Domain bekommen automatisch diese Gruppen (z. B. firma.at).</p>
@@ -207,6 +250,7 @@ export default function AdminAnsicht() {
           + Domain
         </button>
       </article>
+      )}
 
       <article className="glas admin-block">
         <h3>Kalender</h3>

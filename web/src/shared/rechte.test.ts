@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STANDARD_KONFIG, darfSehen, konfigPruefen, rechteFuer, type Konfiguration } from './rechte';
+import { ALLE, STANDARD_KONFIG, darfSehen, konfigPruefen, rechteFuer, verzeichnisAnwenden, verzeichnisPruefen, type Konfiguration } from './rechte';
 
 const konfig: Konfiguration = {
   ...STANDARD_KONFIG,
@@ -42,5 +42,42 @@ describe('rechte', () => {
     const k = konfigPruefen({ gruppen: [{ id: 'g', name: 'G', kategorien: ['*'], kalender: ['*'] }], benutzer: [{ email: ' X@Y.AT ', gruppen: ['g', 'gibtsnicht'] }, { email: 'kaputt' }], domains: [{ domain: '@firma.at', gruppen: ['g'] }] });
     expect(k.benutzer).toEqual([{ email: 'x@y.at', name: undefined, gruppen: ['g'], admin: false }]);
     expect(k.domains[0].domain).toBe('firma.at');
+  });
+});
+
+describe('Hub-Verzeichnis als eine Quelle', () => {
+  const lokal: Konfiguration = {
+    ...STANDARD_KONFIG,
+    gruppen: [
+      { id: 'buero', name: 'Alt', kategorien: [ALLE], kalender: [ALLE] },
+      { id: 'fahrer', name: 'Fahrer', kategorien: ['Abholung'], kalender: [ALLE] },
+    ],
+    benutzer: [{ email: 'alt@x.at', gruppen: ['buero'] }],
+    bereitschaftGruppen: ['buero'],
+  };
+  const v = verzeichnisPruefen({
+    gruppen: [{ id: 'buero', name: 'Büro' }, { id: 'neu', name: 'Neu' }],
+    benutzer: [{ email: 'Anna@X.at', name: 'Anna', gruppen: ['neu', 'unbekannt'] }, { email: 'kein-mail' }],
+    domains: [{ domain: 'firma.at', gruppen: ['buero'] }],
+  })!;
+
+  it('übernimmt Mitarbeiter, Gruppen und Domains aus dem Hub und behält die Kalender-Rechte je Gruppe', () => {
+    expect(v.benutzer).toEqual([{ email: 'anna@x.at', name: 'Anna', gruppen: ['neu'], admin: false }]);
+    const k = verzeichnisAnwenden(lokal, v);
+    expect(k.hubVerwaltet).toBe(true);
+    expect(k.gruppen).toEqual([
+      { id: 'buero', name: 'Büro', kategorien: [ALLE], kalender: [ALLE] },
+      { id: 'neu', name: 'Neu', kategorien: [], kalender: [] },
+    ]);
+    expect(k.bereitschaftGruppen).toEqual(['buero']);
+    expect(rechteFuer('anna@x.at', k).freigeschaltet).toBe(true);
+    expect(rechteFuer('anna@x.at', k).kategorien).toEqual([]);
+    expect(rechteFuer('wer@firma.at', k).kalender).toEqual([ALLE]);
+    expect(rechteFuer('alt@x.at', k).freigeschaltet).toBe(false);
+  });
+
+  it('lehnt ungültige Antworten ab', () => {
+    expect(verzeichnisPruefen(null)).toBeNull();
+    expect(verzeichnisPruefen({ fehler: 'nicht berechtigt' })).toBeNull();
   });
 });

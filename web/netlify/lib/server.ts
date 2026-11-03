@@ -1,6 +1,6 @@
 import { createHmac, createPublicKey, createSign, randomBytes, timingSafeEqual, verify } from 'node:crypto';
 import { getStore } from '@netlify/blobs';
-import { STANDARD_KONFIG, konfigPruefen, rechteFuer, type Konfiguration, type Rechte } from '../../src/shared/rechte';
+import { STANDARD_KONFIG, konfigPruefen, rechteFuer, verzeichnisAnwenden, verzeichnisPruefen, type Konfiguration, type Rechte, type Verzeichnis } from '../../src/shared/rechte';
 import type { Einsatz } from '../../src/shared/bereitschaft';
 import { personalPruefen, type Abwesenheit, type Personal } from '../../src/shared/abwesenheit';
 import type { AgentStatus } from './agent';
@@ -73,9 +73,41 @@ export function json(daten: unknown, status = 200, headers: Record<string, strin
 
 const store = () => getStore({ name: 'alamida', consistency: 'strong' });
 
-export async function konfigLaden(): Promise<Konfiguration> {
+/** Nur die im Kalender gespeicherte Konfiguration (ohne Hub-Verzeichnis). */
+export async function konfigLokal(): Promise<Konfiguration> {
   const k = (await store().get('konfiguration', { type: 'json' })) as unknown;
   return k ? konfigPruefen(k) : STANDARD_KONFIG;
+}
+
+export async function konfigLaden(): Promise<Konfiguration> {
+  const [lokal, v] = await Promise.all([konfigLokal(), verzeichnisLaden()]);
+  return v ? verzeichnisAnwenden(lokal, v) : lokal;
+}
+
+export const HUB_URL = () => env('HUB_URL') || 'https://bestattung-stranz-hub.netlify.app';
+let verzeichnisCache: { v: Verzeichnis; bis: number } | null = null;
+
+/**
+ * Mitarbeiter & Gruppen aus dem Hub (eine Quelle). Server zu Server mit HUB_VERZEICHNIS_SCHLUESSEL, 60 s im Speicher;
+ * ist der Hub nicht erreichbar, gilt die zuletzt geholte Kopie. Ohne Schlüssel: nur die Kalender-eigene Liste.
+ */
+export async function verzeichnisLaden(): Promise<Verzeichnis | null> {
+  const schluessel = env('HUB_VERZEICHNIS_SCHLUESSEL');
+  if (!schluessel) return null;
+  if (verzeichnisCache && verzeichnisCache.bis > Date.now()) return verzeichnisCache.v;
+  try {
+    const res = await fetch(`${HUB_URL()}/api/verzeichnis`, { headers: { authorization: `Bearer ${schluessel}` }, signal: AbortSignal.timeout(5000) });
+    const v = verzeichnisPruefen(await res.json());
+    if (!res.ok || !v) throw new Error(`Hub-Verzeichnis: ${res.status}`);
+    verzeichnisCache = { v, bis: Date.now() + 60_000 };
+    void store().setJSON('hub-verzeichnis', v).catch(() => undefined);
+    return v;
+  } catch (e) {
+    console.warn((e as Error).message);
+    const kopie = verzeichnisPruefen(await store().get('hub-verzeichnis', { type: 'json' }).catch(() => null));
+    if (kopie) verzeichnisCache = { v: kopie, bis: Date.now() + 15_000 };
+    return kopie;
+  }
 }
 
 const agentSchluessel = (station: string) => `agent-status/${encodeURIComponent(station)}`;
