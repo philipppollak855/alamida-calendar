@@ -33,7 +33,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] F4 Offline-Cache, v. a. Termine und Details -> je Benutzer in localStorage (Termine inkl. Details/Personal, Bereitschaft, Urlaub/Krank, eigenes Profil); App-Start offline; Kiosk speichert nichts
 - [x] F5 Bestätigung (PDF/Foto) bei Krank und Pflegeurlaub, auch nachträglich; Download, Druck, Archiv für Berechtigte -> PR #27
 - [x] F6 Kalenderansicht: zusammenhängende Termine eines Falls am selben Tag (direkt hintereinander, max. 2 h Lücke) als senkrechter Block mit Unter-Karten; kein Balken über mehrere Tage
-- [x] F7 Zusammenhängende Termine brauchen nur ein Personal: Einteilung gilt für den ganzen Block
+- [x] F7 Zusammenhängende Termine brauchen nur ein Personal: einmal je Fall und Tag (Ablauf) eintragen, gilt für alle Untertermine des Tages; einzelne Termine optional abweichend
 - [x] F8 Personal als „extern“ markierbar (Hub → Apps & Rechte): einteilbar, aber kein Urlaubskonto, keine Kranken-/Pflegestatistik
 
 ## G. Bereitschaft
@@ -45,6 +45,9 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 ## H. Hub-Start „Heute“
 - [ ] H1 Zuerst die eigenen eingeteilten Termine, darunter alle anderen (wenn berechtigt)
 - [ ] H2 Übersichtlich bei vielen Terminen: Termine eines Falls zusammengefasst, „+ weitere“
+
+## I. Hub
+- [ ] I1 Desktop: Seitenleiste einklappbar (Zustand bleibt gespeichert)
 
 ## Nicht mehr
 - Urnenwald-PRs #41–#139: nicht weiter bearbeiten (Anweisung Nutzer)

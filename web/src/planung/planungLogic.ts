@@ -1,3 +1,4 @@
+import { ablaufGeeignetKat, tagWien, wirksamesPersonal, type EinteilungPerson } from '../shared/einteilung';
 import { sterbefallAus } from '../shared/heute';
 export type Kategorie =
   | 'Beisetzung'
@@ -44,6 +45,10 @@ export interface Termin {
   details: Record<string, string>;
   /** Eingeteiltes Personal (Personalplanung). */
   personal?: { email: string; name?: string }[];
+  /** Woher das Personal kommt: eigene (abweichende) Einteilung oder Ablauf des Falls an diesem Tag. */
+  personalQuelle?: 'termin' | 'fall';
+  /** Personal des Ablaufs (Fall + Tag), auch wenn dieser Termin abweichend eingeteilt ist. */
+  ablaufPersonal?: { email: string; name?: string }[];
 }
 
 export const personalText = (t: Termin) => (t.personal ?? []).map((p) => p.name || p.email.split('@')[0]).join(', ');
@@ -176,7 +181,7 @@ const GESPRAECH_KATEGORIEN = new Set<Kategorie>(['Trauergespraech', 'Vorsorge'])
 /** Höchstens so viele Minuten zwischen zwei Terminen, damit sie noch zusammenhängen. */
 export const KETTE_LUECKE_MIN = 120;
 
-const fallSchluessel = (t: Termin) => t.sterbefallId ?? (t.verstorbener ? `name:${t.verstorbener.toLowerCase()}` : null);
+export const fallSchluessel = (t: Termin) => t.sterbefallId ?? (t.verstorbener ? `name:${t.verstorbener.toLowerCase()}` : null);
 
 /** Zusammenhängende Termine: derselbe Sterbefall, derselbe Tag, direkt hintereinander (nicht ganztägig, keine Gespräche). */
 export function ketten(termine: Termin[]): Termin[][] {
@@ -409,4 +414,34 @@ export function countdown(t: Termin, jetzt: Date): string | null {
   const min = Math.round((t.start.getTime() - jetzt.getTime()) / 60000);
   if (min <= 0 || min > 180) return null;
   return min < 60 ? `in ${min} Min.` : `in ${Math.floor(min / 60)} Std. ${min % 60} Min.`;
+}
+
+export const ablaufGeeignet = (t: Termin) => ablaufGeeignetKat(t.kategorie, t.ganztaegig);
+
+/** Termine desselben Falls am selben Tag, die das Ablauf-Personal teilen. */
+export const ablaufTermine = (alle: Termin[], t: Termin): Termin[] => {
+  const fall = fallSchluessel(t);
+  if (!fall || !ablaufGeeignet(t)) return [t];
+  const tag = tagWien(t.start);
+  return sortiert(alle.filter((x) => fallSchluessel(x) === fall && ablaufGeeignet(x) && tagWien(x.start) === tag));
+};
+
+export function personalZuordnen(t: Termin, m: Map<string, EinteilungPerson[]>): Termin {
+  const w = wirksamesPersonal(t, fallSchluessel(t), m);
+  return { ...t, personal: w.personal?.length ? w.personal : undefined, personalQuelle: w.quelle, ablaufPersonal: w.ablauf };
+}
+
+/** Nach dem Speichern einer Termin-Einteilung (leer = wieder wie Ablauf). */
+export function mitTerminEinteilung(x: Termin, id: string, personen: EinteilungPerson[]): Termin {
+  if (x.id !== id) return x;
+  if (personen.length) return { ...x, personal: personen, personalQuelle: 'termin' };
+  const ab = x.ablaufPersonal?.length ? x.ablaufPersonal : undefined;
+  return { ...x, personal: ab, personalQuelle: ab ? 'fall' : undefined };
+}
+
+/** Nach dem Speichern des Ablauf-Personals: gilt für alle Untertermine des Tages ohne abweichende Einteilung. */
+export function mitAblaufEinteilung(x: Termin, fall: string, tag: string, personen: EinteilungPerson[]): Termin {
+  if (fallSchluessel(x) !== fall || !ablaufGeeignet(x) || tagWien(x.start) !== tag) return x;
+  const p = personen.length ? personen : undefined;
+  return x.personalQuelle === 'termin' ? { ...x, ablaufPersonal: p } : { ...x, ablaufPersonal: p, personal: p, personalQuelle: p ? 'fall' : undefined };
 }

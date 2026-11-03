@@ -7,7 +7,7 @@ import './planung.css';
 import { useTheme } from './theme';
 import NeuerTerminDialog from './NeuerTerminDialog';
 import { istOffline } from './offlineCache';
-import { abmelden, anmeldungAbschliessen, einteilungSpeichern, terminLoeschen, hubAnmelden, ichLaden, termineAusCache, termineLaden, type EinteilungRecht, type Ich } from './api';
+import { abmelden, ablaufSpeichern, anmeldungAbschliessen, einteilungSpeichern, terminLoeschen, hubAnmelden, ichLaden, termineAusCache, termineLaden, type EinteilungRecht, type Ich } from './api';
 import AdminAnsicht from './AdminAnsicht';
 import AbwesenheitAnsicht, { AbwesenheitZeile, abwesendAm, useAbwesenheit } from './AbwesenheitAnsicht';
 import BereitschaftAnsicht, { BereitschaftZeile, NACH_ANMELDUNG, bereitschaftAm, useBereitschaft } from './BereitschaftAnsicht';
@@ -32,7 +32,7 @@ import {
   warnungen,
   type Gruppe,
   type Kategorie,
-  type Termin, personalText, bloecke, istFall, kalenderEintraege, type FallEintrag, type KalEintrag } from './planungLogic';
+  type Termin, personalText, bloecke, istFall, kalenderEintraege, mitAblaufEinteilung, mitTerminEinteilung, type FallEintrag, type KalEintrag } from './planungLogic';
 
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek: (d: Date) => startOfWeek(d, { weekStartsOn: 1 }), getDay, locales: { de } });
 
@@ -303,9 +303,13 @@ export default function PlanungPage() {
 
   const einteilen = useCallback(async (t: Termin, emails: string[]) => {
     const r = await einteilungSpeichern(t.id, emails);
-    const personal = r.personen.length ? r.personen : undefined;
-    setTermine((l) => l.map((x) => (x.id === t.id ? { ...x, personal } : x)));
-    setOffen((o) => (o && o.id === t.id ? { ...o, personal } : o));
+    setTermine((l) => l.map((x) => mitTerminEinteilung(x, t.id, r.personen)));
+    setOffen((o) => o && mitTerminEinteilung(o, t.id, r.personen));
+  }, []);
+  const ablaufEinteilen = useCallback(async (fall: string, tag: string, emails: string[]) => {
+    const r = await ablaufSpeichern(fall, tag, emails);
+    setTermine((l) => l.map((x) => mitAblaufEinteilung(x, fall, tag, r.personen)));
+    setOffen((o) => o && mitAblaufEinteilung(o, fall, tag, r.personen));
   }, []);
 
   const loeschen = useCallback(async (t: Termin) => {
@@ -409,6 +413,7 @@ export default function PlanungPage() {
       hinweise={hinweise}
       einteilung={echteDaten ? einteilung : null}
       onEinteilen={einteilen}
+      onAblauf={ablaufEinteilen}
       onLoeschen={
         echteDaten && offen.details.quelle === 'web' && (offen.details.angelegtVon === ich?.benutzer?.email?.toLowerCase() || ich?.rechte?.admin)
           ? loeschen

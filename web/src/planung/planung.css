@@ -595,3 +595,8 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .kal-kette > strong { font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kal-kette-termin { all: unset; box-sizing: border-box; cursor: pointer; display: block; font-size: 0.72rem; padding: 2px 5px; border-radius: 5px; border-left: 3px solid var(--kat); background: color-mix(in srgb, var(--kat) 22%, transparent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kal-kette-termin:hover, .kal-kette-termin:focus-visible { background: color-mix(in srgb, var(--kat) 40%, transparent); outline: none; }
+
+/* Personal: Ablauf des Falls am Tag + optional abweichend je Termin */
+.personal-ablauf, .personal-abweichend { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.55rem 0.7rem; border-radius: 10px; }
+.personal-ablauf { background: color-mix(in srgb, #8b7cf6 10%, transparent); border-left: 3px solid #8b7cf6; margin-bottom: 0.5rem; }
+.personal-abweichend { border: 1px dashed var(--rand); }
