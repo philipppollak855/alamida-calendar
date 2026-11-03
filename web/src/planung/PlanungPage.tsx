@@ -13,6 +13,7 @@ import MobileAnsicht from './MobileAnsicht';
 import { useInstallieren } from './useInstallieren';
 import { demoTermine } from './demoDaten';
 import TerminDetail from './TerminDetail';
+import FallKarte from './FallKarte';
 import {
   GRUPPEN,
   KATEGORIEN,
@@ -29,7 +30,7 @@ import {
   warnungen,
   type Gruppe,
   type Kategorie,
-  type Termin, personalText } from './planungLogic';
+  type Termin, personalText, bloecke } from './planungLogic';
 
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek: (d: Date) => startOfWeek(d, { weekStartsOn: 1 }), getDay, locales: { de } });
 
@@ -334,7 +335,9 @@ export default function PlanungPage() {
   const gefiltert = useMemo(() => suche(termine.filter((t) => !aus.includes(t.kategorie)), suchtext), [termine, aus, suchtext]);
   const hinweise = useMemo(() => warnungen(gefiltert, new Date()), [gefiltert]);
   const tagTermine = termineAmTag(gefiltert, tag);
-  const tagGruppen = nachGruppe(tagTermine);
+  const tagBloecke = bloecke(tagTermine);
+  const tagFaelle = tagBloecke.filter((b) => b.art === 'fall');
+  const tagGruppen = nachGruppe(tagBloecke.flatMap((b) => (b.art === 'einzel' ? [b.termin] : [])));
   const spalten: Gruppe[] = [...GRUPPEN, ...(tagGruppen.Sonstiges.length ? (['Sonstiges'] as Gruppe[]) : [])];
   const istHeute = isSameDay(tag, jetzt);
   const heute = termineAmTag(gefiltert, jetzt);
@@ -612,6 +615,15 @@ export default function PlanungPage() {
               })}
             </div>
             <div className="spalten">
+              {tagFaelle.length > 0 && (
+                <div className="spalte glas spalte-faelle">
+                  <h3>
+                    <span>✦ Sterbefälle</span>
+                    <span className="anzahl">{tagFaelle.length}</span>
+                  </h3>
+                  {tagFaelle.map((b) => b.art === 'fall' && <FallKarte key={b.schluessel} name={b.name} sterbefallId={b.sterbefallId} termine={b.termine} onOeffnen={setOffen} />)}
+                </div>
+              )}
               {spalten.map((g) => {
                 const liste = tagGruppen[g];
                 const jetztIndex = istHeute ? liste.findIndex((t) => !t.ganztaegig && t.start > jetzt) : -1;

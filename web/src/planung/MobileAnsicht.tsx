@@ -15,7 +15,8 @@ import {
   suche,
   termineAmTag,
   type Termin,
-  type Warnung, personalText } from './planungLogic';
+  type Warnung, personalText, bloecke, blockStart } from './planungLogic';
+import FallKarte from './FallKarte';
 
 type MTab = 'heute' | 'fahrten' | 'faelle' | 'suche' | 'mehr';
 
@@ -83,7 +84,8 @@ export default function MobileAnsicht(p: Props) {
   const heute = startDesTages(jetzt);
   const tage = Array.from({ length: 21 }, (_, n) => plusTage(heute, n - 3));
   const tagListe = termineAmTag(p.termine, tag);
-  const jetztIndex = isSameDay(tag, jetzt) ? tagListe.findIndex((t) => !t.ganztaegig && t.start > jetzt) : -1;
+  const tagBloecke = bloecke(tagListe);
+  const jetztIndex = isSameDay(tag, jetzt) ? tagBloecke.findIndex((b) => !blockStart(b).ganztaegig && blockStart(b).start > jetzt) : -1;
   const fahrtenListe = fahrten(p.termine, jetzt);
   const faelle = sterbefaelle(p.termine, jetzt).filter((f) => f.naechster);
   const treffer = q.trim() ? suche(p.alle, q).sort((a, b) => a.start.getTime() - b.start.getTime()).slice(0, 50) : [];
@@ -151,14 +153,18 @@ export default function MobileAnsicht(p: Props) {
             <BereitschaftZeile eintraege={bereitschaftAm(p.bereitschaft, tag)} />
             <div className="m-liste" {...wischen}>
               {tagListe.length === 0 && <div className="m-leer">Keine Termine 🌿</div>}
-              {tagListe.map((t, n) => (
-                <div key={t.id}>
+              {tagBloecke.map((b, n) => (
+                <div key={b.art === 'fall' ? b.schluessel : b.termin.id}>
                   {n === jetztIndex && (
                     <div className="jetzt-linie">
                       <span>Jetzt {format(jetzt, 'HH:mm')}</span>
                     </div>
                   )}
-                  <Zeile t={t} onOeffnen={p.onOeffnen} />
+                  {b.art === 'fall' ? (
+                    <FallKarte name={b.name} sterbefallId={b.sterbefallId} termine={b.termine} onOeffnen={p.onOeffnen} />
+                  ) : (
+                    <Zeile t={b.termin} onOeffnen={p.onOeffnen} />
+                  )}
                 </div>
               ))}
             </div>

@@ -28,7 +28,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 
 ## F. Kalender
 - [x] F1 Personalplanung für Überführungen, Begräbnistermine und Gespräche: Gespräch 1 Person, Termine max. 5; direkt am Termin oder im Kalender, nur für Befähigte -> Rechte → Personalplanung, Termin-Detail „Personal“
-- [ ] F2 Zusammengehörige Termine eines Sterbefalls (Überführung, Rosenkranz, Trauerfeier, Beisetzung) als eine Card (Name, darunter Unter-Cards je Termin), Shortlinks per Klick
+- [x] F2 Zusammengehörige Termine eines Sterbefalls (Überführung, Rosenkranz, Trauerfeier, Beisetzung) als eine Card (Name, darunter Unter-Cards je Termin), Shortlinks per Klick -> Tagesplan (Spalte „Sterbefälle“) + Handy
 - [ ] F3 Klick auf einen Tag -> neues Ereignis planen (mit Berechtigung; schreibt in Google Kalender)
 - [ ] F4 Offline-Cache, v. a. Termine und Details
 

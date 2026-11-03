@@ -143,6 +143,33 @@ export function nachGruppe(termine: Termin[]): Record<Gruppe, Termin[]> {
   return r;
 }
 
+/** Tagesliste: Termine desselben Sterbefalls (ab 2 Terminen) als ein Block, sonst Einzeltermine – in zeitlicher Reihenfolge. */
+export type Block = { art: 'einzel'; termin: Termin } | { art: 'fall'; schluessel: string; name: string; sterbefallId?: string; termine: Termin[] };
+
+export function bloecke(termine: Termin[]): Block[] {
+  const liste = sortiert(termine);
+  const schluessel = (t: Termin) => t.sterbefallId ?? (t.verstorbener ? `name:${t.verstorbener.toLowerCase()}` : null);
+  const gruppen = new Map<string, Termin[]>();
+  for (const t of liste) {
+    const k = schluessel(t);
+    if (k) gruppen.set(k, [...(gruppen.get(k) ?? []), t]);
+  }
+  const r: Block[] = [];
+  const fertig = new Set<string>();
+  for (const t of liste) {
+    const k = schluessel(t);
+    const g = k ? gruppen.get(k)! : [];
+    if (!k || g.length < 2) r.push({ art: 'einzel', termin: t });
+    else if (!fertig.has(k)) {
+      fertig.add(k);
+      r.push({ art: 'fall', schluessel: k, name: g.find((x) => x.verstorbener)?.verstorbener ?? t.sterbefallId ?? t.titel, sterbefallId: g[0].sterbefallId, termine: g });
+    }
+  }
+  return r;
+}
+
+export const blockStart = (b: Block) => (b.art === 'einzel' ? b.termin : b.termine[0]);
+
 export interface Fall {
   sterbefallId: string;
   name: string;
