@@ -6,6 +6,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './planung.css';
 import { useTheme } from './theme';
 import NeuerTerminDialog from './NeuerTerminDialog';
+import { istOffline } from './offlineCache';
 import { abmelden, anmeldungAbschliessen, einteilungSpeichern, terminLoeschen, hubAnmelden, ichLaden, termineAusCache, termineLaden, type EinteilungRecht, type Ich } from './api';
 import AdminAnsicht from './AdminAnsicht';
 import AbwesenheitAnsicht, { AbwesenheitZeile, abwesendAm, useAbwesenheit } from './AbwesenheitAnsicht';
@@ -217,7 +218,7 @@ export default function PlanungPage() {
       setStand(new Date());
       setFehler(r.fehler.length ? r.fehler.join(' · ') : null);
     } catch (e) {
-      setFehler(navigator.onLine ? (e as Error).message : 'Offline – angezeigt wird der zuletzt geladene Stand.');
+      setFehler(istOffline(e) ? 'Offline – angezeigt wird der zuletzt geladene Stand.' : (e as Error).message);
       if ((e as Error).message === 'nicht angemeldet') setIch({ angemeldet: false });
     } finally {
       setLaedt(false);
