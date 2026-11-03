@@ -3,7 +3,7 @@ import type { Einsatz } from '../shared/bereitschaft';
 import type { EinteilungPerson } from '../shared/einteilung';
 import type { NeuerTermin } from '../shared/neuerTermin';
 import type { AbwArt, Abwesenheit, Personal } from '../shared/abwesenheit';
-import { ausGoogleEvent, type GoogleEvent, type Termin } from './planungLogic';
+import { ausGoogleEvent, personalZuordnen, type GoogleEvent, type Termin } from './planungLogic';
 import { cacheLeeren, cacheLesen, cacheSchreiben, istOffline, OfflineFehler } from './offlineCache';
 
 export interface Ich {
@@ -164,7 +164,7 @@ export async function termineLaden(): Promise<{ termine: Termin[]; fehler: strin
     k.events
       .map((ev) => ausGoogleEvent(ev, k.kalender.id, k.kalender.name))
       .filter((t): t is Termin => t !== null)
-      .map((t) => (personal.has(t.id) ? { ...t, personal: personal.get(t.id) } : t)),
+      .map((t) => personalZuordnen(t, personal)),
   );
   const s = ls();
   if (s) cacheSchreiben(s, benutzer, 'termine', termine);
@@ -254,6 +254,9 @@ export const altdatenImportieren = (daten: { personal: Personal[]; abwesenheiten
 
 export const einteilungSpeichern = (termin: string, personen: string[]) =>
   holen<{ termin: string; personen: EinteilungPerson[] }>('/api/einteilung', jsonInit('PUT', { termin, personen }));
+/** Personal für den Ablauf eines Falls an einem Tag. */
+export const ablaufSpeichern = (fall: string, tag: string, personen: string[]) =>
+  holen<{ termin: string; personen: EinteilungPerson[] }>('/api/einteilung', jsonInit('PUT', { fall, tag, personen }));
 
 export async function terminAnlegen(t: NeuerTermin): Promise<Termin> {
   const r = await holen<{ kalender: KalenderEintrag; event: GoogleEvent }>('/api/termin', jsonInit('POST', t));

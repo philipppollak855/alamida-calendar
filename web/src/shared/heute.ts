@@ -1,7 +1,7 @@
 import type { Abwesenheit } from './abwesenheit';
 import { ARTEN } from './abwesenheit';
 import type { Einsatz } from './bereitschaft';
-import { personName, type EinteilungPerson } from './einteilung';
+import { personName, wirksamesPersonal, type EinteilungPerson } from './einteilung';
 
 /** Tagesübersicht für das Dashboard im Bestattung Stranz HUB (/api/heute). */
 export interface HeuteEintrag {
@@ -91,9 +91,10 @@ export function termineHeute(
       if (!(von <= heute && (bis > heute || von === heute))) continue;
     } else continue;
     const id = `${kalenderId}/${e.id}`;
-    const personal = eingeteilt.get(id) ?? [];
     const sf = sterbefallAus(e);
     const fall = sf.sterbefallId ?? (sf.verstorbener ? `name:${sf.verstorbener.toLowerCase()}` : undefined);
+    const start = new Date(e.start.dateTime ?? `${von}T12:00:00`);
+    const personal = wirksamesPersonal({ id, kategorie, ganztaegig, start }, fall, eingeteilt).personal ?? [];
     const ort = [e.location, personal.length ? `👥 ${personal.map(personName).join(', ')}` : ''].filter(Boolean).join(' · ');
     l.push({
       art: 'termin',

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { KATEGORIEN, checkliste, fallDaten, ketteVon, mapsLink, type Termin, type Warnung } from './planungLogic';
-import { maxPersonen, personName } from '../shared/einteilung';
+import { KATEGORIEN, ablaufGeeignet, ablaufTermine, checkliste, fallDaten, fallSchluessel, mapsLink, type Termin, type Warnung } from './planungLogic';
+import { maxPersonen, personName, tagWien } from '../shared/einteilung';
 import type { EinteilungRecht } from './api';
 
 const FELDER: [string, string][] = [
@@ -19,41 +19,28 @@ export function zeitText(t: Termin, mitDatum = true): string {
   return datum + (t.ganztaegig ? 'ganztägig' : `${format(t.start, 'HH:mm')}–${format(t.ende, 'HH:mm')} Uhr`);
 }
 
-function PersonalBlock({
-  termin,
-  alle,
+type Person = { email: string; name?: string };
+
+function Auswahl({
   einteilung,
-  onEinteilen,
+  start,
+  max,
+  konflikt,
+  hinweis,
+  onSpeichern,
+  onAbbrechen,
 }: {
-  termin: Termin;
-  alle: Termin[];
-  einteilung: EinteilungRecht | null;
-  onEinteilen: (t: Termin, emails: string[]) => Promise<void>;
+  einteilung: EinteilungRecht;
+  start: string[];
+  max: number;
+  konflikt: (email: string) => Termin | undefined;
+  hinweis?: string;
+  onSpeichern: (emails: string[]) => Promise<void>;
+  onAbbrechen: () => void;
 }) {
-  const aktuell = (termin.personal ?? []).map((p) => p.email);
-  const [bearbeiten, setBearbeiten] = useState(false);
-  const [wahl, setWahl] = useState<string[]>(aktuell);
+  const [wahl, setWahl] = useState<string[]>(start);
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
-  const schluessel = `${termin.id}|${aktuell.join(',')}`;
-  useEffect(() => {
-    setWahl(schluessel.split('|')[1] ? schluessel.split('|')[1].split(',') : []);
-    setFehler(null);
-  }, [schluessel]);
-  useEffect(() => setBearbeiten(false), [termin.id]);
-
-  const darf = !!einteilung?.darf;
-  if (!darf && !aktuell.length) return null;
-  // Zusammenhängende Termine (z. B. Überführung → Rosenkranz → Beisetzung) bekommen ein gemeinsames Personal.
-  const gruppe = ketteVon(alle, termin) ?? [termin];
-  const ids = new Set(gruppe.map((t) => t.id));
-  const max = Math.min(...gruppe.map((t) => maxPersonen(t.kategorie)));
-  const von = gruppe[0].start;
-  const bis = new Date(Math.max(...gruppe.map((t) => t.ende.getTime())));
-  const gleich = (t: Termin) => (t.personal ?? []).map((p) => p.email).sort().join(',') === [...aktuell].sort().join(',');
-  // Zeitgleich anderswo eingeteilt?
-  const konflikt = (email: string) => alle.find((t) => !ids.has(t.id) && t.start < bis && t.ende > von && t.personal?.some((p) => p.email === email));
-  const extern = (email: string) => einteilung?.personen.find((p) => p.email === email)?.extern;
   const umschalten = (email: string) => {
     if (wahl.includes(email)) setWahl(wahl.filter((x) => x !== email));
     else if (max === 1) setWahl([email]);
@@ -63,77 +50,181 @@ function PersonalBlock({
     setLaeuft(true);
     setFehler(null);
     try {
-      for (const t of gruppe) await onEinteilen(t, wahl);
-      setBearbeiten(false);
+      await onSpeichern(wahl);
+      onAbbrechen();
     } catch (e) {
       setFehler((e as Error).message);
     } finally {
       setLaeuft(false);
     }
   }
+  return (
+    <>
+      <div className="personal-liste">
+        {einteilung.personen.map((p) => {
+          const an = wahl.includes(p.email);
+          const k = konflikt(p.email);
+          return (
+            <button key={p.email} className={`personal-wahl ${an ? 'an' : ''}`} disabled={!an && max > 1 && wahl.length >= max} onClick={() => umschalten(p.email)}>
+              <span>{an ? '✓' : '○'}</span>
+              <span>
+                {personName(p)}
+                {p.extern && <span className="klein"> · extern</span>}
+              </span>
+              {k && <span className="klein warnung-text">⚠️ zeitgleich: {k.verstorbener ?? k.titel}</span>}
+            </button>
+          );
+        })}
+      </div>
+      {hinweis && <p className="klein">{hinweis}</p>}
+      {fehler && <div className="warnung">{fehler}</div>}
+      <div className="aktionen">
+        <button className="knopf primaer" disabled={laeuft} onClick={() => void speichern()}>
+          {laeuft ? 'Speichert …' : `Speichern (${wahl.length}/${max})`}
+        </button>
+        <button className="knopf" disabled={laeuft} onClick={onAbbrechen}>
+          Abbrechen
+        </button>
+      </div>
+    </>
+  );
+}
 
+function PersonalBlock({
+  termin,
+  alle,
+  einteilung,
+  onEinteilen,
+  onAblauf,
+}: {
+  termin: Termin;
+  alle: Termin[];
+  einteilung: EinteilungRecht | null;
+  onEinteilen: (t: Termin, emails: string[]) => Promise<void>;
+  onAblauf?: (fall: string, tag: string, emails: string[]) => Promise<void>;
+}) {
+  const [modus, setModus] = useState<null | 'ablauf' | 'termin'>(null);
+  useEffect(() => setModus(null), [termin.id]);
+
+  const darf = !!einteilung?.darf;
+  if (!darf && !termin.personal?.length) return null;
+  // Ablauf: alle Untertermine des Falls an diesem Tag teilen sich ein Personal, einzelne können abweichen.
+  const ablauf = ablaufTermine(alle, termin);
+  const fall = fallSchluessel(termin);
+  const mitAblauf = !!onAblauf && !!fall && ablaufGeeignet(termin) && ablauf.length > 1;
+  const ids = new Set(mitAblauf ? ablauf.map((t) => t.id) : [termin.id]);
+  const konfliktIn = (gruppe: Termin[]) => {
+    const von = gruppe[0].start;
+    const bis = new Date(Math.max(...gruppe.map((t) => t.ende.getTime())));
+    return (email: string) => alle.find((t) => !ids.has(t.id) && t.start < bis && t.ende > von && t.personal?.some((p) => p.email === email));
+  };
+  const extern = (email: string) => einteilung?.personen.find((p) => p.email === email)?.extern;
+  const chips = (personen: Person[], konflikt: (email: string) => Termin | undefined, leer: string) => (
+    <>
+      {personen.map((p) => (
+        <span key={p.email} className="personal-chip">
+          👤 {personName(p)}
+          {extern(p.email) && <span className="klein"> (extern)</span>}
+          {konflikt(p.email) && <span title={`Zeitgleich: ${konflikt(p.email)!.titel}`}> ⚠️</span>}
+        </span>
+      ))}
+      {!personen.length && <span className="klein">{leer}</span>}
+    </>
+  );
+
+  if (!mitAblauf) {
+    const max = maxPersonen(termin.kategorie);
+    const konflikt = konfliktIn([termin]);
+    const aktuell = termin.personal ?? [];
+    return (
+      <section className="modal-block">
+        <h3>
+          Personal <span className="klein">{max === 1 ? '(1 Person)' : `(bis ${max} Personen)`}</span>
+        </h3>
+        {modus === 'termin' && einteilung ? (
+          <Auswahl einteilung={einteilung} start={aktuell.map((p) => p.email)} max={max} konflikt={konflikt} onSpeichern={(w) => onEinteilen(termin, w)} onAbbrechen={() => setModus(null)} />
+        ) : (
+          <div className="personal-chips">
+            {chips(aktuell, konflikt, 'Noch niemand eingeteilt.')}
+            {darf && (
+              <button className="knopf" onClick={() => setModus('termin')}>
+                {aktuell.length ? 'Ändern' : 'Personal einteilen'}
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  const tag = tagWien(termin.start);
+  const ablaufP = termin.ablaufPersonal ?? [];
+  const eigen = termin.personalQuelle === 'termin' ? (termin.personal ?? []) : null;
+  const konfliktAblauf = konfliktIn(ablauf);
+  const konfliktTermin = konfliktIn([termin]);
   return (
     <section className="modal-block">
       <h3>
-        Personal <span className="klein">{max === 1 ? '(1 Person)' : `(bis ${max} Personen)`}</span>
+        Personal <span className="klein">(bis 5 Personen)</span>
       </h3>
-      {gruppe.length > 1 && (
-        <p className="klein">
-          Gilt für alle {gruppe.length} zusammenhängenden Termine: {gruppe.map((t) => `${format(t.start, 'HH:mm')} ${KATEGORIEN[t.kategorie].label}`).join(' → ')}
-          {!gruppe.every(gleich) && ' · ⚠️ derzeit unterschiedlich eingeteilt, beim Speichern gilt die Auswahl für alle'}
-        </p>
-      )}
-      {!bearbeiten && (
-        <div className="personal-chips">
-          {(termin.personal ?? []).map((p) => (
-            <span key={p.email} className="personal-chip">
-              👤 {personName(p)}
-              {extern(p.email) && <span className="klein"> (extern)</span>}
-              {konflikt(p.email) && <span title={`Zeitgleich: ${konflikt(p.email)!.titel}`}> ⚠️</span>}
-            </span>
-          ))}
-          {!aktuell.length && <span className="klein">Noch niemand eingeteilt.</span>}
-          {darf && (
-            <button className="knopf" onClick={() => setBearbeiten(true)}>
-              {aktuell.length ? 'Ändern' : 'Personal einteilen'}
-            </button>
-          )}
+      <div className="personal-ablauf">
+        <div className="klein">
+          <b>Ablauf {format(termin.start, 'EEE d.M.', { locale: de })}</b> · gilt für alle {ablauf.length} Termine:{' '}
+          {ablauf.map((t) => `${format(t.start, 'HH:mm')} ${KATEGORIEN[t.kategorie].label}`).join(' → ')}
         </div>
-      )}
-      {bearbeiten && einteilung && (
-        <>
-          <div className="personal-liste">
-            {einteilung.personen.map((p) => {
-              const an = wahl.includes(p.email);
-              const k = konflikt(p.email);
-              return (
-                <button
-                  key={p.email}
-                  className={`personal-wahl ${an ? 'an' : ''}`}
-                  disabled={!an && max > 1 && wahl.length >= max}
-                  onClick={() => umschalten(p.email)}
-                >
-                  <span>{an ? '✓' : '○'}</span>
-                  <span>
-                    {personName(p)}
-                    {p.extern && <span className="klein"> · extern</span>}
-                  </span>
-                  {k && <span className="klein warnung-text">⚠️ zeitgleich: {k.verstorbener ?? k.titel}</span>}
+        {modus === 'ablauf' && einteilung ? (
+          <Auswahl
+            einteilung={einteilung}
+            start={ablaufP.map((p) => p.email)}
+            max={5}
+            konflikt={konfliktAblauf}
+            hinweis="Abweichend eingeteilte Termine behalten ihr eigenes Personal."
+            onSpeichern={(w) => onAblauf!(fall!, tag, w)}
+            onAbbrechen={() => setModus(null)}
+          />
+        ) : (
+          <div className="personal-chips">
+            {chips(ablaufP, konfliktAblauf, 'Noch niemand eingeteilt.')}
+            {darf && (
+              <button className="knopf" onClick={() => setModus('ablauf')}>
+                {ablaufP.length ? 'Ändern' : 'Personal einteilen'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="personal-abweichend">
+        <div className="klein">
+          <b>Dieser Termin</b> · {eigen ? 'abweichend eingeteilt' : 'wie Ablauf'}
+        </div>
+        {modus === 'termin' && einteilung ? (
+          <Auswahl
+            einteilung={einteilung}
+            start={(eigen ?? ablaufP).map((p) => p.email)}
+            max={maxPersonen(termin.kategorie)}
+            konflikt={konfliktTermin}
+            hinweis="Nur für diesen Termin. Ohne Auswahl gilt wieder das Personal des Ablaufs."
+            onSpeichern={(w) => onEinteilen(termin, w)}
+            onAbbrechen={() => setModus(null)}
+          />
+        ) : (
+          (eigen || darf) && (
+            <div className="personal-chips">
+              {eigen && chips(eigen, konfliktTermin, '')}
+              {darf && (
+                <button className="knopf" onClick={() => setModus('termin')}>
+                  {eigen ? 'Ändern' : 'Abweichend einteilen'}
                 </button>
-              );
-            })}
-          </div>
-          {fehler && <div className="warnung">{fehler}</div>}
-          <div className="aktionen">
-            <button className="knopf primaer" disabled={laeuft} onClick={() => void speichern()}>
-              {laeuft ? 'Speichert …' : `Speichern (${wahl.length}/${max})`}
-            </button>
-            <button className="knopf" disabled={laeuft} onClick={() => setBearbeiten(false)}>
-              Abbrechen
-            </button>
-          </div>
-        </>
-      )}
+              )}
+              {darf && eigen && (
+                <button className="knopf" onClick={() => void onEinteilen(termin, []).catch((e: Error) => alert(e.message))}>
+                  Wie Ablauf
+                </button>
+              )}
+            </div>
+          )
+        )}
+      </div>
     </section>
   );
 }
@@ -144,6 +235,7 @@ export default function TerminDetail({
   hinweise,
   einteilung = null,
   onEinteilen,
+  onAblauf,
   onLoeschen,
   onWaehlen,
   onSchliessen,
@@ -153,6 +245,7 @@ export default function TerminDetail({
   hinweise: Warnung[];
   einteilung?: EinteilungRecht | null;
   onEinteilen?: (t: Termin, emails: string[]) => Promise<void>;
+  onAblauf?: (fall: string, tag: string, emails: string[]) => Promise<void>;
   onLoeschen?: (t: Termin) => Promise<void>;
   onWaehlen: (t: Termin) => void;
   onSchliessen: () => void;
@@ -228,7 +321,7 @@ export default function TerminDetail({
             </div>
           </section>
 
-          {onEinteilen && <PersonalBlock termin={termin} alle={alle} einteilung={einteilung} onEinteilen={onEinteilen} />}
+          {onEinteilen && <PersonalBlock termin={termin} alle={alle} einteilung={einteilung} onEinteilen={onEinteilen} onAblauf={onAblauf} />}
 
           {FELDER.some(([key]) => daten[key]) && (
             <section className="modal-block">
