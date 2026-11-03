@@ -1,5 +1,6 @@
 import type { Konfiguration, KalenderEintrag, Rechte } from '../shared/rechte';
 import type { Einsatz } from '../shared/bereitschaft';
+import type { EinteilungPerson } from '../shared/einteilung';
 import type { AbwArt, Abwesenheit, Personal } from '../shared/abwesenheit';
 import { ausGoogleEvent, type GoogleEvent, type Termin } from './planungLogic';
 
@@ -77,17 +78,35 @@ export async function hubAnmelden(ticket: string): Promise<void> {
   }
 }
 
-export async function termineLaden(): Promise<{ termine: Termin[]; fehler: string[] }> {
-  const r = await holen<{ kalender: { kalender: KalenderEintrag; events: GoogleEvent[] }[]; fehler: string[] }>('/api/termine');
+export interface EinteilungDaten {
+  einteilungen: { termin: string; personen: EinteilungPerson[] }[];
+  darfEinteilen: boolean;
+  personen: EinteilungPerson[];
+}
+
+export interface EinteilungRecht {
+  darf: boolean;
+  personen: EinteilungPerson[];
+}
+
+export async function termineLaden(): Promise<{ termine: Termin[]; fehler: string[]; einteilung: EinteilungRecht | null }> {
+  const [r, e] = await Promise.all([
+    holen<{ kalender: { kalender: KalenderEintrag; events: GoogleEvent[] }[]; fehler: string[] }>('/api/termine'),
+    holen<EinteilungDaten>('/api/einteilung').catch(() => null),
+  ]);
+  const personal = new Map(e?.einteilungen.map((x) => [x.termin, x.personen]) ?? []);
   const termine = r.kalender.flatMap((k) =>
-    k.events.map((e) => ausGoogleEvent(e, k.kalender.id, k.kalender.name)).filter((t): t is Termin => t !== null),
+    k.events
+      .map((ev) => ausGoogleEvent(ev, k.kalender.id, k.kalender.name))
+      .filter((t): t is Termin => t !== null)
+      .map((t) => (personal.has(t.id) ? { ...t, personal: personal.get(t.id) } : t)),
   );
   try {
     localStorage.setItem(LS_CACHE, JSON.stringify({ zeit: Date.now(), termine }));
   } catch {
     /* Speicher voll */
   }
-  return { termine, fehler: r.fehler };
+  return { termine, fehler: r.fehler, einteilung: e ? { darf: e.darfEinteilen, personen: e.personen } : null };
 }
 
 /** Zuletzt geladene Termine (für Offline-Betrieb der App). */
@@ -147,3 +166,6 @@ export const abwesenheitLoeschen = (id: string) => holen<AbwesenheitDaten>(`/api
 export const personalSpeichern = (personal: Personal[]) => holen<AbwesenheitDaten>('/api/abwesenheit?aktion=personal', jsonInit('PUT', { personal }));
 export const altdatenImportieren = (daten: { personal: Personal[]; abwesenheiten: Pick<Abwesenheit, 'email' | 'art' | 'von' | 'bis'>[] }) =>
   holen<AbwesenheitDaten>('/api/abwesenheit?aktion=import', jsonInit('POST', daten));
+
+export const einteilungSpeichern = (termin: string, personen: string[]) =>
+  holen<{ termin: string; personen: EinteilungPerson[] }>('/api/einteilung', jsonInit('PUT', { termin, personen }));

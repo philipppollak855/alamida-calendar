@@ -219,6 +219,12 @@ export default function AdminAnsicht() {
       </article>
 
       <article className="glas admin-block">
+        <h3>Personalplanung</h3>
+        <p className="klein">Mitglieder dieser Gruppen teilen Personal bei Terminen ein: Gespräche 1 Person, Überführungen, Begräbnisse usw. höchstens 5 (Admins immer).</p>
+        <Auswahl werte={k.personalGruppen ?? []} optionen={gruppenOptionen} onChange={(w) => aendern({ personalGruppen: w })} />
+      </article>
+
+      <article className="glas admin-block">
         <h3>Urlaub / Krank</h3>
         <p className="klein">Mitglieder dieser Gruppen sehen alle Abwesenheiten, genehmigen Anträge und pflegen die Personal-Stammdaten (Admins immer).</p>
         <Auswahl werte={k.abwesenheitGruppen ?? []} optionen={gruppenOptionen} onChange={(w) => aendern({ abwesenheitGruppen: w })} />

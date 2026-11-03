@@ -15,8 +15,7 @@ import {
   suche,
   termineAmTag,
   type Termin,
-  type Warnung,
-} from './planungLogic';
+  type Warnung, personalText } from './planungLogic';
 
 type MTab = 'heute' | 'fahrten' | 'faelle' | 'suche' | 'mehr';
 
@@ -57,6 +56,7 @@ function Zeile({ t, onOeffnen, mitDatum = false }: { t: Termin; onOeffnen: (t: T
         </div>
         <div className="m-name">{t.verstorbener ?? t.titel}</div>
         {(t.details.route ?? t.ort) && <div className="m-ort">{t.details.route ? '🧭 ' : '📍 '}{t.details.route ?? t.ort}</div>}
+        {!!t.personal?.length && <div className="m-ort m-personal">👥 {personalText(t)}</div>}
       </div>
       <span className="m-pfeil">›</span>
     </button>

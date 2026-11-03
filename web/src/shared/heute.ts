@@ -1,6 +1,7 @@
 import type { Abwesenheit } from './abwesenheit';
 import { ARTEN } from './abwesenheit';
 import type { Einsatz } from './bereitschaft';
+import { personName, type EinteilungPerson } from './einteilung';
 
 /** Tagesübersicht für das Dashboard im Bestattung Stranz HUB (/api/heute). */
 export interface HeuteEintrag {
@@ -60,6 +61,7 @@ export function termineHeute(
   heute: string,
   ich: string,
   origin: string,
+  eingeteilt: Map<string, EinteilungPerson[]> = new Map(),
 ): HeuteEintrag[] {
   const l: HeuteEintrag[] = [];
   for (const { kalenderId, event: e, kategorie } of events) {
@@ -77,6 +79,8 @@ export function termineHeute(
       if (!(von <= heute && (bis > heute || von === heute))) continue;
     } else continue;
     const id = `${kalenderId}/${e.id}`;
+    const personal = eingeteilt.get(id) ?? [];
+    const ort = [e.location, personal.length ? `👥 ${personal.map(personName).join(', ')}` : ''].filter(Boolean).join(' · ');
     l.push({
       art: 'termin',
       id,
@@ -84,9 +88,9 @@ export function termineHeute(
       von,
       bis,
       ganztaegig,
-      ...(e.location ? { ort: e.location } : {}),
+      ...(ort ? { ort } : {}),
       kategorie,
-      meins: !!e.attendees?.some((a) => a.email?.toLowerCase() === ich),
+      meins: personal.some((p) => p.email === ich) || !!e.attendees?.some((a) => a.email?.toLowerCase() === ich),
       ziel: `${origin}/?tag=${heute}&termin=${encodeURIComponent(id)}`,
     });
   }
