@@ -45,7 +45,11 @@ export default async (req: Request) => {
     heute,
     ich,
     origin,
-  ).map((t) => ({ ...t, symbol: KATEGORIEN[t.kategorie as keyof typeof KATEGORIEN]?.symbol }));
+  ).map((t) => {
+    const symbol = KATEGORIEN[t.kategorie as keyof typeof KATEGORIEN]?.symbol;
+    // Agent-Titel beginnen schon mit dem Symbol („🚐 Abholung …“) – im Dashboard nicht doppelt zeigen.
+    return { ...t, symbol, titel: symbol && t.titel.startsWith(symbol) ? t.titel.slice(symbol.length).trim() : t.titel };
+  });
 
   const hinweise: HeuteHinweis[] = [];
   if (verwalter) {
