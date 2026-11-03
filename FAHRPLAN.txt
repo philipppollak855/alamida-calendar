@@ -1,0 +1,41 @@
+# Fahrplan Bestattung Stranz HUB / Kalender (Stand 2026-11-02)
+
+Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
+
+## A. Abschluss
+- [x] A1 Urlaub / Krank fertig: PR mergen, Hub-App „Urlaub / Krank“ anlegen (/abwesenheit, Gruppen wie Kalender)
+
+## B. Vorsorge / Kalender-Agent
+- [ ] B1 Vorsorge-Termine kommen nicht an -> Ursache finden (Agent nicht neu installiert? Kategorie/Kalender-Zuordnung? OCR?) und beheben
+- [ ] B2 Verknüpfung Kategorie -> Google-Kalender in den Settings der Web-App (inkl. Vorsorge)
+- [ ] B3 Dauer je Terminkategorie in der Anwendung einstellbar (Agent übernimmt sie)
+
+## C. Rechte / Benutzer
+- [ ] C1 Die zwei getrennten Gruppen-/Mitglieder-Einstellungen (Hub „Apps & Rechte“ und Kalender „Rechte“) zusammenführen: eine Quelle (Hub), Kalender liest sie
+- [ ] C2 Mitarbeiter auch ohne E-Mail anlegbar; PIN-Login (mind. 4 Ziffern) inkl. PIN-Verwaltung, für Kiosk-Modus
+
+## D. Hub
+- [ ] D1 Hell/Dunkel app-übergreifend (Hub + Kalender + Unter-Apps), Präferenz bleibt gespeichert
+- [ ] D2 Tages-Dashboard über den App-Kacheln: wichtigste Termine heute / mich betreffend aus allen Unter-Apps, mit Klick-Verlinkung
+- [ ] D3 App-Kacheln stabil klickbar machen
+- [ ] D4 Text „Neue App hinzufügen oder Rechte ändern: Apps & Rechte“ auf der Startseite entfernen
+
+## E. Kiosk-Modus (Tablet)
+- [ ] E1 Kiosk-Modus: Sitzung schließt nach einstellbarer Zeit, eleganter gut lesbarer Login-Screen (PIN)
+- [ ] E2 Tablet-optimiert; Mitarbeiter loggt sich kurz ein, sieht Daten / eigene Termine, plant, bequemer Logout + zeitgesteuert
+- [ ] E3 Login-Screen optional mit interaktivem Vollbild-Kalender oder Hub-Zugang (mehrere Apps)
+- [ ] E4 Verlassen der PWA verhindern außer mit Admin-Login
+
+## F. Kalender
+- [ ] F1 Personalplanung für Überführungen, Begräbnistermine und Gespräche: Gespräch 1 Person, Termine max. 5; direkt am Termin oder im Kalender, nur für Befähigte
+- [ ] F2 Zusammengehörige Termine eines Sterbefalls (Überführung, Rosenkranz, Trauerfeier, Beisetzung) als eine Card (Name, darunter Unter-Cards je Termin), Shortlinks per Klick
+- [ ] F3 Klick auf einen Tag -> neues Ereignis planen (mit Berechtigung; schreibt in Google Kalender)
+- [ ] F4 Offline-Cache, v. a. Termine und Details
+
+## G. Bereitschaft
+- [ ] G1 Mobil: Spalte wird abgeschnitten, wenn Personal eingeplant wird -> beheben
+- [ ] G2 Alles auf einen Bildschirm passend
+- [ ] G3 Übersicht: Stunden entfernen; ganze Wochenenden, Bereitschaftstage und Feiertage zählen
+
+## Nicht mehr
+- Urnenwald-PRs #41–#139: nicht weiter bearbeiten (Anweisung Nutzer)
