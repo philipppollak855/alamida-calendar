@@ -122,6 +122,9 @@ public sealed class AlamidaMaskWatcher
 
     private string? _letzterVorsorgeKopf;
 
+    /// <summary>Letzte Vorsorge-Erkennung (Quelle, gelesene Kopfzeile, Ergebnis) für die Statusmeldung.</summary>
+    public string? VorsorgeDiagnose { get; private set; }
+
     private DetailSnapshot? VorsorgeSnapshot(
         FlaUI.Core.AutomationElements.AutomationElement window, UiaElementInfo[] elements, VorsorgeMaskConfig cfg, out string? debugLog)
     {
@@ -158,6 +161,11 @@ public sealed class AlamidaMaskWatcher
         var schluessel = kopf == null ? null : $"{kopf.Value.Nummer}|{kopf.Value.Name}";
         var bestaetigt = schluessel != null && (quelle == "uia" || schluessel == _letzterVorsorgeKopf);
         _letzterVorsorgeKopf = schluessel;
+        var gelesen = (kopfText ?? "(leer)").Replace('\n', ' ').Replace('\r', ' ');
+        if (gelesen.Length > 120) gelesen = gelesen[..120];
+        VorsorgeDiagnose = $"{DateTime.Now:dd.MM. HH:mm:ss} {quelle}: {gelesen} -> "
+            + (bestaetigt ? $"V{kopf!.Value.Nummer}, {termine.Count(t => !string.IsNullOrWhiteSpace(t.Datum))} Termine"
+                : schluessel == null ? "keine Vorsorgenummer erkannt" : "wartet auf Bestätigung");
         if (!bestaetigt) return null;
 
         return new DetailSnapshot

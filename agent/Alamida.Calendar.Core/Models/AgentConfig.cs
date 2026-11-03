@@ -3,6 +3,8 @@ namespace Alamida.Calendar.Core.Models;
 public sealed class AgentConfig
 {
     public string CalendarId { get; set; } = "primary";
+    /// <summary>Kalender-Web-App: liefert zentrale Kategorie-Einstellungen und nimmt Statusmeldungen an; leer = aus.</summary>
+    public string WebUrl { get; set; } = "https://bestattung-stranz-kalendar.netlify.app";
     public string ServiceAccountPath { get; set; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "AlamidaCalendar", "service-account.json");

@@ -14,6 +14,20 @@ export interface AdminDaten {
   konfig: Konfiguration;
   kalenderGefunden: KalenderEintrag[];
   serviceAccountEmail: string;
+  agentStatus?: AgentStatusInfo[];
+}
+
+export interface AgentStatusInfo {
+  station: string;
+  version: string;
+  zeit: number;
+  status: string;
+  fehler?: string;
+  vorsorge?: string;
+  maske?: string;
+  standardKalender?: string;
+  termine?: number;
+  zentral?: boolean;
 }
 
 const LS_CACHE = 'alamida.termineCache';

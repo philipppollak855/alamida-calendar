@@ -1,6 +1,6 @@
 import type { Config } from '@netlify/functions';
 import { konfigPruefen } from '../../src/shared/rechte';
-import { angemeldet, env, json, konfigSpeichern, serviceAccount } from '../lib/server';
+import { agentStatusLaden, angemeldet, env, json, konfigSpeichern, serviceAccount } from '../lib/server';
 import { alleKalender } from '../lib/kalender';
 
 export default async (req: Request) => {
@@ -17,7 +17,11 @@ export default async (req: Request) => {
   } catch {
     /* nicht konfiguriert */
   }
-  return json({ konfig: a.konfig, kalenderGefunden: await alleKalender(a.konfig, env('CALENDAR_IDS')), serviceAccountEmail });
+  const [kalenderGefunden, agentStatus] = await Promise.all([
+    alleKalender(a.konfig, env('CALENDAR_IDS')),
+    agentStatusLaden().catch(() => []),
+  ]);
+  return json({ konfig: a.konfig, kalenderGefunden, serviceAccountEmail, agentStatus });
 };
 
 export const config: Config = { path: '/api/admin', method: ['GET', 'PUT'] };

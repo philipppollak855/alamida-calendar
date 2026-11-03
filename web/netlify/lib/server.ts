@@ -3,6 +3,7 @@ import { getStore } from '@netlify/blobs';
 import { STANDARD_KONFIG, konfigPruefen, rechteFuer, type Konfiguration, type Rechte } from '../../src/shared/rechte';
 import type { Einsatz } from '../../src/shared/bereitschaft';
 import { personalPruefen, type Abwesenheit, type Personal } from '../../src/shared/abwesenheit';
+import type { AgentStatus } from './agent';
 
 export const SESSION_COOKIE = 'alamida_session';
 export const SESSION_TAGE = 90;
@@ -75,6 +76,15 @@ const store = () => getStore({ name: 'alamida', consistency: 'strong' });
 export async function konfigLaden(): Promise<Konfiguration> {
   const k = (await store().get('konfiguration', { type: 'json' })) as unknown;
   return k ? konfigPruefen(k) : STANDARD_KONFIG;
+}
+
+const agentSchluessel = (station: string) => `agent-status/${encodeURIComponent(station)}`;
+export const agentStatusSpeichern = (s: AgentStatus) => store().setJSON(agentSchluessel(s.station), s);
+export async function agentStatusLaden(): Promise<AgentStatus[]> {
+  const s = store();
+  const { blobs } = await s.list({ prefix: 'agent-status/' });
+  const l = await Promise.all(blobs.map((b) => s.get(b.key, { type: 'json' }) as Promise<AgentStatus | null>));
+  return l.filter((x): x is AgentStatus => !!x).sort((a, b) => b.zeit - a.zeit);
 }
 
 export async function konfigSpeichern(k: Konfiguration): Promise<void> {

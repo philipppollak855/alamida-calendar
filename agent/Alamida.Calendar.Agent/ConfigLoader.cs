@@ -86,6 +86,7 @@ public static class ConfigLoader
         return new AgentConfig
         {
             CalendarId = config["CalendarId"] ?? "primary",
+            WebUrl = config["WebUrl"] ?? new AgentConfig().WebUrl,
             ServiceAccountPath = serviceAccountPath,
             WorkstationId = string.IsNullOrWhiteSpace(config["WorkstationId"])
                 ? Environment.MachineName
