@@ -541,7 +541,7 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
       <section className="glas admin-block bs-block">
         <h3>Personal-Stammdaten</h3>
         <p className="klein">
-          Urlaubsanspruch nach Urlaubsgesetz: 5 Wochen je Arbeitsjahr ab Eintritt (ab 25 Dienstjahren inkl. Vordienstzeiten 6), im ersten halben Jahr aliquot, Verfall 2 Jahre nach Ende des Urlaubsjahres. Angezeigt in Arbeitstagen (bei Teilzeit umgerechnet mit den durchschnittlichen Stunden je Arbeitstag laut Wochenplan).
+          Urlaubsanspruch nach Urlaubsgesetz: 5 Wochen je Arbeitsjahr ab Eintritt (ab 25 Dienstjahren inkl. Vordienstzeiten 6), im ersten halben Jahr aliquot, Verfall 2 Jahre nach Ende des Urlaubsjahres – pro Mitarbeiter abschaltbar („verfällt nach Gesetz“; beim Import aus dem alten Programm aus). Angezeigt in Arbeitstagen (bei Teilzeit umgerechnet mit den durchschnittlichen Stunden je Arbeitstag laut Wochenplan).
         </p>
         <table className="bs-tabelle ab-stamm">
           <thead>
@@ -590,6 +590,9 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
                     value={p.urlaubStartSaldo != null && stundenJeTag(p) > 0 ? Math.round((p.urlaubStartSaldo / stundenJeTag(p)) * 100) / 100 : ''}
                     onChange={(e) => aendern(i, { urlaubStartSaldo: e.target.value ? Math.round(Number(e.target.value) * stundenJeTag(p) * 100) / 100 : undefined })}
                   />
+                  <label className="pille-wahl" title="Aus = Urlaub verfällt nie (wie im alten Programm)">
+                    <input type="checkbox" checked={!p.ohneVerfall} onChange={(e) => aendern(i, { ohneVerfall: e.target.checked ? undefined : true })} /> verfällt nach Gesetz
+                  </label>
                 </td>
                 <td>
                   <button className="knopf klein" onClick={() => setListe(liste.filter((_, j) => j !== i))} aria-label="Entfernen">✕</button>

@@ -31,6 +31,8 @@ export interface Personal {
   /** Übernommener Resturlaub (Stunden) zum Stichtag `saldoAb`; ältere Einträge zählen dann nicht. */
   urlaubStartSaldo?: number;
   saldoAb?: string;
+  /** Urlaub verfällt nicht (wie im alten Programm); Standard: Verfall nach UrlG. */
+  ohneVerfall?: boolean;
   ueStartSaldo?: number;
   ueAusbezahlt?: boolean;
 }
@@ -134,11 +136,12 @@ export interface Urlaubskonto {
  */
 export function urlaubskonto(p: Personal, abw: Abwesenheit[], stichtag: string): Urlaubskonto {
   const ws = wochenstunden(p);
+  const verfallAm = (d: string) => (p.ohneVerfall ? '9999-12-31' : d);
   const eigene = abw.filter((a) => a.email === p.email && a.art === 'urlaub');
   const ab = p.saldoAb && p.saldoAb > p.eintritt ? p.saldoAb : p.eintritt;
   const jahre: UrlaubsJahr[] = [];
   if (p.saldoAb && p.saldoAb > p.eintritt) {
-    jahre.push({ start: p.saldoAb, ende: p.saldoAb, anspruch: p.urlaubStartSaldo ?? 0, verbraucht: 0, verfall: jahrePlus(p.saldoAb, 2), rest: 0 });
+    jahre.push({ start: p.saldoAb, ende: p.saldoAb, anspruch: p.urlaubStartSaldo ?? 0, verbraucht: 0, verfall: verfallAm(jahrePlus(p.saldoAb, 2)), rest: 0 });
   }
   for (let n = 0; n < 80; n++) {
     const start = jahrePlus(p.eintritt, n);
@@ -153,7 +156,7 @@ export function urlaubskonto(p: Personal, abw: Abwesenheit[], stichtag: string):
       const monate = Math.max(0, (s0.getFullYear() - e0.getFullYear()) * 12 + s0.getMonth() - e0.getMonth() - (s0.getDate() < e0.getDate() ? 1 : 0));
       anspruch = Math.round(((anspruch * monate) / 12) * 100) / 100;
     }
-    jahre.push({ start, ende, anspruch, verbraucht: 0, verfall: datumText(plusTage(ausText(jahrePlus(ende, 2)), 1)), rest: 0 });
+    jahre.push({ start, ende, anspruch, verbraucht: 0, verfall: verfallAm(datumText(plusTage(ausText(jahrePlus(ende, 2)), 1))), rest: 0 });
   }
   // Verbrauch chronologisch zuordnen (genehmigt, bis Stichtag)
   const tage = eigene
@@ -242,6 +245,7 @@ export function personalPruefen(x: unknown): Personal[] {
       }
       if (n(o?.ueStartSaldo) != null) p.ueStartSaldo = n(o?.ueStartSaldo);
       if (o?.ueAusbezahlt === true) p.ueAusbezahlt = true;
+      if (o?.ohneVerfall === true) p.ohneVerfall = true;
       return p;
     })
     .filter((p) => p.email.includes('@') && !gesehen.has(p.email) && gesehen.add(p.email));
@@ -358,6 +362,7 @@ export function altdatenLesen(x: unknown, stichtag: string): AltMitarbeiter[] {
     const altRestTage = (Math.max(0, jahre) + 1) * anspruch - manuell - urlaubTage.length;
     const kuenftig = urlaubTage.filter((d) => d > stichtag).length;
     personal.saldoAb = stichtag;
+    personal.ohneVerfall = true;
     personal.urlaubStartSaldo = Math.round((altRestTage + kuenftig) * soll * 100) / 100;
     return { mId, name: personal.name, gruppe: personal.gruppe, personal, abwesenheiten, altRestTage };
   });
