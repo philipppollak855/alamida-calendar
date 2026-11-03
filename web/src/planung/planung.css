@@ -530,3 +530,20 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .personal-wahl:disabled { opacity: 0.45; cursor: not-allowed; }
 .personal-wahl .warnung-text { flex-basis: 100%; color: #e8a33d; }
 .termin-personal, .m-personal { color: var(--akzent); }
+
+/* Sterbefall-Karte mit Unter-Karten je Termin */
+.fall-karte { border-radius: 16px; border: 1px solid var(--rand-stark); background: var(--flaeche); overflow: hidden; }
+.fall-kopf { display: flex; flex-direction: column; gap: 0.15rem; width: 100%; padding: 0.75rem 0.9rem 0.55rem; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; font: inherit; }
+.fall-name { font-size: 1.05rem; font-weight: 700; }
+.fall-info { font-size: 0.8rem; color: var(--text-2); }
+.fall-unter { display: grid; gap: 0.35rem; padding: 0 0.5rem 0.55rem; }
+.fall-termin { display: grid; grid-template-columns: 3.4rem 1fr auto; align-items: center; gap: 0.5rem; min-height: 44px; padding: 0.45rem 0.6rem; border-radius: 11px; border: 1px solid var(--rand); border-left: 4px solid var(--kat); background: var(--flaeche-hover); color: inherit; text-align: left; cursor: pointer; font: inherit; touch-action: manipulation; }
+.fall-termin:hover { border-color: var(--rand-stark); border-left-color: var(--kat); }
+.fall-termin.vorbei { opacity: 0.55; }
+.fall-termin.laeuft { box-shadow: 0 0 0 1px var(--kat); }
+.fall-zeit { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 0.9rem; }
+.fall-text { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.fall-text .klein { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fall-text .countdown { margin-left: 0.4rem; }
+.fall-personal { color: var(--akzent) !important; }
+.fall-pfeil { color: var(--text-2); font-size: 1.2rem; }
