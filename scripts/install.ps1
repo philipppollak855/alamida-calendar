@@ -17,7 +17,8 @@ param(
     [string] $ServiceAccountPath = "",
     [string] $CalendarId = "",
     [switch] $Silent,
-    [switch] $NoStart
+    [switch] $NoStart,
+    [switch] $Lokal
 )
 
 $ErrorActionPreference = 'Stop'
@@ -148,9 +149,22 @@ function Get-SourceRoot {
         }
         $repo = Split-Path $PSScriptRoot -Parent
         if (Test-Path -LiteralPath (Join-Path $repo 'agent\Alamida.Calendar.Agent\Alamida.Calendar.Agent.csproj')) {
-            return @{ Kind = 'repo'; Root = $repo }
+            # Entpackte ZIPs veralten: immer den aktuellen Stand von GitHub bauen (ausser Git-Checkout oder -Lokal)
+            if ($Lokal -or (Test-Path -LiteralPath (Join-Path $repo '.git'))) {
+                return @{ Kind = 'repo'; Root = $repo }
+            }
+            try {
+                return Get-GitHubSource
+            } catch {
+                Write-Warn "Aktueller Stand von GitHub nicht ladbar ($($_.Exception.Message)) - verwende den Ordner $repo"
+                return @{ Kind = 'repo'; Root = $repo }
+            }
         }
     }
+    return Get-GitHubSource
+}
+
+function Get-GitHubSource {
 
     Write-Info "Lade Quellcode von GitHub ($GitHubOwner/$GitHubRepo)..."
     $dlDir = Join-Path $WorkDir 'download'
@@ -358,13 +372,22 @@ try {
     if ($null -eq (Get-JsonProperty $au 'Enabled')) { Set-JsonProperty $au 'Enabled' $true }
     if ($null -eq (Get-JsonProperty $au 'CheckOnStartup')) { Set-JsonProperty $au 'CheckOnStartup' $true }
 
-    if (-not (Get-JsonProperty $settings 'Kategorien')) {
-        try {
-            $defaults = Get-Content -LiteralPath (Join-Path $InstallDir 'appsettings.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-            $kat = Get-JsonProperty $defaults 'Kategorien'
-            if ($kat) { Set-JsonProperty $settings 'Kategorien' $kat }
-        } catch { Write-Warn "Kategorien-Vorlage nicht gelesen: $($_.Exception.Message)" }
-    }
+    # Kategorien: fehlende (z. B. neu hinzugekommene wie Vorsorge) aus der Vorlage ergaenzen, eigene Werte bleiben
+    try {
+        $defaults = Get-Content -LiteralPath (Join-Path $InstallDir 'appsettings.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        $vorlage = Get-JsonProperty $defaults 'Kategorien'
+        if ($vorlage) {
+            $kat = Get-JsonProperty $settings 'Kategorien'
+            if (-not $kat) { $kat = New-Object PSObject; Set-JsonProperty $settings 'Kategorien' $kat }
+            foreach ($p in $vorlage.PSObject.Properties) {
+                if ($null -eq (Get-JsonProperty $kat $p.Name)) {
+                    Set-JsonProperty $kat $p.Name $p.Value
+                    Write-Info "Kategorie ergaenzt: $($p.Name)"
+                }
+            }
+        }
+    } catch { Write-Warn "Kategorien-Vorlage nicht gelesen: $($_.Exception.Message)" }
+    if (-not (Get-JsonProperty $settings 'WebUrl')) { Set-JsonProperty $settings 'WebUrl' 'https://bestattung-stranz-kalendar.netlify.app' }
 
     $calId = Resolve-CalendarId (Get-JsonProperty $settings 'CalendarId') $saEmail
     Set-JsonProperty $settings 'CalendarId' $calId
