@@ -31,11 +31,20 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] F2 Zusammengehörige Termine eines Sterbefalls (Überführung, Rosenkranz, Trauerfeier, Beisetzung) als eine Card (Name, darunter Unter-Cards je Termin), Shortlinks per Klick -> Tagesplan (Spalte „Sterbefälle“) + Handy
 - [x] F3 Klick auf einen Tag -> neues Ereignis planen (mit Berechtigung; schreibt in Google Kalender) -> Rechte → „Termine anlegen“, Klick in Kalender/„＋ Termin“
 - [x] F4 Offline-Cache, v. a. Termine und Details -> je Benutzer in localStorage (Termine inkl. Details/Personal, Bereitschaft, Urlaub/Krank, eigenes Profil); App-Start offline; Kiosk speichert nichts
+- [x] F5 Bestätigung (PDF/Foto) bei Krank und Pflegeurlaub, auch nachträglich; Download, Druck, Archiv für Berechtigte -> PR #27
+- [x] F6 Kalenderansicht: zusammenhängende Termine eines Falls am selben Tag (direkt hintereinander, max. 2 h Lücke) als senkrechter Block mit Unter-Karten; kein Balken über mehrere Tage
+- [x] F7 Zusammenhängende Termine brauchen nur ein Personal: Einteilung gilt für den ganzen Block
+- [x] F8 Personal als „extern“ markierbar (Hub → Apps & Rechte): einteilbar, aber kein Urlaubskonto, keine Kranken-/Pflegestatistik
 
 ## G. Bereitschaft
 - [x] G1 Mobil: Spalte wird abgeschnitten, wenn Personal eingeplant wird -> beheben
 - [x] G2 Alles auf einen Bildschirm passend
+- [x] G4 Kalenderansicht schneidet beim 3. Personal nicht mehr ab
 - [x] G3 Übersicht: Stunden entfernen; ganze Wochenenden, Bereitschaftstage und Feiertage zählen
+
+## H. Hub-Start „Heute“
+- [ ] H1 Zuerst die eigenen eingeteilten Termine, darunter alle anderen (wenn berechtigt)
+- [ ] H2 Übersichtlich bei vielen Terminen: Termine eines Falls zusammengefasst, „+ weitere“
 
 ## Nicht mehr
 - Urnenwald-PRs #41–#139: nicht weiter bearbeiten (Anweisung Nutzer)

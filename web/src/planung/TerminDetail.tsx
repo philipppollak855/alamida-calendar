@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { KATEGORIEN, checkliste, fallDaten, mapsLink, type Termin, type Warnung } from './planungLogic';
+import { KATEGORIEN, checkliste, fallDaten, ketteVon, mapsLink, type Termin, type Warnung } from './planungLogic';
 import { maxPersonen, personName } from '../shared/einteilung';
 import type { EinteilungRecht } from './api';
 
@@ -44,10 +44,16 @@ function PersonalBlock({
 
   const darf = !!einteilung?.darf;
   if (!darf && !aktuell.length) return null;
-  const max = maxPersonen(termin.kategorie);
+  // Zusammenhängende Termine (z. B. Überführung → Rosenkranz → Beisetzung) bekommen ein gemeinsames Personal.
+  const gruppe = ketteVon(alle, termin) ?? [termin];
+  const ids = new Set(gruppe.map((t) => t.id));
+  const max = Math.min(...gruppe.map((t) => maxPersonen(t.kategorie)));
+  const von = gruppe[0].start;
+  const bis = new Date(Math.max(...gruppe.map((t) => t.ende.getTime())));
+  const gleich = (t: Termin) => (t.personal ?? []).map((p) => p.email).sort().join(',') === [...aktuell].sort().join(',');
   // Zeitgleich anderswo eingeteilt?
-  const konflikt = (email: string) =>
-    alle.find((t) => t.id !== termin.id && t.start < termin.ende && t.ende > termin.start && t.personal?.some((p) => p.email === email));
+  const konflikt = (email: string) => alle.find((t) => !ids.has(t.id) && t.start < bis && t.ende > von && t.personal?.some((p) => p.email === email));
+  const extern = (email: string) => einteilung?.personen.find((p) => p.email === email)?.extern;
   const umschalten = (email: string) => {
     if (wahl.includes(email)) setWahl(wahl.filter((x) => x !== email));
     else if (max === 1) setWahl([email]);
@@ -57,7 +63,7 @@ function PersonalBlock({
     setLaeuft(true);
     setFehler(null);
     try {
-      await onEinteilen(termin, wahl);
+      for (const t of gruppe) await onEinteilen(t, wahl);
       setBearbeiten(false);
     } catch (e) {
       setFehler((e as Error).message);
@@ -71,11 +77,18 @@ function PersonalBlock({
       <h3>
         Personal <span className="klein">{max === 1 ? '(1 Person)' : `(bis ${max} Personen)`}</span>
       </h3>
+      {gruppe.length > 1 && (
+        <p className="klein">
+          Gilt für alle {gruppe.length} zusammenhängenden Termine: {gruppe.map((t) => `${format(t.start, 'HH:mm')} ${KATEGORIEN[t.kategorie].label}`).join(' → ')}
+          {!gruppe.every(gleich) && ' · ⚠️ derzeit unterschiedlich eingeteilt, beim Speichern gilt die Auswahl für alle'}
+        </p>
+      )}
       {!bearbeiten && (
         <div className="personal-chips">
           {(termin.personal ?? []).map((p) => (
             <span key={p.email} className="personal-chip">
               👤 {personName(p)}
+              {extern(p.email) && <span className="klein"> (extern)</span>}
               {konflikt(p.email) && <span title={`Zeitgleich: ${konflikt(p.email)!.titel}`}> ⚠️</span>}
             </span>
           ))}
@@ -101,7 +114,10 @@ function PersonalBlock({
                   onClick={() => umschalten(p.email)}
                 >
                   <span>{an ? '✓' : '○'}</span>
-                  <span>{personName(p)}</span>
+                  <span>
+                    {personName(p)}
+                    {p.extern && <span className="klein"> · extern</span>}
+                  </span>
                   {k && <span className="klein warnung-text">⚠️ zeitgleich: {k.verstorbener ?? k.titel}</span>}
                 </button>
               );

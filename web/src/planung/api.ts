@@ -215,6 +215,8 @@ export interface AbwesenheitDaten {
   personal: Personal[];
   eintraege: Abwesenheit[];
   personen: { email: string; name?: string }[];
+  /** Externe Kräfte (im Hub markiert): kein Urlaubskonto, keine Krankenstatistik. */
+  externe?: string[];
 }
 
 const jsonInit = (method: string, daten: unknown): RequestInit => ({ method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(daten) });

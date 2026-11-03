@@ -4,6 +4,7 @@ import { ALLE, type Konfiguration, type Rechte } from './rechte';
 export interface EinteilungPerson {
   email: string;
   name?: string;
+  extern?: boolean;
 }
 
 export interface Einteilung {
