@@ -99,3 +99,18 @@ describe('Personal ohne E-Mail', () => {
     expect([...m]).toEqual([['x-alt1@pin.invalid', 'a@b.at']]);
   });
 });
+
+describe('Verfall pro Mitarbeiter', () => {
+  it('ohne Verfall bleibt jeder Jahresanspruch erhalten', () => {
+    const p: Personal = { email: 'a@b.at', name: 'A', eintritt: '2015-01-01', tage: [8, 8, 8, 8, 8, 0, 0] };
+    const mit = urlaubskonto(p, [], '2026-11-03');
+    const ohne = urlaubskonto({ ...p, ohneVerfall: true }, [], '2026-11-03');
+    expect(ohne.rest).toBe(12 * 200);
+    expect(mit.rest).toBeLessThan(ohne.rest);
+    expect(ohne.verfaelltBald).toBe(0);
+  });
+  it('Import aus dem alten Programm schaltet den Verfall aus', () => {
+    const [a] = altdatenLesen({ mitarbeiter: { '1': { name: 'X', eintritt: '2020-01-01', sollstunden: 8, anspruch: 25 } } }, '2026-11-03');
+    expect(a.personal.ohneVerfall).toBe(true);
+  });
+});
