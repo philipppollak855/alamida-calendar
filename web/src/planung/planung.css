@@ -559,3 +559,9 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .neu-check { display: flex; gap: 0.4rem; align-items: center; }
 .m-neu { margin-left: auto; }
 .rbc-day-bg, .rbc-time-slot { cursor: pointer; }
+
+/* Kalender: Sterbefälle gebündelt */
+.kal-buendeln { display: inline-flex; gap: 0.4rem; align-items: center; margin: 0 0 0.5rem; font-size: 0.9rem; cursor: pointer; }
+.planung .rbc-event.kal-fall { background: color-mix(in srgb, #8b7cf6 32%, var(--flaeche-fest, #1d2230)); border-left: 4px solid #8b7cf6; color: var(--text); font-weight: 600; }
+.fall-modal { position: relative; max-width: 560px; padding: 1rem; }
+.fall-modal .fall-zu { position: absolute; top: 0.6rem; right: 0.6rem; z-index: 1; }

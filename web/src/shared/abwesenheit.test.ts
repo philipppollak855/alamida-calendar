@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { altdatenLesen, darfVerwalten, stundenJeTag, stundenVon, tageAnzeige, tageZuZeitraeumen, urlaubskonto, type Abwesenheit, type Personal } from './abwesenheit';
+import { altdatenLesen, darfVerwalten, internesKonto, istOhneEmail, stundenJeTag, umbenennungen, stundenVon, tageAnzeige, tageZuZeitraeumen, urlaubskonto, type Abwesenheit, type Personal } from './abwesenheit';
 import type { Konfiguration, Rechte } from './rechte';
 
 const anna: Personal = { email: 'anna@x.at', name: 'Anna', eintritt: '2020-03-01', tage: [8, 8, 8, 8, 8, 0, 0] };
@@ -79,5 +79,23 @@ describe('Urlaub in Tagen', () => {
     expect(tageAnzeige(8, 8)).toBe('1 Tag');
     expect(tageAnzeige(12, 8)).toBe('1,5 Tage');
     expect(tageAnzeige(-4, 8)).toBe('-0,5 Tage');
+  });
+});
+
+describe('Personal ohne E-Mail', () => {
+  it('legt eine interne Kennung an und erkennt sie', () => {
+    const e = internesKonto('Jörg Müller-Weiß', '7');
+    expect(e).toBe('joerg-mueller-weiss-alt7@pin.invalid');
+    expect(istOhneEmail(e)).toBe(true);
+    expect(istOhneEmail('a@b.at')).toBe(false);
+  });
+  it('erkennt neu zugeordnete Konten', () => {
+    const m = umbenennungen([
+      { email: 'a@b.at', vorher: 'x-alt1@pin.invalid' },
+      { email: 'c@d.at', vorher: 'c@d.at' },
+      { email: '', vorher: 'y@pin.invalid' },
+      { email: 'neu@x.at' },
+    ]);
+    expect([...m]).toEqual([['x-alt1@pin.invalid', 'a@b.at']]);
   });
 });

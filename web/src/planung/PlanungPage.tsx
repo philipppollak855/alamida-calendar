@@ -32,9 +32,11 @@ import {
   warnungen,
   type Gruppe,
   type Kategorie,
-  type Termin, personalText, bloecke } from './planungLogic';
+  type Termin, personalText, bloecke, istFall, kalenderEintraege, type FallEintrag, type KalEintrag } from './planungLogic';
 
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek: (d: Date) => startOfWeek(d, { weekStartsOn: 1 }), getDay, locales: { de } });
+
+const LS_BUENDELN = 'alamida.kalBuendeln';
 
 type Tab = 'tag' | 'kalender' | 'faelle' | 'fahrten' | 'orte' | 'hinweise' | 'bereitschaft' | 'abwesenheit' | 'admin';
 
@@ -174,6 +176,12 @@ export default function PlanungPage() {
   const [offen, setOffen] = useState<Termin | null>(null);
   const [einteilung, setEinteilung] = useState<EinteilungRecht | null>(null);
   const [neu, setNeu] = useState<{ datum: string; zeit?: string } | null>(null);
+  const [fall, setFall] = useState<FallEintrag | null>(null);
+  const [buendeln, setBuendelnRoh] = useState(() => localStorage.getItem(LS_BUENDELN) !== 'nein');
+  const setBuendeln = (an: boolean) => {
+    setBuendelnRoh(an);
+    localStorage.setItem(LS_BUENDELN, an ? 'ja' : 'nein');
+  };
   const [palette, setPalette] = useState(false);
   const [hilfe, setHilfe] = useState(false);
   const [echteDaten, setEchteDaten] = useState(!!cache);
@@ -343,6 +351,7 @@ export default function PlanungPage() {
   }, [offen, palette, tab, laden, tabs]);
 
   const gefiltert = useMemo(() => suche(termine.filter((t) => !aus.includes(t.kategorie)), suchtext), [termine, aus, suchtext]);
+  const kalEintraege = useMemo(() => kalenderEintraege(gefiltert, buendeln), [gefiltert, buendeln]);
   const hinweise = useMemo(() => warnungen(gefiltert, new Date()), [gefiltert]);
   const tagTermine = termineAmTag(gefiltert, tag);
   const tagBloecke = bloecke(tagTermine);
@@ -423,6 +432,24 @@ export default function PlanungPage() {
       }}
     />
   );
+  const fallDialog = fall && (
+    <div className="modal-hintergrund" onClick={() => setFall(null)}>
+      <div className="modal fall-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-zu fall-zu" onClick={() => setFall(null)} aria-label="Schließen">
+          ✕
+        </button>
+        <FallKarte
+          name={fall.name}
+          sterbefallId={fall.sterbefallId}
+          termine={fall.termine}
+          onOeffnen={(t) => {
+            setFall(null);
+            setOffen(t);
+          }}
+        />
+      </div>
+    </div>
+  );
   const iosDialog = iosHilfe && (
     <div className="modal-hintergrund" onClick={() => setIosHilfe(false)}>
       <div className="hilfe glas" onClick={(e) => e.stopPropagation()}>
@@ -462,6 +489,7 @@ export default function PlanungPage() {
         />
         {detail}
         {neuDialog}
+      {fallDialog}
         {iosDialog}
       </div>
     );
@@ -691,12 +719,23 @@ export default function PlanungPage() {
 
         {tab === 'kalender' && (
           <section className="ansicht kalender-ansicht glas">
+            <label className="kal-buendeln">
+              <input type="checkbox" checked={buendeln} onChange={(e) => setBuendeln(e.target.checked)} /> Termine eines Sterbefalls bündeln
+            </label>
             <Calendar
               localizer={localizer}
               culture="de"
-              events={gefiltert}
-              titleAccessor={(t: Termin) => `${KATEGORIEN[t.kategorie].symbol} ${t.details.art ?? KATEGORIEN[t.kategorie].label} ${t.verstorbener ?? t.titel}`}
-              tooltipAccessor={(t: Termin) => `${t.titel}\n${t.details.route ?? t.ort}`}
+              events={kalEintraege}
+              titleAccessor={(t: KalEintrag) =>
+                istFall(t)
+                  ? `⚰️ ${t.name} · ${t.termine.map((x) => KATEGORIEN[x.kategorie].symbol).join(' ')}`
+                  : `${KATEGORIEN[t.kategorie].symbol} ${t.details.art ?? KATEGORIEN[t.kategorie].label} ${t.verstorbener ?? t.titel}`
+              }
+              tooltipAccessor={(t: KalEintrag) =>
+                istFall(t)
+                  ? t.termine.map((x) => `${format(x.start, 'EEE d.M. HH:mm', { locale: de })} ${KATEGORIEN[x.kategorie].label}`).join('\n')
+                  : `${t.titel}\n${t.details.route ?? t.ort}`
+              }
               startAccessor="start"
               endAccessor="ende"
               allDayAccessor="ganztaegig"
@@ -716,7 +755,7 @@ export default function PlanungPage() {
                 dayFormat: (d: Date) => format(d, 'EEE d.', { locale: de }),
                 timeGutterFormat: (d: Date) => format(d, 'HH:mm'),
               }}
-              onSelectEvent={(t: Termin) => setOffen(t)}
+              onSelectEvent={(t: KalEintrag) => (istFall(t) ? setFall(t) : setOffen(t))}
               selectable={darfAnlegen}
               onSelectSlot={(s: { start: Date }) =>
                 setNeu({ datum: format(s.start, 'yyyy-MM-dd'), ...(kalView === Views.MONTH ? {} : { zeit: format(s.start, 'HH:mm') }) })
@@ -725,7 +764,9 @@ export default function PlanungPage() {
                 setTag(startDesTages(d));
                 setTab('tag');
               }}
-              eventPropGetter={(t: Termin) => ({ style: { ['--kat' as string]: KATEGORIEN[t.kategorie].farbe } as React.CSSProperties })}
+              eventPropGetter={(t: KalEintrag) =>
+                istFall(t) ? { className: 'kal-fall' } : { style: { ['--kat' as string]: KATEGORIEN[t.kategorie].farbe } as React.CSSProperties }
+              }
               messages={{
                 today: 'Heute',
                 previous: '‹',

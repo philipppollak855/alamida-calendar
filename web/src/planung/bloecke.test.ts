@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ausGoogleEvent, bloecke, type GoogleEvent } from './planungLogic';
+import { ausGoogleEvent, bloecke, istFall, kalenderEintraege, type GoogleEvent } from './planungLogic';
 
 const ev = (id: string, kat: string, start: string, fall?: string): GoogleEvent => ({
   id,
@@ -31,5 +31,23 @@ describe('bloecke', () => {
 
   it('ein einzelner Termin eines Falls bleibt eine normale Karte', () => {
     expect(bloecke([t(ev('a', 'Beisetzung', '2026-05-28T14:00:00+02:00', '1 | Anton Huber'))])[0].art).toBe('einzel');
+  });
+});
+
+describe('kalenderEintraege', () => {
+  it('bündelt einen Sterbefall über mehrere Tage zu einem Balken', () => {
+    const l = [
+      t(ev('a', 'Ueberfuehrung', '2026-05-26T08:00:00+02:00', '1 | Anton Huber')),
+      t(ev('b', 'Beisetzung', '2026-05-29T14:00:00+02:00', '1 | Anton Huber')),
+      t(ev('x', 'Trauergespraech', '2026-05-28T09:00:00+02:00')),
+    ];
+    const r = kalenderEintraege(l, true);
+    expect(r).toHaveLength(2);
+    const f = r.find(istFall)!;
+    expect(f.name).toBe('Anton Huber');
+    expect(f.termine.map((x) => x.id)).toEqual(['cal/a', 'cal/b']);
+    expect(f.start.getHours()).toBe(0);
+    expect(f.ende.toISOString()).toBe(new Date('2026-05-29T15:00:00+02:00').toISOString());
+    expect(kalenderEintraege(l, false)).toHaveLength(3);
   });
 });

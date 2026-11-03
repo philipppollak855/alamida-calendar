@@ -7,8 +7,7 @@ import {
   ueberschneidet,
   type AbwArt,
   type AbwStatus,
-  type Abwesenheit,
-} from '../../src/shared/abwesenheit';
+  type Abwesenheit, umbenennungen } from '../../src/shared/abwesenheit';
 import {
   abwesenheitLoeschen,
   abwesenheitSpeichern,
@@ -100,8 +99,15 @@ export default async (req: Request) => {
   } else if (req.method === 'PUT' && aktion === 'personal') {
     const verboten = nur(verwalter);
     if (verboten) return verboten;
+    const umb = umbenennungen(b.personal);
     personal = personalPruefen(b.personal);
     await personalSpeichern(personal);
+    if (umb.size) {
+      const geaendert = liste.filter((x) => umb.has(x.email)).map((x) => ({ ...x, email: umb.get(x.email)! }));
+      for (let i = 0; i < geaendert.length; i += 50) await Promise.all(geaendert.slice(i, i + 50).map(abwesenheitSpeichern));
+      const neu = new Map(geaendert.map((x) => [x.id, x]));
+      liste = liste.map((x) => neu.get(x.id) ?? x);
+    }
   } else if (req.method === 'DELETE') {
     const e = liste.find((x) => x.id === url.searchParams.get('id'));
     if (!e) return json({ fehler: 'Eintrag nicht gefunden' }, 404);

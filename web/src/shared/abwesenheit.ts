@@ -247,6 +247,36 @@ export function personalPruefen(x: unknown): Personal[] {
     .filter((p) => p.email.includes('@') && !gesehen.has(p.email) && gesehen.add(p.email));
 }
 
+/** Mitarbeiter ohne E-Mail (PIN-Konten im Hub, intern angelegte) haben eine Adresse unter dieser Domain. */
+export const OHNE_EMAIL_DOMAIN = 'pin.invalid';
+export const istOhneEmail = (email: string) => email.trim().toLowerCase().endsWith(`@${OHNE_EMAIL_DOMAIN}`);
+
+const kennung = (x: string) =>
+  x
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+/** Interne Adresse für Personal ohne E-Mail, z. B. „maria-huber-alt7@pin.invalid“. */
+export const internesKonto = (name: string, id: string) =>
+  `${kennung(name).slice(0, 30) || 'mitarbeiter'}-alt${kennung(id).slice(0, 12) || '0'}@${OHNE_EMAIL_DOMAIN}`;
+
+/** Neu zugeordnete Konten aus den Stammdaten (Feld „vorher“ = bisher gespeicherte Adresse) → alt ⇒ neu. */
+export function umbenennungen(x: unknown): Map<string, string> {
+  const m = new Map<string, string>();
+  if (!Array.isArray(x)) return m;
+  for (const o of x as Record<string, unknown>[]) {
+    const alt = typeof o?.vorher === 'string' ? o.vorher.trim().toLowerCase() : '';
+    const neu = typeof o?.email === 'string' ? o.email.trim().toLowerCase() : '';
+    if (alt && neu.includes('@') && alt !== neu) m.set(alt, neu);
+  }
+  return m;
+}
+
 /* ---------- Import aus dem bisherigen Programm (gu_stunden.py, personal_daten.json) ---------- */
 
 const ALT_ART: Record<string, AbwArt> = { Urlaub: 'urlaub', Krank: 'krank', Pflegeurlaub: 'pflege', Zeitausgleich: 'za' };
