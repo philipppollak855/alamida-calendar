@@ -19,6 +19,9 @@ export interface HeuteEintrag {
   meins: boolean;
   /** Absolute Adresse in der App (Klick im Hub). */
   ziel: string;
+  /** Termine desselben Sterbefalls haben denselben Schlüssel (Sterbefallnummer bzw. Name). */
+  fall?: string;
+  verstorbener?: string;
 }
 
 export interface HeuteHinweis {
@@ -53,6 +56,15 @@ interface Ereignis {
   start?: { date?: string; dateTime?: string };
   end?: { date?: string; dateTime?: string };
   attendees?: { email?: string }[];
+  description?: string;
+  extendedProperties?: { private?: Record<string, string> };
+}
+
+/** Sterbefall aus den Agent-Daten bzw. der Beschreibung („Sterbefall: 260251 | Name“). */
+export function sterbefallAus(ev: Pick<Ereignis, 'description' | 'extendedProperties'>): { sterbefallId?: string; verstorbener?: string } {
+  const p = ev.extendedProperties?.private ?? {};
+  const m = /Sterbefall:\s*([^|\n]+?)\s*(?:\|\s*([^\n]+))?$/m.exec(ev.description ?? '');
+  return { sterbefallId: p.sterbefallId || m?.[1]?.trim() || undefined, verstorbener: p.verstorbener || m?.[2]?.trim() || undefined };
 }
 
 /** Termine, die heute (Wiener Zeit) stattfinden – auch ganztägige und über Mitternacht laufende. */
@@ -80,6 +92,8 @@ export function termineHeute(
     } else continue;
     const id = `${kalenderId}/${e.id}`;
     const personal = eingeteilt.get(id) ?? [];
+    const sf = sterbefallAus(e);
+    const fall = sf.sterbefallId ?? (sf.verstorbener ? `name:${sf.verstorbener.toLowerCase()}` : undefined);
     const ort = [e.location, personal.length ? `👥 ${personal.map(personName).join(', ')}` : ''].filter(Boolean).join(' · ');
     l.push({
       art: 'termin',
@@ -92,6 +106,8 @@ export function termineHeute(
       kategorie,
       meins: personal.some((p) => p.email === ich) || !!e.attendees?.some((a) => a.email?.toLowerCase() === ich),
       ziel: `${origin}/?tag=${heute}&termin=${encodeURIComponent(id)}`,
+      ...(fall ? { fall } : {}),
+      ...(sf.verstorbener ? { verstorbener: sf.verstorbener } : {}),
     });
   }
   return l.sort((a, b) => (a.ganztaegig === b.ganztaegig ? (a.von ?? '').localeCompare(b.von ?? '') : a.ganztaegig ? -1 : 1));

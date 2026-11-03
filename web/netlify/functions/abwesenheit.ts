@@ -1,7 +1,14 @@
 import type { Config } from '@netlify/functions';
 import { randomBytes } from 'node:crypto';
 import {
+  BELEG_ARTEN,
+  BELEG_MAX_ANZAHL,
+  BELEG_MAX_BYTES,
+  BELEG_TYPEN,
   abwesenheitFehler,
+  belegDateiname,
+  belegSignaturPasst,
+  type Beleg,
   darfVerwalten,
   personalPruefen,
   ueberschneidet,
@@ -13,6 +20,9 @@ import {
   abwesenheitSpeichern,
   abwesenheitenLaden,
   angemeldet,
+  belegLaden,
+  belegLoeschen,
+  belegSpeichern,
   json,
   personalLaden,
   personalSpeichern,
@@ -23,7 +33,8 @@ const text = (v: unknown, max = 500) => (typeof v === 'string' ? v.trim().slice(
 
 /**
  * Urlaub / Krank: GET Liste; POST eintragen/beantragen; POST ?aktion=entscheiden (genehmigen/ablehnen);
- * POST ?aktion=import (altes Programm); PUT ?aktion=personal (Stammdaten); DELETE ?id= zurückziehen/löschen.
+ * POST ?aktion=import (altes Programm); PUT ?aktion=personal (Stammdaten); DELETE ?id= zurückziehen/löschen;
+ * ?aktion=beleg&id=…(&beleg=…): Bestätigung hochladen (POST, Datei als Body), abrufen (GET), entfernen (DELETE).
  * Krankmeldungen gelten sofort, Urlaub & Co. brauchen eine Genehmigung (Verwalter tragen direkt genehmigt ein).
  */
 export default async (req: Request) => {
@@ -37,10 +48,59 @@ export default async (req: Request) => {
   const [geladen, personalGeladen] = await Promise.all([abwesenheitenLaden(), personalLaden()]);
   let liste = geladen;
   let personal = personalGeladen;
-  const b = req.method === 'GET' || req.method === 'DELETE' ? {} : ((await req.json().catch(() => ({}))) as Record<string, unknown>);
+  const b = req.method === 'GET' || req.method === 'DELETE' || aktion === 'beleg' ? {} : ((await req.json().catch(() => ({}))) as Record<string, unknown>);
   const nur = (ok: boolean) => (ok ? null : json({ fehler: 'Dafür fehlt dir das Recht' }, 403));
 
-  if (req.method === 'POST' && aktion === 'entscheiden') {
+  if (aktion === 'beleg') {
+    const e = liste.find((x) => x.id === url.searchParams.get('id'));
+    if (!e) return json({ fehler: 'Eintrag nicht gefunden' }, 404);
+    if (!verwalter && e.email !== ich) return json({ fehler: 'Dafür fehlt dir das Recht' }, 403);
+    const belegId = url.searchParams.get('beleg') ?? '';
+    const info = e.belege?.find((x) => x.id === belegId);
+    if (req.method === 'GET') {
+      const datei = info && (await belegLaden(info.id));
+      if (!info || !datei) return json({ fehler: 'Datei nicht gefunden' }, 404);
+      return new Response(datei, {
+        headers: {
+          'content-type': info.typ,
+          'content-disposition': `inline; filename*=UTF-8''${encodeURIComponent(info.name)}`,
+          'cache-control': 'private, no-store',
+          'x-content-type-options': 'nosniff',
+        },
+      });
+    }
+    if (req.method === 'POST') {
+      if (!BELEG_ARTEN.includes(e.art)) return json({ fehler: 'Bestätigungen gibt es nur bei Krankenstand und Pflegeurlaub' }, 400);
+      if (e.status === 'abgelehnt') return json({ fehler: 'Der Eintrag wurde abgelehnt' }, 400);
+      if ((e.belege?.length ?? 0) >= BELEG_MAX_ANZAHL) return json({ fehler: `Höchstens ${BELEG_MAX_ANZAHL} Dateien je Eintrag` }, 400);
+      const typ = (req.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
+      if (!BELEG_TYPEN.includes(typ)) return json({ fehler: 'Bitte ein PDF oder Foto (JPG, PNG, WebP, HEIC) senden' }, 400);
+      const daten = await req.arrayBuffer();
+      if (!daten.byteLength) return json({ fehler: 'Die Datei ist leer' }, 400);
+      if (daten.byteLength > BELEG_MAX_BYTES) return json({ fehler: 'Die Datei ist zu groß (höchstens 4,5 MB)' }, 400);
+      if (!belegSignaturPasst(new Uint8Array(daten.slice(0, 16)), typ)) return json({ fehler: 'Der Inhalt passt nicht zum Dateityp' }, 400);
+      let roh = '';
+      try {
+        roh = decodeURIComponent(req.headers.get('x-dateiname') ?? '').slice(0, 200);
+      } catch {
+        roh = '';
+      }
+      const neuerBeleg: Beleg = { id: neueId(), name: belegDateiname(roh, typ), typ, groesse: daten.byteLength, am: Date.now(), von: ich };
+      await belegSpeichern(neuerBeleg.id, daten, typ);
+      const neu: Abwesenheit = { ...e, belege: [...(e.belege ?? []), neuerBeleg] };
+      await abwesenheitSpeichern(neu);
+      liste = liste.map((x) => (x.id === e.id ? neu : x));
+    } else if (req.method === 'DELETE') {
+      if (!info) return json({ fehler: 'Datei nicht gefunden' }, 404);
+      if (!verwalter && info.von !== ich) return json({ fehler: 'Nur das Büro kann diese Datei entfernen' }, 403);
+      await belegLoeschen(info.id);
+      const rest = (e.belege ?? []).filter((x) => x.id !== info.id);
+      const { belege: _alt, ...ohne } = e;
+      const neu: Abwesenheit = rest.length ? { ...ohne, belege: rest } : ohne;
+      await abwesenheitSpeichern(neu);
+      liste = liste.map((x) => (x.id === e.id ? neu : x));
+    } else return json({ fehler: 'Methode nicht erlaubt' }, 405);
+  } else if (req.method === 'POST' && aktion === 'entscheiden') {
     const verboten = nur(verwalter);
     if (verboten) return verboten;
     const e = liste.find((x) => x.id === b.id);
@@ -112,6 +172,7 @@ export default async (req: Request) => {
     const e = liste.find((x) => x.id === url.searchParams.get('id'));
     if (!e) return json({ fehler: 'Eintrag nicht gefunden' }, 404);
     if (!verwalter && !(e.email === ich && e.status === 'beantragt')) return json({ fehler: 'Nur offene Anträge können zurückgezogen werden' }, 403);
+    await Promise.all((e.belege ?? []).map((x) => belegLoeschen(x.id)));
     await abwesenheitLoeschen(e);
     liste = liste.filter((x) => x.id !== e.id);
   }

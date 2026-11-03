@@ -1,3 +1,4 @@
+import { sterbefallAus } from '../shared/heute';
 export type Kategorie =
   | 'Beisetzung'
   | 'Trauerfeier'
@@ -95,8 +96,8 @@ export function ausGoogleEvent(ev: GoogleEvent, kalenderId: string, kalenderName
   if (!start) return null;
   const ende = parseDatum(ev.end)?.wert ?? new Date(start.wert.getTime() + 3600_000);
   const beschreibung = ev.description ?? '';
-  const fall = /Sterbefall:\s*([^|\n]+?)\s*(?:\|\s*([^\n]+))?$/m.exec(beschreibung);
   const details = { ...(ev.extendedProperties?.private ?? {}) };
+  const sf = sterbefallAus(ev);
   return {
     id: `${kalenderId}/${ev.id}`,
     kalenderId,
@@ -107,8 +108,8 @@ export function ausGoogleEvent(ev: GoogleEvent, kalenderId: string, kalenderName
     ganztaegig: start.ganztaegig,
     ort: ev.location ?? '',
     kategorie: kategorieAus(ev),
-    sterbefallId: details.sterbefallId || fall?.[1]?.trim() || undefined,
-    verstorbener: details.verstorbener || fall?.[2]?.trim() || undefined,
+    sterbefallId: sf.sterbefallId,
+    verstorbener: sf.verstorbener,
     beschreibung,
     link: ev.htmlLink,
     details,
