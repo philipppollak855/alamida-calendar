@@ -8,6 +8,9 @@ import {
   abwesenheitLaden,
   abwesenheitLoeschen,
   altdatenImportieren,
+  belegDatei,
+  belegEntfernen,
+  belegHochladen,
   personalSpeichern,
   type AbwesenheitDaten,
 } from './api';
@@ -25,9 +28,14 @@ import {
   type AbwArt,
   type Abwesenheit,
   type AltMitarbeiter,
-  type Personal, internesKonto, istOhneEmail, stundenJeTag, tageAnzeige } from '../shared/abwesenheit';
+  type Personal,
+  type Beleg,
+  BELEG_ARTEN,
+  belegFehlt,
+  belegMoeglich, internesKonto, istOhneEmail, stundenJeTag, tageAnzeige } from '../shared/abwesenheit';
 import { ausText, datumText, plusTage } from '../shared/bereitschaft';
 import { useBereitschaft } from './BereitschaftAnsicht';
+import { belegVorbereiten, drucken, herunterladen } from './beleg';
 
 /** Lädt Urlaub/Krank (nur mit Freigabe). */
 export function useAbwesenheit(aktiv: boolean) {
@@ -134,6 +142,8 @@ function Formular({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhei
   const [stundenweise, setStundenweise] = useState(false);
   const [stunden, setStunden] = useState(4);
   const [notiz, setNotiz] = useState('');
+  const [datei, setDatei] = useState<File | null>(null);
+  const [dateiFeld, setDateiFeld] = useState(0);
   const [laeuft, setLaeuft] = useState(false);
   const [meldung, setMeldung] = useState<{ ok: boolean; text: string } | null>(null);
   const p = d.personal.find((x) => x.email === email);
@@ -145,18 +155,28 @@ function Formular({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhei
     setLaeuft(true);
     setMeldung(null);
     abwesenheitEintragen({ email, art, von, bis: bisWert, ...(stundenweise ? { stunden } : {}), ...(notiz.trim() ? { notiz: notiz.trim() } : {}) })
-      .then((x) => {
+      .then(async (x) => {
         onDaten(x);
         setNotiz('');
-        setMeldung({
-          ok: true,
-          text:
-            art === 'krank'
-              ? 'Krankmeldung gesendet. Gute Besserung! Bitte die Krankenstandsbestätigung im Büro abgeben.'
-              : d.darfVerwalten
-                ? 'Eingetragen und genehmigt.'
-                : 'Antrag gesendet. Du siehst hier, sobald er genehmigt ist.',
-        });
+        const basis =
+          art === 'krank' ? 'Krankmeldung gesendet. Gute Besserung!' : d.darfVerwalten ? 'Eingetragen und genehmigt.' : 'Antrag gesendet. Du siehst hier, sobald er genehmigt ist.';
+        const mitBeleg = BELEG_ARTEN.includes(art);
+        const neu = x.eintraege
+          .filter((z) => z.email === email && z.art === art && z.von === von && z.bis === bisWert)
+          .sort((a, b) => (b.erstellt ?? 0) - (a.erstellt ?? 0))[0];
+        if (mitBeleg && datei && neu) {
+          try {
+            const v = await belegVorbereiten(datei);
+            onDaten(await belegHochladen(neu.id, v.datei, v.name));
+            setMeldung({ ok: true, text: `${basis} Die Bestätigung ist übermittelt.` });
+          } catch (f) {
+            setMeldung({ ok: false, text: `${basis} Die Datei konnte nicht übertragen werden (${(f as Error).message}) – bitte unter „Meine Einträge“ nachreichen.` });
+          }
+        } else {
+          setMeldung({ ok: true, text: mitBeleg ? `${basis} Die Bestätigung kannst du jederzeit unter „Meine Einträge“ nachreichen.` : basis });
+        }
+        setDatei(null);
+        setDateiFeld((n) => n + 1);
       })
       .catch((e: Error) => setMeldung({ ok: false, text: e.message }))
       .finally(() => setLaeuft(false));
@@ -207,6 +227,12 @@ function Formular({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhei
         <input type="checkbox" checked={stundenweise} onChange={() => setStundenweise(!stundenweise)} /> Stundenweise (einzelner Tag)
       </label>
       <textarea className="feld" rows={2} placeholder={art === 'krank' ? 'Notiz (optional, z. B. voraussichtliche Dauer)' : 'Notiz (optional)'} value={notiz} onChange={(e) => setNotiz(e.target.value)} />
+      {BELEG_ARTEN.includes(art) && (
+        <label className="ab-feld">
+          Bestätigung (PDF oder Foto, optional – auch später möglich)
+          <input key={dateiFeld} className="feld" type="file" accept="application/pdf,image/*" onChange={(e) => setDatei(e.target.files?.[0] ?? null)} />
+        </label>
+      )}
       {kosten != null && (
         <p className="klein">
           {ARTEN[art].label}: {p && (art === 'urlaub' || art === 'pflege') ? tage(kosten, stundenJeTag(p)) : `${std(kosten)} an Arbeitstagen`}
@@ -241,6 +267,7 @@ function EintragListe({ d, eintraege, onDaten, mitName }: { d: AbwesenheitDaten;
               <div className="klein">{zeitraumText(e)}</div>
               {e.notiz && <div className="klein">„{e.notiz}“</div>}
               {e.entschieden?.grund && <div className="klein">Begründung: {e.entschieden.grund}</div>}
+              <BelegLeiste d={d} e={e} onDaten={onDaten} />
             </div>
             <div className="ab-eintrag-rechts">
               <span className={`ab-status ${e.status}`}>{STATUS[e.status]}</span>
@@ -260,6 +287,134 @@ function EintragListe({ d, eintraege, onDaten, mitName }: { d: AbwesenheitDaten;
         );
       })}
     </div>
+  );
+}
+
+function BelegLeiste({ d, e, onDaten }: { d: AbwesenheitDaten; e: Abwesenheit; onDaten: (x: AbwesenheitDaten) => void }) {
+  const [laeuft, setLaeuft] = useState(false);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [ansicht, setAnsicht] = useState<{ url: string; beleg: Beleg; blob: Blob } | null>(null);
+  if (!belegMoeglich(e)) return null;
+  const darfHoch = (d.darfVerwalten || e.email === d.ich.email) && e.status !== 'abgelehnt';
+  const mitDatei = (b: Beleg, f: (blob: Blob) => void) => {
+    setFehler(null);
+    belegDatei(e.id, b.id).then(f).catch((x: Error) => setFehler(x.message));
+  };
+  const hochladen = async (f: File) => {
+    setLaeuft(true);
+    setFehler(null);
+    try {
+      const v = await belegVorbereiten(f);
+      onDaten(await belegHochladen(e.id, v.datei, v.name));
+    } catch (x) {
+      setFehler((x as Error).message);
+    } finally {
+      setLaeuft(false);
+    }
+  };
+  const schliessen = () => {
+    if (ansicht) URL.revokeObjectURL(ansicht.url);
+    setAnsicht(null);
+  };
+  return (
+    <div className="beleg-leiste">
+      {e.belege?.map((b) => (
+        <span key={b.id} className="beleg">
+          <button className="beleg-name" title={`Ansehen · hochgeladen ${format(b.am, 'd.M.yyyy HH:mm')}`} onClick={() => mitDatei(b, (blob) => setAnsicht({ url: URL.createObjectURL(blob), beleg: b, blob }))}>
+            {b.typ === 'application/pdf' ? '📄' : '🖼️'} {b.name}
+          </button>
+          <button title="Herunterladen" aria-label="Herunterladen" onClick={() => mitDatei(b, (blob) => herunterladen(blob, b.name))}>⬇</button>
+          <button title="Drucken" aria-label="Drucken" onClick={() => mitDatei(b, (blob) => drucken(blob, b.typ))}>🖨</button>
+          {(d.darfVerwalten || b.von === d.ich.email) && (
+            <button
+              title="Entfernen"
+              aria-label="Entfernen"
+              onClick={() => confirm(`„${b.name}“ entfernen?`) && belegEntfernen(e.id, b.id).then(onDaten).catch((x: Error) => setFehler(x.message))}
+            >
+              ✕
+            </button>
+          )}
+        </span>
+      ))}
+      {belegFehlt(e) && <span className="ab-status fehlt">Bestätigung fehlt</span>}
+      {darfHoch && (
+        <label className={`knopf klein beleg-hoch ${laeuft ? 'laeuft' : ''}`}>
+          {laeuft ? 'Lädt hoch …' : e.belege?.length ? '📎 Weitere Datei' : '📎 Bestätigung nachreichen'}
+          <input
+            type="file"
+            accept="application/pdf,image/*"
+            hidden
+            disabled={laeuft}
+            onChange={(x) => {
+              const f = x.target.files?.[0];
+              x.target.value = '';
+              if (f) void hochladen(f);
+            }}
+          />
+        </label>
+      )}
+      {fehler && <span className="klein beleg-fehler">{fehler}</span>}
+      {ansicht && (
+        <div className="modal-hintergrund" onClick={schliessen}>
+          <div className="modal beleg-ansicht" role="dialog" aria-modal="true" onClick={(x) => x.stopPropagation()}>
+            <div className="beleg-ansicht-kopf">
+              <b>{ansicht.beleg.name}</b>
+              <button className="knopf klein" onClick={() => herunterladen(ansicht.blob, ansicht.beleg.name)}>⬇ Herunterladen</button>
+              <button className="knopf klein" onClick={() => drucken(ansicht.blob, ansicht.beleg.typ)}>🖨 Drucken</button>
+              <button className="knopf klein" onClick={schliessen} aria-label="Schließen">✕</button>
+            </div>
+            {ansicht.beleg.typ === 'application/pdf' ? <iframe src={ansicht.url} title={ansicht.beleg.name} /> : <img src={ansicht.url} alt={ansicht.beleg.name} />}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Archiv der Krankenstands- und Pflegeurlaubsbestätigungen (für Berechtigte). */
+function BelegArchiv({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: AbwesenheitDaten) => void }) {
+  const [jahr, setJahr] = useState(new Date().getFullYear());
+  const [person, setPerson] = useState('');
+  const [nurFehlend, setNurFehlend] = useState(false);
+  const alle = d.eintraege.filter((e) => belegMoeglich(e) && e.status !== 'abgelehnt');
+  const jahre = [...new Set([new Date().getFullYear(), ...alle.map((e) => Number(e.von.slice(0, 4)))])].sort((a, b) => b - a);
+  const personen = [...new Set(alle.map((e) => e.email))].sort((a, b) => nameVon(d, a).localeCompare(nameVon(d, b)));
+  const j = String(jahr);
+  const l = alle
+    .filter((e) => e.von.startsWith(j) || e.bis.startsWith(j))
+    .filter((e) => !person || e.email === person)
+    .filter((e) => !nurFehlend || belegFehlt(e))
+    .reverse();
+  const fehlend = alle.filter(belegFehlt).length;
+  return (
+    <section className="glas admin-block">
+      <h3>Bestätigungen: Krankenstand und Pflegeurlaub</h3>
+      <div className="ab-zeile beleg-filter">
+        <label className="ab-feld">
+          Jahr
+          <select className="feld" value={jahr} onChange={(e) => setJahr(Number(e.target.value))}>
+            {jahre.map((x) => (
+              <option key={x}>{x}</option>
+            ))}
+          </select>
+        </label>
+        <label className="ab-feld">
+          Mitarbeiter
+          <select className="feld" value={person} onChange={(e) => setPerson(e.target.value)}>
+            <option value="">Alle</option>
+            {personen.map((m) => (
+              <option key={m} value={m}>
+                {nameVon(d, m)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="pille-wahl">
+          <input type="checkbox" checked={nurFehlend} onChange={() => setNurFehlend(!nurFehlend)} /> nur fehlende ({fehlend})
+        </label>
+      </div>
+      <EintragListe d={d} eintraege={l} onDaten={onDaten} mitName />
+    </section>
   );
 }
 
@@ -665,7 +820,7 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
   );
 }
 
-type Modus = 'meine' | 'team' | 'dashboard' | 'personal';
+type Modus = 'meine' | 'team' | 'dashboard' | 'belege' | 'personal';
 const LS_MODUS = 'alamida.abwesenheitModus';
 
 export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
@@ -680,7 +835,7 @@ export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
   const modi: [Modus, string][] = [
     ['meine', '🙋 Meine'],
     ['team', '▦ Team'],
-    ...(daten.darfVerwalten ? ([['dashboard', '◔ Dashboard'], ['personal', '👥 Personal']] as [Modus, string][]) : []),
+    ...(daten.darfVerwalten ? ([['dashboard', '◔ Dashboard'], ['belege', '🗂 Belege'], ['personal', '👥 Personal']] as [Modus, string][]) : []),
   ];
   const m = modi.some(([x]) => x === modus) ? modus : 'meine';
   const ich = daten.personal.find((p) => p.email === daten.ich.email);
@@ -698,6 +853,7 @@ export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
             <button key={x} role="tab" aria-selected={m === x} className={m === x ? 'aktiv' : ''} onClick={() => setModus(x)}>
               {label}
               {x === 'dashboard' && daten.eintraege.some((e) => e.status === 'beantragt') ? ' •' : ''}
+              {x === 'belege' && daten.eintraege.some(belegFehlt) ? ' •' : ''}
             </button>
           ))}
         </div>
@@ -717,6 +873,7 @@ export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
       )}
       {m === 'team' && <TeamMonat d={daten} />}
       {m === 'dashboard' && <Dashboard d={daten} onDaten={setDaten} />}
+      {m === 'belege' && <BelegArchiv d={daten} onDaten={setDaten} />}
       {m === 'personal' && <PersonalVerwaltung d={daten} onDaten={setDaten} />}
     </section>
   );

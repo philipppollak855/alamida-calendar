@@ -49,3 +49,16 @@ describe('Tagesübersicht für den Hub', () => {
     expect(abwesendHeute(liste, '2026-11-04', ich, true, O, namen)).toEqual([]);
   });
 });
+
+describe('Sterbefall im Tagesplan', () => {
+  it('kennzeichnet Termine eines Sterbefalls', () => {
+    const ev = (id: string, h: string, description?: string) => ({
+      kalenderId: 'k',
+      kategorie: 'Abholung',
+      event: { id, summary: 'x', start: { dateTime: `2026-05-26T${h}:00+02:00` }, end: { dateTime: `2026-05-26T${h}:30+02:00` }, description },
+    });
+    const l = termineHeute([ev('a', '08:00', 'Sterbefall: 260251 | Anna Muster'), ev('b', '09:00')], '2026-05-26', 'ich@x.at', 'https://k');
+    expect(l[0]).toMatchObject({ fall: '260251', verstorbener: 'Anna Muster' });
+    expect(l[1].fall).toBeUndefined();
+  });
+});

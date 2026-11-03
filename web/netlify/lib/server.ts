@@ -160,6 +160,10 @@ export async function abwesenheitenLaden(): Promise<Abwesenheit[]> {
 
 export const abwesenheitSpeichern = (e: Abwesenheit) => store().setJSON(abwSchluessel(e.id), e);
 export const abwesenheitLoeschen = (e: Pick<Abwesenheit, 'id'>) => store().delete(abwSchluessel(e.id));
+const belegSchluessel = (id: string) => `abwesenheit/beleg/${id}`;
+export const belegSpeichern = (id: string, daten: ArrayBuffer, typ: string) => store().set(belegSchluessel(id), daten, { metadata: { typ } });
+export const belegLaden = (id: string) => store().get(belegSchluessel(id), { type: 'arrayBuffer' });
+export const belegLoeschen = (id: string) => store().delete(belegSchluessel(id));
 export const personalLaden = async (): Promise<Personal[]> => personalPruefen(await store().get('abwesenheit-personal', { type: 'json' }));
 export const personalSpeichern = (p: Personal[]) => store().setJSON('abwesenheit-personal', p);
 

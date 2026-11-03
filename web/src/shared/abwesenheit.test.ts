@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { altdatenLesen, darfVerwalten, internesKonto, istOhneEmail, stundenJeTag, umbenennungen, stundenVon, tageAnzeige, tageZuZeitraeumen, urlaubskonto, type Abwesenheit, type Personal } from './abwesenheit';
+import { altdatenLesen, belegDateiname, belegFehlt, belegSignaturPasst, darfVerwalten, internesKonto, istOhneEmail, stundenJeTag, umbenennungen, stundenVon, tageAnzeige, tageZuZeitraeumen, urlaubskonto, type Abwesenheit, type Personal } from './abwesenheit';
 import type { Konfiguration, Rechte } from './rechte';
 
 const anna: Personal = { email: 'anna@x.at', name: 'Anna', eintritt: '2020-03-01', tage: [8, 8, 8, 8, 8, 0, 0] };
@@ -112,5 +112,27 @@ describe('Verfall pro Mitarbeiter', () => {
   it('Import aus dem alten Programm schaltet den Verfall aus', () => {
     const [a] = altdatenLesen({ mitarbeiter: { '1': { name: 'X', eintritt: '2020-01-01', sollstunden: 8, anspruch: 25 } } }, '2026-11-03');
     expect(a.personal.ohneVerfall).toBe(true);
+  });
+});
+
+describe('Bestätigungen', () => {
+  it('erkennt fehlende Bestätigungen nur bei Krank und Pflegeurlaub', () => {
+    const e = { art: 'krank' as const, status: 'gemeldet' as const };
+    expect(belegFehlt(e)).toBe(true);
+    expect(belegFehlt({ ...e, belege: [{ id: '1', name: 'a.pdf', typ: 'application/pdf', groesse: 1, am: 0, von: 'a@b.at' }] })).toBe(false);
+    expect(belegFehlt({ ...e, status: 'abgelehnt' })).toBe(false);
+    expect(belegFehlt({ art: 'urlaub', status: 'genehmigt' })).toBe(false);
+    expect(belegFehlt({ ...e, verdeckt: true })).toBe(false);
+  });
+  it('bereinigt Dateinamen und prüft den Inhalt', () => {
+    expect(belegDateiname('../../Krankmeldung März.PDF', 'application/pdf')).toBe('Krankmeldung März.pdf');
+    expect(belegDateiname('<script>.html', 'image/jpeg')).toBe('script.jpg');
+    expect(belegDateiname('', 'image/png')).toBe('Bestaetigung.png');
+    const enc = (x: string) => new TextEncoder().encode(x);
+    expect(belegSignaturPasst(enc('%PDF-1.7'), 'application/pdf')).toBe(true);
+    expect(belegSignaturPasst(enc('<html>'), 'application/pdf')).toBe(false);
+    expect(belegSignaturPasst(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), 'image/jpeg')).toBe(true);
+    expect(belegSignaturPasst(enc('RIFF0000WEBP'), 'image/webp')).toBe(true);
+    expect(belegSignaturPasst(enc('%PDF-1.7'), 'text/html')).toBe(false);
   });
 });

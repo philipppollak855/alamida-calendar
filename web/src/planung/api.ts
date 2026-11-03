@@ -224,6 +224,28 @@ export const abwesenheitEintragen = (e: { email?: string; art: AbwArt; von: stri
 export const abwesenheitEntscheiden = (id: string, status: 'genehmigt' | 'abgelehnt', grund?: string) =>
   holen<AbwesenheitDaten>('/api/abwesenheit?aktion=entscheiden', jsonInit('POST', { id, status, grund }));
 export const abwesenheitLoeschen = (id: string) => holen<AbwesenheitDaten>(`/api/abwesenheit?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+const belegAdresse = (id: string, beleg?: string) =>
+  `/api/abwesenheit?aktion=beleg&id=${encodeURIComponent(id)}${beleg ? `&beleg=${encodeURIComponent(beleg)}` : ''}`;
+export const belegHochladen = (id: string, datei: Blob, name: string) =>
+  holen<AbwesenheitDaten>(belegAdresse(id), { method: 'POST', headers: { 'content-type': datei.type, 'x-dateiname': encodeURIComponent(name) }, body: datei });
+export const belegEntfernen = (id: string, beleg: string) => holen<AbwesenheitDaten>(belegAdresse(id, beleg), { method: 'DELETE' });
+/** Lädt eine Bestätigung als Datei (mit Hub-Sitzung, daher nicht als einfacher Link). */
+export async function belegDatei(id: string, beleg: string): Promise<Blob> {
+  const headers = new Headers();
+  const hub = hubSitzung();
+  if (hub) headers.set('authorization', `Bearer ${hub}`);
+  let res: Response;
+  try {
+    res = await fetch(belegAdresse(id, beleg), { credentials: 'same-origin', headers });
+  } catch {
+    throw new OfflineFehler();
+  }
+  if (!res.ok) {
+    const d = (await res.json().catch(() => ({}))) as { fehler?: string };
+    throw new Error(d.fehler ?? `Fehler ${res.status}`);
+  }
+  return res.blob();
+}
 export const personalSpeichern = (personal: Personal[]) => holen<AbwesenheitDaten>('/api/abwesenheit?aktion=personal', jsonInit('PUT', { personal }));
 export const altdatenImportieren = (daten: { personal: Personal[]; abwesenheiten: Pick<Abwesenheit, 'email' | 'art' | 'von' | 'bis'>[] }) =>
   holen<AbwesenheitDaten>('/api/abwesenheit?aktion=import', jsonInit('POST', daten));

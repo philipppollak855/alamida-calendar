@@ -48,12 +48,64 @@ export interface Abwesenheit {
   status: AbwStatus;
   notiz?: string;
   beleg?: boolean;
+  /** Hochgeladene Bestätigungen (Krankenstand, Pflegeurlaub); die Dateien liegen getrennt im Blob-Store. */
+  belege?: Beleg[];
   eingetragenVon?: string;
   erstellt?: number;
   entschieden?: { von: string; am: number; grund?: string };
   /** Für Mitarbeiter ohne Verwaltungsrecht: fremde Einträge nur als „abwesend“ (ohne Art und Notiz). */
   verdeckt?: boolean;
   name?: string;
+}
+
+export interface Beleg {
+  id: string;
+  name: string;
+  typ: string;
+  groesse: number;
+  am: number;
+  von: string;
+}
+
+export const BELEG_ARTEN: AbwArt[] = ['krank', 'pflege'];
+export const BELEG_TYPEN = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+export const BELEG_MAX_BYTES = 4_500_000;
+export const BELEG_MAX_ANZAHL = 10;
+
+export const belegMoeglich = (e: Pick<Abwesenheit, 'art' | 'verdeckt'>) => !e.verdeckt && BELEG_ARTEN.includes(e.art);
+export const belegFehlt = (e: Pick<Abwesenheit, 'art' | 'status' | 'belege' | 'verdeckt'>) => belegMoeglich(e) && e.status !== 'abgelehnt' && !e.belege?.length;
+
+/** Sicherer Dateiname mit zum Typ passender Endung. */
+export function belegDateiname(roh: string, typ: string): string {
+  const endung = typ === 'application/pdf' ? 'pdf' : typ === 'image/jpeg' ? 'jpg' : (typ.split('/')[1] ?? 'bin');
+  const basis =
+    roh
+      .replace(/\.[a-z0-9]{1,5}$/i, '')
+      .replace(/[^\p{L}\p{N} ._-]+/gu, '')
+      .replace(/^[.\s]+/, '')
+      .trim()
+      .slice(0, 80) || 'Bestaetigung';
+  return `${basis}.${endung}`;
+}
+
+/** Prüft die ersten Bytes, damit der angegebene Typ zum Inhalt passt. */
+export function belegSignaturPasst(b: Uint8Array, typ: string): boolean {
+  const ascii = (von: number, bis: number) => String.fromCharCode(...b.slice(von, bis));
+  switch (typ) {
+    case 'application/pdf':
+      return ascii(0, 5) === '%PDF-';
+    case 'image/jpeg':
+      return b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+    case 'image/png':
+      return b[0] === 0x89 && ascii(1, 4) === 'PNG';
+    case 'image/webp':
+      return ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP';
+    case 'image/heic':
+    case 'image/heif':
+      return ascii(4, 8) === 'ftyp';
+    default:
+      return false;
+  }
 }
 
 export const STANDARD_TAGE = [8, 8, 8, 8, 8, 0, 0];
