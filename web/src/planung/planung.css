@@ -685,3 +685,34 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .zk-archiv-monat { display: grid; gap: 0.3rem; padding: 0.6rem 0; border-top: 1px solid var(--rand); }
 .zk-archiv-stand { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .zk-archiv-stand.alt { opacity: 0.7; }
+
+/* Telefondienst */
+.telefon .tel-formular { max-width: 860px; }
+.tel-arten { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.tel-art { display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.9rem; border-radius: 16px; border: 1px solid var(--rand-stark); background: var(--flaeche); font-size: 1.05rem; font-weight: 600; color: var(--text-2); }
+.tel-art span { font-size: 1.4rem; }
+.tel-art.an { border-color: var(--akzent); color: var(--text); background: rgba(212, 176, 106, 0.16); box-shadow: 0 0 0 1px var(--akzent) inset; }
+.tel-zeit-zeile { display: flex; gap: 0.4rem; align-items: center; }
+.tel-zeit-zeile .feld { flex: 1; }
+.tel-polizei { align-self: center; padding: 0.5rem 0.8rem; border: 1px solid var(--rand); border-radius: 12px; }
+.tel-aufnahme { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.tel-aufnahme audio { height: 36px; max-width: 100%; }
+.tel-liste { display: grid; gap: 0.5rem; }
+.tel-karte { display: flex; align-items: center; gap: 0.8rem; padding: 0.75rem 0.9rem; text-align: left; color: var(--text); width: 100%; cursor: pointer; }
+.tel-karte:hover { border-color: var(--akzent); }
+.tel-symbol { width: 2.4rem; height: 2.4rem; border-radius: 12px; display: grid; place-items: center; font-size: 1.2rem; background: var(--flaeche-hover); flex: none; }
+.tel-karte.anliegen .tel-symbol { background: rgba(37, 99, 235, 0.16); }
+.tel-karte-text { display: grid; gap: 0.15rem; flex: 1; min-width: 0; }
+.tel-karte-text b, .tel-karte-text .klein { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tel-status { flex: none; cursor: default; }
+.tel-status.uebergeben { border-color: #e67e22; color: #e67e22; }
+.tel-status.offen { border-color: var(--akzent); color: var(--akzent); }
+.tel-karte.status-abgeschlossen, .tel-karte.status-erledigt { opacity: 0.75; }
+.tel-zeile { display: grid; grid-template-columns: 8.5rem 1fr; gap: 0.6rem; padding: 0.3rem 0; align-items: baseline; }
+.tel-umbruch { white-space: pre-wrap; }
+.tel-suche { margin-bottom: 0.8rem; }
+.tel-suche select { flex: 1; min-width: 140px; }
+@media (max-width: 640px) {
+  .tel-zeile { grid-template-columns: 1fr; gap: 0.1rem; }
+  .tel-karte .tel-status { display: none; }
+}

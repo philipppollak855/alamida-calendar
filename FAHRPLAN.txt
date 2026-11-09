@@ -76,17 +76,17 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] K12 Übersicht: Verteilung als Monats- / Jahresansicht
 - [x] K13 Bereitschaft erst mit mind. 2 (max. 3) Personen vollständig geplant
 ### K-E Hub
-- [ ] K14 Start „Heute“: Infos + 4 App-Kacheln ohne Scrollen auf einem Bildschirm, v. a. mobil
-- [ ] K15 Rechteverwaltung moderner, intelligenter, aufgeräumter
-- [ ] K16 Kiosk: Anmeldung nur per PIN (erkennt die Person), Kamera für Hinzutreten / Weggehen (Logout)
+- [x] K14 Start „Heute“: Infos + 4 App-Kacheln ohne Scrollen auf einem Bildschirm, v. a. mobil
+- [x] K15 Rechteverwaltung moderner, intelligenter, aufgeräumter
+- [x] K16 Kiosk: Anmeldung nur per PIN (erkennt die Person), Kamera für Hinzutreten / Weggehen (Logout)
 ### K-F Rollen und Personalauswahl
 - [x] K17 Rollen je Mitarbeiter: Arrangeur, Arrangeur i.A., Träger, Bereitschaft, Telefon, Berater
 - [x] K18 Personalauswahl nach Rolle: Feiern/Rosenkranz/Beisetzung mind. 1 Arrangeur (Vorzug) oder Arrangeur i.A. (darf 6. Person sein); Träger als Arrangeur nur nach Warnung + Bestätigung; Rest nur Träger
-- [ ] K19 Gespräche (Trauer, Vorsorge …) brauchen einen Berater; Telefonbereitschaft Rolle Telefon; Bereitschaft nur Rolle Bereitschaft; Einstellung „braucht dritte Person“ je Mitarbeiter (erledigt bis auf Telefon → kommt mit K20)
+- [x] K19 Gespräche (Trauer, Vorsorge …) brauchen einen Berater; Telefonbereitschaft Rolle Telefon; Bereitschaft nur Rolle Bereitschaft; Einstellung „braucht dritte Person“ je Mitarbeiter (Telefon: Telefondienst nur Rolle Telefon)
 ### K-G Telefondienst (Hub-App für Rolle Telefon)
-- [ ] K20 Mitschrift schnell: Sterbefall (Verstorbener, Sterbeort Adresse/KH/Pflegeheim + Notiz, Geburtsdatum, Hausarzt optional, Anrufer + Nummer, Notiz, Polizeieinsatz) oder Anliegen (Anrufer, Nummer, Anliegen, optional Sterbefall); immer Zeitstempel; optional Mitschnitt
-- [ ] K21 Sterbefall per Knopfdruck ans Bereitschaftsteam; Team schließt Abholung ab (Kühlraum eintragen, offene Daten nachtragen)
-- [ ] K22 Archiv, Suche und Export der Mitschriften / Aufzeichnungen
+- [x] K20 Mitschrift schnell: Sterbefall (Verstorbener, Sterbeort Adresse/KH/Pflegeheim + Notiz, Geburtsdatum, Hausarzt optional, Anrufer + Nummer, Notiz, Polizeieinsatz) oder Anliegen (Anrufer, Nummer, Anliegen, optional Sterbefall); immer Zeitstempel; optional Mitschnitt
+- [x] K21 Sterbefall per Knopfdruck ans Bereitschaftsteam; Team schließt Abholung ab (Kühlraum eintragen, offene Daten nachtragen)
+- [x] K22 Archiv, Suche und Export der Mitschriften / Aufzeichnungen
 - [x] K23 Krank / Pflegeurlaub / Urlaub ohne neuen Antrag verlängern: „bis auf Weiteres“ bis zur Gesundmeldung oder manuell (Urlaub: Verlängerung wartet auf Genehmigung)
 - [x] K24 Monatsberichte im Archiv (fester Stand je Monat, automatisch beim Herunterladen/Drucken)
 - [x] K25 Kalender-App ohne fremde Unter-Apps (Bereitschaft, Urlaub / Krank eigene Hub-Apps; Rechte → Kalender-Einstellungen)
