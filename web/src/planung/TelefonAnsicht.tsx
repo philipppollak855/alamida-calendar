@@ -87,7 +87,7 @@ const personText = (l: { email: string; name?: string }[]) => l.map((p) => p.nam
 const ENTWURF = 'alamida.telefonEntwurf';
 
 /** Mitschnitt: über das Mikrofon aufnehmen (Lautsprecher) oder eine Audiodatei (z. B. vom Handy) wählen. */
-function Aufnehmen({ datei, setDatei }: { datei: Blob | null; setDatei: (b: Blob | null) => void }) {
+function Aufnehmen({ datei, setDatei, kompakt }: { datei: Blob | null; setDatei: (b: Blob | null) => void; kompakt?: boolean }) {
   const [laeuft, setLaeuft] = useState(false);
   const [sek, setSek] = useState(0);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -133,16 +133,24 @@ function Aufnehmen({ datei, setDatei }: { datei: Blob | null; setDatei: (b: Blob
         <>
           {typeof MediaRecorder !== 'undefined' && (
             <button type="button" className="knopf" onClick={() => void start()}>
-              🎙 {datei ? 'Neu aufnehmen' : 'Mitschnitt aufnehmen'}
+              🎙 {kompakt ? (datei ? 'Neu' : 'Aufnahme') : datei ? 'Neu aufnehmen' : 'Mitschnitt aufnehmen'}
             </button>
           )}
           <label className="knopf">
-            📎 Audiodatei
+            📎{kompakt ? '' : ' Audiodatei'}
             <input type="file" accept="audio/*" hidden onChange={(e) => setDatei(e.target.files?.[0] ?? null)} />
           </label>
         </>
       )}
-      {url && !laeuft && (
+      {url && !laeuft && kompakt && (
+        <span className="pille an">
+          ✓ Mitschnitt
+          <button type="button" className="tel-x" onClick={() => setDatei(null)} aria-label="Mitschnitt verwerfen">
+            ✕
+          </button>
+        </span>
+      )}
+      {url && !laeuft && !kompakt && (
         <>
           <audio controls src={url} />
           <button type="button" className="knopf klein" onClick={() => setDatei(null)}>
@@ -155,43 +163,120 @@ function Aufnehmen({ datei, setDatei }: { datei: Blob | null; setDatei: (b: Blob
   );
 }
 
-function Felder({ e, setE, daten, neu }: { e: Entwurf; setE: (e: Entwurf) => void; daten: TelefonDaten; neu?: boolean }) {
+type Block = 'zeit' | 'person' | 'ort' | 'extra' | 'anrufer' | 'anliegen' | 'notiz';
+const ALLE: Record<MitschriftArt, Block[]> = {
+  sterbefall: ['zeit', 'person', 'ort', 'extra', 'anrufer', 'notiz'],
+  anliegen: ['zeit', 'anrufer', 'anliegen', 'notiz'],
+};
+const SCHRITTE: Record<MitschriftArt, { titel: string; kurz: string; bloecke: Block[] }[]> = {
+  sterbefall: [
+    { titel: 'Wer ist verstorben?', kurz: 'Person', bloecke: ['person'] },
+    { titel: 'Wo verstorben?', kurz: 'Ort', bloecke: ['ort'] },
+    { titel: 'Wer ruft an?', kurz: 'Anrufer', bloecke: ['anrufer', 'extra'] },
+    { titel: 'Notiz und speichern', kurz: 'Fertig', bloecke: ['notiz', 'zeit'] },
+  ],
+  anliegen: [
+    { titel: 'Wer ruft an?', kurz: 'Anrufer', bloecke: ['anrufer'] },
+    { titel: 'Worum geht es?', kurz: 'Anliegen', bloecke: ['anliegen'] },
+    { titel: 'Notiz und speichern', kurz: 'Fertig', bloecke: ['notiz', 'zeit'] },
+  ],
+};
+
+function useSchmal(px = 760) {
+  const [schmal, setSchmal] = useState(() => window.matchMedia(`(max-width: ${px}px)`).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${px}px)`);
+    const f = () => setSchmal(mq.matches);
+    mq.addEventListener('change', f);
+    return () => mq.removeEventListener('change', f);
+  }, [px]);
+  return schmal;
+}
+
+function Felder({ e, setE, daten, neu, bloecke }: { e: Entwurf; setE: (e: Entwurf) => void; daten: TelefonDaten; neu?: boolean; bloecke?: Block[] }) {
   const f = <K extends keyof Entwurf>(k: K, v: Entwurf[K]) => setE({ ...e, [k]: v });
   const orte = useMemo(() => [...new Set(daten.mitschriften.flatMap((m) => (m.ort ? [m.ort] : [])))].slice(0, 50), [daten.mitschriften]);
   const faelle = daten.mitschriften.filter((m) => m.art === 'sterbefall').slice(0, 40);
-  const zeit = (
-    <label className="ab-feld tel-zeit">
-      Anruf um
-      <span className="tel-zeit-zeile">
-        <input className="feld" type="datetime-local" value={e.zeit} onChange={(x) => f('zeit', x.target.value)} />
-        {neu && (
-          <button type="button" className="knopf klein" onClick={() => f('zeit', lokal(Date.now()))}>
-            jetzt
-          </button>
-        )}
-      </span>
-    </label>
-  );
-  const anrufer = (
-    <div className="ab-zeile">
-      <label className="ab-feld">
-        Anrufer
-        <input className="feld" value={e.anrufer} placeholder="z. B. Sohn, Pflegeheim, Polizei" onChange={(x) => f('anrufer', x.target.value)} />
+  const teile: Record<Block, React.ReactNode> = {
+    zeit: (
+      <label className="ab-feld tel-zeit" key="zeit">
+        Anruf um
+        <span className="tel-zeit-zeile">
+          <input className="feld" type="datetime-local" value={e.zeit} onChange={(x) => f('zeit', x.target.value)} />
+          {neu && (
+            <button type="button" className="knopf klein" onClick={() => f('zeit', lokal(Date.now()))}>
+              jetzt
+            </button>
+          )}
+        </span>
       </label>
-      <label className="ab-feld">
-        Telefonnummer
-        <input className="feld" type="tel" inputMode="tel" value={e.nummer} onChange={(x) => f('nummer', x.target.value)} />
-      </label>
-    </div>
-  );
-  if (e.art === 'anliegen')
-    return (
-      <>
-        {zeit}
-        {anrufer}
+    ),
+    person: (
+      <div className="ab-zeile" key="person">
+        <label className="ab-feld">
+          Verstorbene Person
+          <input className="feld" value={e.verstorbener} placeholder="Vor- und Nachname" autoComplete="off" onChange={(x) => f('verstorbener', x.target.value)} autoFocus={neu && !bloecke} />
+        </label>
+        <label className="ab-feld">
+          Geburtsdatum
+          <input className="feld" type="date" value={e.geburtsdatum} onChange={(x) => f('geburtsdatum', x.target.value)} />
+        </label>
+      </div>
+    ),
+    ort: (
+      <div className="tel-ort" key="ort">
+        <div className="ab-arten tel-ort-arten">
+          {ORT_ARTEN.map((o) => (
+            <button key={o.id} type="button" className={`pille ${e.ortArt === o.id ? 'an' : ''}`} onClick={() => f('ortArt', o.id)}>
+              {o.symbol} {o.label}
+            </button>
+          ))}
+        </div>
+        <div className="ab-zeile">
+          <label className="ab-feld">
+            {e.ortArt === 'zuhause' ? 'Adresse' : e.ortArt === 'sonstig' ? 'Ort' : 'Name / Adresse'}
+            <input className="feld" list="tel-orte" value={e.ort} autoComplete="off" onChange={(x) => f('ort', x.target.value)} />
+            <datalist id="tel-orte">
+              {orte.map((o) => (
+                <option key={o} value={o} />
+              ))}
+            </datalist>
+          </label>
+          <label className="ab-feld">
+            {e.ortArt === 'zuhause' ? 'Hinweis (Stock, Tür …)' : 'Station / Zimmer / Hinweis'}
+            <input className="feld" value={e.ortNotiz} autoComplete="off" onChange={(x) => f('ortNotiz', x.target.value)} />
+          </label>
+        </div>
+      </div>
+    ),
+    extra: (
+      <div className="ab-zeile" key="extra">
+        <label className="ab-feld">
+          Hausarzt (optional)
+          <input className="feld" value={e.hausarzt} autoComplete="off" onChange={(x) => f('hausarzt', x.target.value)} />
+        </label>
+        <button type="button" className={`pille tel-polizei ${e.polizei ? 'an' : ''}`} aria-pressed={e.polizei} onClick={() => f('polizei', !e.polizei)}>
+          🚓 Polizeieinsatz {e.polizei ? '✓' : ''}
+        </button>
+      </div>
+    ),
+    anrufer: (
+      <div className="ab-zeile" key="anrufer">
+        <label className="ab-feld">
+          Anrufer
+          <input className="feld" value={e.anrufer} placeholder="z. B. Sohn, Pflegeheim, Polizei" autoComplete="off" onChange={(x) => f('anrufer', x.target.value)} />
+        </label>
+        <label className="ab-feld">
+          Telefonnummer
+          <input className="feld" type="tel" inputMode="tel" value={e.nummer} autoComplete="off" onChange={(x) => f('nummer', x.target.value)} />
+        </label>
+      </div>
+    ),
+    anliegen: (
+      <div className="tel-anliegen" key="anliegen">
         <label className="ab-feld">
           Anliegen
-          <textarea className="feld" rows={3} value={e.anliegen} onChange={(x) => f('anliegen', x.target.value)} autoFocus={neu} />
+          <textarea className="feld" rows={4} value={e.anliegen} onChange={(x) => f('anliegen', x.target.value)} autoFocus={neu && !bloecke} />
         </label>
         <label className="ab-feld">
           Gehört zu Sterbefall (optional)
@@ -204,64 +289,15 @@ function Felder({ e, setE, daten, neu }: { e: Entwurf; setE: (e: Entwurf) => voi
             ))}
           </select>
         </label>
-        <textarea className="feld" rows={2} placeholder="Notiz (optional)" value={e.notiz} onChange={(x) => f('notiz', x.target.value)} />
-      </>
-    );
-  return (
-    <>
-      {zeit}
-      <div className="ab-zeile">
-        <label className="ab-feld">
-          Verstorbene Person
-          <input className="feld" value={e.verstorbener} placeholder="Vor- und Nachname" onChange={(x) => f('verstorbener', x.target.value)} autoFocus={neu} />
-        </label>
-        <label className="ab-feld">
-          Geburtsdatum
-          <input className="feld" type="date" value={e.geburtsdatum} onChange={(x) => f('geburtsdatum', x.target.value)} />
-        </label>
       </div>
-      <div className="ab-feld">
-        Verstorben in
-        <div className="ab-arten">
-          {ORT_ARTEN.map((o) => (
-            <button key={o.id} type="button" className={`pille ${e.ortArt === o.id ? 'an' : ''}`} onClick={() => f('ortArt', o.id)}>
-              {o.symbol} {o.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="ab-zeile">
-        <label className="ab-feld">
-          {e.ortArt === 'zuhause' ? 'Adresse' : e.ortArt === 'sonstig' ? 'Ort' : 'Name / Adresse'}
-          <input className="feld" list="tel-orte" value={e.ort} onChange={(x) => f('ort', x.target.value)} />
-          <datalist id="tel-orte">
-            {orte.map((o) => (
-              <option key={o} value={o} />
-            ))}
-          </datalist>
-        </label>
-        <label className="ab-feld">
-          {e.ortArt === 'zuhause' ? 'Hinweis (Stock, Tür …)' : 'Station / Zimmer / Hinweis'}
-          <input className="feld" value={e.ortNotiz} onChange={(x) => f('ortNotiz', x.target.value)} />
-        </label>
-      </div>
-      <div className="ab-zeile">
-        <label className="ab-feld">
-          Hausarzt (optional)
-          <input className="feld" value={e.hausarzt} onChange={(x) => f('hausarzt', x.target.value)} />
-        </label>
-        <label className="pille-wahl tel-polizei">
-          <input type="checkbox" checked={e.polizei} onChange={() => f('polizei', !e.polizei)} /> 🚓 Polizeieinsatz
-        </label>
-      </div>
-      {anrufer}
-      <textarea className="feld" rows={2} placeholder="Notiz (optional)" value={e.notiz} onChange={(x) => f('notiz', x.target.value)} />
-    </>
-  );
+    ),
+    notiz: <textarea key="notiz" className="feld" rows={3} placeholder="Notiz (optional)" value={e.notiz} onChange={(x) => f('notiz', x.target.value)} />,
+  };
+  return <>{(bloecke ?? ALLE[e.art]).filter((b) => ALLE[e.art].includes(b)).map((b) => teile[b])}</>;
 }
 
 function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; setDaten: (d: TelefonDaten) => void; gespeichert: (id?: string) => void }) {
-  const [e, setE] = useState<Entwurf>(() => {
+  const [e, setERoh] = useState<Entwurf>(() => {
     try {
       const g = JSON.parse(localStorage.getItem(ENTWURF) ?? 'null') as Entwurf | null;
       if (g?.art) return { ...leer(g.art), ...g };
@@ -273,6 +309,13 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
   const [datei, setDatei] = useState<Blob | null>(null);
   const [laeuft, setLaeuft] = useState(false);
   const [meldung, setMeldung] = useState<{ ok: boolean; text: string } | null>(null);
+  const [schritt, setSchritt] = useState(0);
+  const schmal = useSchmal();
+  const formRef = useRef<HTMLFormElement>(null);
+  const setE = (x: Entwurf) => {
+    setERoh(x);
+    setMeldung(null);
+  };
   useEffect(() => {
     try {
       localStorage.setItem(ENTWURF, JSON.stringify(e));
@@ -280,6 +323,22 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
       /* egal */
     }
   }, [e]);
+  const schritte = SCHRITTE[e.art];
+  const s = Math.min(schritt, schritte.length - 1);
+  useEffect(() => {
+    if (!schmal) return;
+    formRef.current?.querySelector<HTMLElement>('input:not([type=date]):not([type=datetime-local]), textarea')?.focus({ preventScroll: true });
+  }, [s, e.art, schmal]);
+
+  const artWahl = (a: MitschriftArt) => {
+    setE({ ...e, art: a });
+    setSchritt(0);
+  };
+  const leeren = () => {
+    setE(leer(e.art));
+    setDatei(null);
+    setSchritt(0);
+  };
 
   const los = async (uebergeben: boolean) => {
     setLaeuft(true);
@@ -295,8 +354,9 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
         }
       }
       setDaten(d);
-      setE(leer(e.art));
+      setERoh(leer(e.art));
       setDatei(null);
+      setSchritt(0);
       localStorage.removeItem(ENTWURF);
       const an = uebergeben ? (d.bereitschaft.length ? ` und an ${personText(d.bereitschaft)} übergeben` : ' und an die Bereitschaft übergeben (gerade ist niemand eingeteilt)') : '';
       setMeldung({ ok: !hinweis, text: `Gespeichert${an}.${hinweis}` });
@@ -308,35 +368,99 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
     }
   };
 
+  const artKnoepfe = (
+    <div className="tel-arten" role="tablist">
+      {(['sterbefall', 'anliegen'] as const).map((a) => (
+        <button key={a} type="button" role="tab" aria-selected={e.art === a} className={`tel-art ${e.art === a ? 'an' : ''}`} onClick={() => artWahl(a)}>
+          <span>{a === 'sterbefall' ? '✝' : '💬'}</span>
+          {a === 'sterbefall' ? 'Sterbefall' : 'Anliegen'}
+        </button>
+      ))}
+    </div>
+  );
+  const speichernKnoepfe = (
+    <>
+      {e.art === 'sterbefall' && (
+        <button type="button" className="knopf primaer" disabled={laeuft} onClick={() => void los(true)} title={daten.bereitschaft.length ? `Jetzt in Bereitschaft: ${personText(daten.bereitschaft)}` : 'Gerade ist niemand in Bereitschaft eingeteilt'}>
+          🚐 {schmal ? 'An Bereitschaft' : 'Speichern & an Bereitschaft'}
+        </button>
+      )}
+      <button type="button" className={`knopf ${e.art === 'anliegen' ? 'primaer' : ''}`} disabled={laeuft} onClick={() => void los(false)}>
+        Speichern
+      </button>
+    </>
+  );
+  const meldungZeile = meldung && <div className={`banner ${meldung.ok ? '' : 'fehler'}`}>{meldung.text}</div>;
+
+  if (schmal)
+    return (
+      <div className="tel-assistent">
+        <div className="tel-assistent-kopf">
+          {artKnoepfe}
+          <div className="tel-assistent-werkzeug">
+            <Aufnehmen datei={datei} setDatei={setDatei} kompakt />
+            <button type="button" className="knopf klein" onClick={leeren}>
+              Leeren
+            </button>
+          </div>
+        </div>
+        <div className="tel-schritte">
+          {schritte.map((x, i) => (
+            <button key={x.kurz} type="button" className={`tel-punkt ${i === s ? 'an' : i < s ? 'fertig' : ''}`} onClick={() => setSchritt(i)}>
+              <span>{i < s ? '✓' : i + 1}</span>
+              {x.kurz}
+            </button>
+          ))}
+        </div>
+        <form
+          ref={formRef}
+          className="glas tel-schritt ab-formular"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            if (s < schritte.length - 1) setSchritt(s + 1);
+          }}
+        >
+          <h3>{schritte[s].titel}</h3>
+          <Felder e={e} setE={setE} daten={daten} neu bloecke={schritte[s].bloecke} />
+          {s === schritte.length - 1 && e.art === 'sterbefall' && (
+            <p className="klein">Bereitschaft jetzt: {daten.bereitschaft.length ? personText(daten.bereitschaft) : 'niemand eingeteilt'}</p>
+          )}
+          <button type="submit" hidden />
+        </form>
+        {meldungZeile}
+        <div className="tel-schritt-fuss">
+          <button type="button" className="knopf" disabled={s === 0} onClick={() => setSchritt(s - 1)}>
+            ← Zurück
+          </button>
+          {s < schritte.length - 1 ? (
+            <>
+              <button type="button" className="knopf klein tel-gleich" disabled={laeuft} onClick={() => void los(false)} title="Ohne weitere Angaben speichern">
+                Speichern
+              </button>
+              <button type="button" className="knopf primaer" onClick={() => setSchritt(s + 1)}>
+                Weiter →
+              </button>
+            </>
+          ) : (
+            speichernKnoepfe
+          )}
+        </div>
+      </div>
+    );
+
   return (
     <div className="glas admin-block ab-formular tel-formular">
-      <div className="tel-arten" role="tablist">
-        {(['sterbefall', 'anliegen'] as const).map((a) => (
-          <button key={a} type="button" role="tab" aria-selected={e.art === a} className={`tel-art ${e.art === a ? 'an' : ''}`} onClick={() => setE({ ...e, art: a })}>
-            <span>{a === 'sterbefall' ? '✝' : '💬'}</span>
-            {a === 'sterbefall' ? 'Sterbefall' : 'Anliegen'}
-          </button>
-        ))}
-      </div>
+      {artKnoepfe}
       <Felder e={e} setE={setE} daten={daten} neu />
       <Aufnehmen datei={datei} setDatei={setDatei} />
-      {meldung && <div className={`banner ${meldung.ok ? '' : 'fehler'}`}>{meldung.text}</div>}
+      {meldungZeile}
       <div className="ab-modal-knoepfe">
-        {e.art === 'sterbefall' && (
-          <button className="knopf primaer" disabled={laeuft} onClick={() => void los(true)} title={daten.bereitschaft.length ? `Jetzt in Bereitschaft: ${personText(daten.bereitschaft)}` : 'Gerade ist niemand in Bereitschaft eingeteilt'}>
-            🚐 Speichern &amp; an Bereitschaft
-          </button>
-        )}
-        <button className={`knopf ${e.art === 'anliegen' ? 'primaer' : ''}`} disabled={laeuft} onClick={() => void los(false)}>
-          Speichern
-        </button>
-        <button className="knopf" disabled={laeuft} onClick={() => (setE(leer(e.art)), setDatei(null), setMeldung(null))}>
+        {speichernKnoepfe}
+        <button type="button" className="knopf" disabled={laeuft} onClick={leeren}>
           Leeren
         </button>
       </div>
-      {e.art === 'sterbefall' && (
-        <p className="klein">Bereitschaft jetzt: {daten.bereitschaft.length ? personText(daten.bereitschaft) : 'niemand eingeteilt'}</p>
-      )}
+      {e.art === 'sterbefall' && <p className="klein">Bereitschaft jetzt: {daten.bereitschaft.length ? personText(daten.bereitschaft) : 'niemand eingeteilt'}</p>}
     </div>
   );
 }
