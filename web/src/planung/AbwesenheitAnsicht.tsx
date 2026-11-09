@@ -22,6 +22,7 @@ import {
   STANDARD_TAGE,
   altdatenLesen,
   arbeitstage,
+  gueltigesDatum,
   istFeiertag,
   stundenVon,
   tageListe,
@@ -73,12 +74,14 @@ const artInfo = (e: Abwesenheit) => (e.verdeckt ? { label: 'abwesend', symbol: '
 const STATUS: Record<Abwesenheit['status'], string> = { beantragt: 'offen', genehmigt: 'genehmigt', abgelehnt: 'abgelehnt', gemeldet: 'gemeldet' };
 const WARN_AB = 3;
 
-const datumKurz = (t: string) => format(ausText(t), 'EEE d.M.yyyy', { locale: de });
+/** Datum anzeigen; halb eingetippte oder leere Werte aus Datumsfeldern ergeben „…“ statt eines Absturzes. */
+const datum = (t: string, muster: string) => (gueltigesDatum(t) ? format(ausText(t), muster, { locale: de }) : '…');
+const datumKurz = (t: string) => datum(t, 'EEE d.M.yyyy');
 
 function zeitraumText(e: Pick<Abwesenheit, 'von' | 'bis' | 'stunden'> & { offen?: boolean }): string {
   if (e.offen) return `seit ${datumKurz(e.von)} · bis auf Weiteres`;
-  if (e.von === e.bis) return format(ausText(e.von), 'EEE d.M.yyyy', { locale: de }) + (e.stunden ? ` · ${e.stunden} h` : '');
-  return `${format(ausText(e.von), 'EEE d.M.', { locale: de })} – ${format(ausText(e.bis), 'EEE d.M.yyyy', { locale: de })}`;
+  if (e.von === e.bis) return datumKurz(e.von) + (e.stunden ? ` · ${e.stunden} h` : '');
+  return `${datum(e.von, 'EEE d.M.')} – ${datumKurz(e.bis)}`;
 }
 
 function nameVon(d: AbwesenheitDaten, email: string): string {
@@ -164,7 +167,7 @@ function Formular({ d, onDaten, start, onFertig }: { d: AbwesenheitDaten; onDate
   const p = d.personal.find((x) => x.email === email);
   const offen = offenWahl && !stundenweise && OFFEN_ARTEN.includes(art);
   const bisWert = stundenweise || offen ? von : bis;
-  const kosten = p && von && bisWert >= von && !offen ? stundenVon(p, { id: '', email, art, von, bis: bisWert, status: 'beantragt', ...(stundenweise ? { stunden } : {}) }) : null;
+  const kosten = p && gueltigesDatum(von) && gueltigesDatum(bisWert) && bisWert >= von && !offen ? stundenVon(p, { id: '', email, art, von, bis: bisWert, status: 'beantragt', ...(stundenweise ? { stunden } : {}) }) : null;
   const personen = [...new Map([[d.ich.email, d.ich.email], ...d.personen.map((x) => [x.email, x.email] as const)]).keys()];
 
   const senden = () => {
@@ -277,7 +280,7 @@ function Formular({ d, onDaten, start, onFertig }: { d: AbwesenheitDaten; onDate
       )}
       {!p && <p className="klein">Für {email === d.ich.email ? 'dich' : nameVon(d, email)} sind noch keine Stammdaten (Eintritt, Stunden) hinterlegt – das Urlaubskonto erscheint, sobald das Büro sie einträgt.</p>}
       {meldung && <div className={`banner ${meldung.ok ? '' : 'fehler'}`}>{meldung.text}</div>}
-      <button className="knopf primaer" disabled={laeuft || !von || bisWert < von} onClick={senden}>
+      <button className="knopf primaer" disabled={laeuft || !gueltigesDatum(von) || !gueltigesDatum(bisWert) || bisWert < von} onClick={senden}>
         {laeuft ? 'Sende …' : art === 'krank' ? '🤒 Krankmeldung senden' : d.darfVerwalten && genehmigen ? 'Eintragen & genehmigen' : d.darfVerwalten ? 'Eintragen' : 'Beantragen'}
       </button>
     </article>
@@ -398,7 +401,7 @@ function VerlaengernDialog({ d, e, onDaten, onSchliessen }: { d: AbwesenheitDate
           {mitGenehmigung && <p className="klein">Die Verlängerung muss genehmigt werden. Der bisherige Zeitraum bleibt genehmigt.</p>}
           {fehler && <div className="banner fehler">{fehler}</div>}
           <div className="aktionen">
-            <button className="knopf primaer" disabled={laeuft || (!offen && (!bis || bis < min))} onClick={speichern}>
+            <button className="knopf primaer" disabled={laeuft || (!offen && (!gueltigesDatum(bis) || bis < min))} onClick={speichern}>
               {laeuft ? 'Speichert …' : ende ? 'Speichern' : mitGenehmigung ? 'Verlängerung beantragen' : 'Verlängern'}
             </button>
             <button className="knopf" disabled={laeuft} onClick={onSchliessen}>
@@ -423,6 +426,7 @@ function EintragBearbeiten({ d, e, onDaten, onSchliessen }: { d: AbwesenheitDate
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   const bisWert = stundenweise ? von : bis;
+  const ungueltig = !gueltigesDatum(von) || !gueltigesDatum(bisWert) || bisWert < von;
   const speichern = (status?: Abwesenheit['status']) => {
     setLaeuft(true);
     setFehler(null);
@@ -504,13 +508,13 @@ function EintragBearbeiten({ d, e, onDaten, onSchliessen }: { d: AbwesenheitDate
           </p>
           <div className="ab-modal-knoepfe">
             {statusNeu ? (
-              <button className="knopf primaer" disabled={laeuft || bisWert < von} onClick={() => speichern(statusNeu)}>Speichern</button>
+              <button className="knopf primaer" disabled={laeuft || ungueltig} onClick={() => speichern(statusNeu)}>Speichern</button>
             ) : (
               <>
-                <button className="knopf primaer" disabled={laeuft || bisWert < von} onClick={() => speichern('genehmigt')}>✓ {e.status === 'genehmigt' ? 'Speichern (genehmigt)' : 'Genehmigen'}</button>
-                <button className="knopf" disabled={laeuft || bisWert < von} onClick={() => speichern('abgelehnt')}>✕ Ablehnen</button>
+                <button className="knopf primaer" disabled={laeuft || ungueltig} onClick={() => speichern('genehmigt')}>✓ {e.status === 'genehmigt' ? 'Speichern (genehmigt)' : 'Genehmigen'}</button>
+                <button className="knopf" disabled={laeuft || ungueltig} onClick={() => speichern('abgelehnt')}>✕ Ablehnen</button>
                 {e.status !== 'genehmigt' && e.status !== 'abgelehnt' && (
-                  <button className="knopf" disabled={laeuft || bisWert < von} onClick={() => speichern(e.status === 'gemeldet' ? 'beantragt' : undefined)}>Speichern (offen)</button>
+                  <button className="knopf" disabled={laeuft || ungueltig} onClick={() => speichern(e.status === 'gemeldet' ? 'beantragt' : undefined)}>Speichern (offen)</button>
                 )}
               </>
             )}
@@ -1146,11 +1150,11 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
                 <b>{p.name || 'Ohne Namen'}</b>
                 <span className="klein">{istOhneEmail(p.email) ? 'ohne E-Mail' : p.email || 'kein Konto'}</span>
                 <span className="ab-stamm-werte">
-                  <span>seit {p.eintritt ? format(ausText(p.eintritt), 'dd.MM.yyyy') : '–'}</span>
+                  <span>seit {p.eintritt ? datum(p.eintritt, 'dd.MM.yyyy') : '–'}</span>
                   <span>{std(wochenStd)}/Woche</span>
                   {k && <span className={k.restGeplant < 0 ? 'ab-rot' : ''}>Rest {tage(k.restGeplant, k.stundenProTag)}</span>}
                   {!p.ohneVerfall && <span>verfällt nach Gesetz</span>}
-                  {p.austritt && <span>Austritt {format(ausText(p.austritt), 'dd.MM.yyyy')}</span>}
+                  {p.austritt && <span>Austritt {datum(p.austritt, 'dd.MM.yyyy')}</span>}
                 </span>
               </button>
             );
