@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { standText } from './offlineCache';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import {
+  abwesenheitAendern,
   abwesenheitEintragen,
   abwesenheitEntscheiden,
   abwesenheitLaden,
@@ -130,18 +131,19 @@ function KontoKacheln({ p, eintraege }: { p: Personal; eintraege: Abwesenheit[] 
     <div className="bs-kacheln ab-kacheln">
       <Kachel label="Resturlaub" wert={tage(k.rest, k.stundenProTag)} klasse={k.rest < 0 ? 'bs-warn' : 'bs-ok'} />
       <Kachel label="Verplant / beantragt" wert={tage(k.verplant, k.stundenProTag)} klasse="bs-klein" />
-      <Kachel label="Verfällt in 3 Monaten" wert={tage(k.verfaelltBald, k.stundenProTag)} klasse={k.verfaelltBald > 0 ? 'bs-warn bs-klein' : 'bs-klein'} />
+      {!p.ohneVerfall && <Kachel label="Verfällt in 3 Monaten" wert={tage(k.verfaelltBald, k.stundenProTag)} klasse={k.verfaelltBald > 0 ? 'bs-warn bs-klein' : 'bs-klein'} />}
       <Kachel label="Pflegefreistellung" wert={`${tage(k.pflege.verbraucht, k.stundenProTag)} / ${tage(k.pflege.anspruch, k.stundenProTag)}`} klasse="bs-klein" />
       <Kachel label={`Krankentage ${new Date().getFullYear()}`} wert={krankTageImJahr(p, eintraege, new Date().getFullYear())} klasse="bs-klein" />
     </div>
   );
 }
 
-function Formular({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: AbwesenheitDaten) => void }) {
-  const [email, setEmail] = useState(d.ich.email);
+function Formular({ d, onDaten, start, onFertig }: { d: AbwesenheitDaten; onDaten: (x: AbwesenheitDaten) => void; start?: { email: string; von: string }; onFertig?: () => void }) {
+  const [email, setEmail] = useState(start?.email ?? d.ich.email);
   const [art, setArt] = useState<AbwArt>('urlaub');
-  const [von, setVon] = useState(heute());
-  const [bis, setBis] = useState(heute());
+  const [von, setVon] = useState(start?.von ?? heute());
+  const [bis, setBis] = useState(start?.von ?? heute());
+  const [genehmigen, setGenehmigen] = useState(false);
   const [stundenweise, setStundenweise] = useState(false);
   const [stunden, setStunden] = useState(4);
   const [notiz, setNotiz] = useState('');
@@ -157,12 +159,19 @@ function Formular({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhei
   const senden = () => {
     setLaeuft(true);
     setMeldung(null);
-    abwesenheitEintragen({ email, art, von, bis: bisWert, ...(stundenweise ? { stunden } : {}), ...(notiz.trim() ? { notiz: notiz.trim() } : {}) })
+    const sofortGenehmigt = d.darfVerwalten && genehmigen && ARTEN[art].genehmigung;
+    abwesenheitEintragen({ email, art, von, bis: bisWert, ...(stundenweise ? { stunden } : {}), ...(notiz.trim() ? { notiz: notiz.trim() } : {}), ...(sofortGenehmigt ? { genehmigen: true } : {}) })
       .then(async (x) => {
         onDaten(x);
         setNotiz('');
         const basis =
-          art === 'krank' ? 'Krankmeldung gesendet. Gute Besserung!' : d.darfVerwalten ? 'Eingetragen und genehmigt.' : 'Antrag gesendet. Du siehst hier, sobald er genehmigt ist.';
+          art === 'krank'
+            ? 'Krankmeldung gesendet. Gute Besserung!'
+            : sofortGenehmigt
+              ? 'Eingetragen und genehmigt.'
+              : d.darfVerwalten
+                ? 'Eingetragen – wartet auf Genehmigung (Dashboard / Alle Einträge).'
+                : 'Antrag gesendet. Du siehst hier, sobald er genehmigt ist.';
         const mitBeleg = BELEG_ARTEN.includes(art);
         const neu = x.eintraege
           .filter((z) => z.email === email && z.art === art && z.von === von && z.bis === bisWert)
@@ -180,6 +189,7 @@ function Formular({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhei
         }
         setDatei(null);
         setDateiFeld((n) => n + 1);
+        onFertig?.();
       })
       .catch((e: Error) => setMeldung({ ok: false, text: e.message }))
       .finally(() => setLaeuft(false));
@@ -240,13 +250,18 @@ function Formular({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhei
         <p className="klein">
           {ARTEN[art].label}: {p && (art === 'urlaub' || art === 'pflege') ? tage(kosten, stundenJeTag(p)) : `${std(kosten)} an Arbeitstagen`}
           {art === 'urlaub' ? ' werden vom Urlaubskonto abgezogen' : ''}.
-          {!ARTEN[art].genehmigung || d.darfVerwalten ? '' : ' Muss genehmigt werden.'}
+          {!ARTEN[art].genehmigung || (d.darfVerwalten && genehmigen) ? '' : ' Muss genehmigt werden.'}
         </p>
+      )}
+      {d.darfVerwalten && ARTEN[art].genehmigung && (
+        <label className="pille-wahl" title="Ohne Haken bleibt der Eintrag offen, bis ihn ein Berechtigter genehmigt">
+          <input type="checkbox" checked={genehmigen} onChange={() => setGenehmigen(!genehmigen)} /> gleich genehmigen
+        </label>
       )}
       {!p && <p className="klein">Für {email === d.ich.email ? 'dich' : nameVon(d, email)} sind noch keine Stammdaten (Eintritt, Stunden) hinterlegt – das Urlaubskonto erscheint, sobald das Büro sie einträgt.</p>}
       {meldung && <div className={`banner ${meldung.ok ? '' : 'fehler'}`}>{meldung.text}</div>}
       <button className="knopf primaer" disabled={laeuft || !von || bisWert < von} onClick={senden}>
-        {laeuft ? 'Sende …' : art === 'krank' ? '🤒 Krankmeldung senden' : d.darfVerwalten ? 'Eintragen' : 'Beantragen'}
+        {laeuft ? 'Sende …' : art === 'krank' ? '🤒 Krankmeldung senden' : d.darfVerwalten && genehmigen ? 'Eintragen & genehmigen' : d.darfVerwalten ? 'Eintragen' : 'Beantragen'}
       </button>
     </article>
   );
@@ -254,10 +269,16 @@ function Formular({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhei
 
 function EintragListe({ d, eintraege, onDaten, mitName }: { d: AbwesenheitDaten; eintraege: Abwesenheit[]; onDaten: (x: AbwesenheitDaten) => void; mitName?: boolean }) {
   const [fehler, setFehler] = useState<string | null>(null);
+  const [bearbeiten, setBearbeiten] = useState<Abwesenheit | null>(null);
   if (!eintraege.length) return <p className="leer">Keine Einträge</p>;
+  const entscheiden = (e: Abwesenheit, status: 'genehmigt' | 'abgelehnt') => {
+    const grund = status === 'abgelehnt' ? prompt('Begründung (optional):') ?? undefined : undefined;
+    abwesenheitEntscheiden(e.id, status, grund || undefined).then(onDaten).catch((x: Error) => setFehler(x.message));
+  };
   return (
     <div className="ab-liste">
       {fehler && <div className="banner fehler">{fehler}</div>}
+      {bearbeiten && <EintragBearbeiten d={d} e={bearbeiten} onDaten={onDaten} onSchliessen={() => setBearbeiten(null)} />}
       {eintraege.map((e) => {
         const darf = d.darfVerwalten || (e.email === d.ich.email && e.status === 'beantragt');
         return (
@@ -274,7 +295,16 @@ function EintragListe({ d, eintraege, onDaten, mitName }: { d: AbwesenheitDaten;
             </div>
             <div className="ab-eintrag-rechts">
               <span className={`ab-status ${e.status}`}>{STATUS[e.status]}</span>
-              {darf && (
+              {d.darfVerwalten && !e.verdeckt && e.status === 'beantragt' && (
+                <span className="ab-schnell">
+                  <button className="knopf primaer klein" title="Genehmigen" onClick={() => entscheiden(e, 'genehmigt')}>✓</button>
+                  <button className="knopf klein" title="Ablehnen" onClick={() => entscheiden(e, 'abgelehnt')}>✕</button>
+                </span>
+              )}
+              {d.darfVerwalten && !e.verdeckt && (
+                <button className="knopf klein" onClick={() => setBearbeiten(e)}>✎ Bearbeiten</button>
+              )}
+              {darf && !d.darfVerwalten && (
                 <button
                   className="knopf klein"
                   onClick={() => {
@@ -290,6 +320,162 @@ function EintragListe({ d, eintraege, onDaten, mitName }: { d: AbwesenheitDaten;
         );
       })}
     </div>
+  );
+}
+
+/** Verwaltung: Eintrag ändern, genehmigen, ablehnen, löschen. */
+function EintragBearbeiten({ d, e, onDaten, onSchliessen }: { d: AbwesenheitDaten; e: Abwesenheit; onDaten: (x: AbwesenheitDaten) => void; onSchliessen: () => void }) {
+  const [art, setArt] = useState<AbwArt>(e.art);
+  const [von, setVon] = useState(e.von);
+  const [bis, setBis] = useState(e.bis);
+  const [stundenweise, setStundenweise] = useState(e.stunden != null);
+  const [stunden, setStunden] = useState(e.stunden ?? 4);
+  const [notiz, setNotiz] = useState(e.notiz ?? '');
+  const [grund, setGrund] = useState(e.entschieden?.grund ?? '');
+  const [laeuft, setLaeuft] = useState(false);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const bisWert = stundenweise ? von : bis;
+  const speichern = (status?: Abwesenheit['status']) => {
+    setLaeuft(true);
+    setFehler(null);
+    abwesenheitAendern(e.id, {
+      art,
+      von,
+      bis: bisWert,
+      stunden: stundenweise ? stunden : null,
+      notiz: notiz.trim(),
+      ...(status ? { status } : {}),
+      ...(grund.trim() ? { grund: grund.trim() } : {}),
+    })
+      .then((x) => {
+        onDaten(x);
+        onSchliessen();
+      })
+      .catch((x: Error) => setFehler(x.message))
+      .finally(() => setLaeuft(false));
+  };
+  const loeschen = () => {
+    if (!confirm('Eintrag endgültig löschen?')) return;
+    abwesenheitLoeschen(e.id)
+      .then((x) => {
+        onDaten(x);
+        onSchliessen();
+      })
+      .catch((x: Error) => setFehler(x.message));
+  };
+  const statusNeu = art === 'krank' ? 'gemeldet' : null;
+  return (
+    <div className="modal-hintergrund" onClick={onSchliessen}>
+      <div className="modal ab-modal" role="dialog" aria-modal="true" onClick={(x) => x.stopPropagation()}>
+        <div className="modal-kopf" style={{ background: ARTEN[art].farbe }}>
+          <div>
+            <div className="modal-kategorie">{STATUS[e.status]}</div>
+            <h2>{e.name || nameVon(d, e.email)}</h2>
+            <div className="modal-nr">
+              {ARTEN[art].symbol} {ARTEN[art].label} · {zeitraumText({ von, bis: bisWert, ...(stundenweise ? { stunden } : {}) })}
+            </div>
+          </div>
+          <button className="modal-zu" onClick={onSchliessen} aria-label="Schließen">✕</button>
+        </div>
+        <div className="modal-inhalt ab-formular">
+          {fehler && <div className="banner fehler">{fehler}</div>}
+          <div className="ab-arten">
+            {ART_LISTE.map((a) => (
+              <button key={a} className={`pille ${art === a ? 'an' : ''}`} style={art === a ? { borderColor: ARTEN[a].farbe } : undefined} onClick={() => setArt(a)}>
+                {ARTEN[a].symbol} {ARTEN[a].label}
+              </button>
+            ))}
+          </div>
+          <div className="ab-zeile">
+            <label className="ab-feld">
+              {stundenweise ? 'Tag' : 'Von'}
+              <input className="feld" type="date" value={von} onChange={(x) => { setVon(x.target.value); if (x.target.value > bis) setBis(x.target.value); }} />
+            </label>
+            {stundenweise ? (
+              <label className="ab-feld">
+                Stunden
+                <input className="feld" type="number" min={0.5} max={24} step={0.5} value={stunden} onChange={(x) => setStunden(Number(x.target.value))} />
+              </label>
+            ) : (
+              <label className="ab-feld">
+                Bis
+                <input className="feld" type="date" value={bis} min={von} onChange={(x) => setBis(x.target.value)} />
+              </label>
+            )}
+          </div>
+          <label className="pille-wahl">
+            <input type="checkbox" checked={stundenweise} onChange={() => setStundenweise(!stundenweise)} /> Stundenweise (einzelner Tag)
+          </label>
+          <textarea className="feld" rows={2} placeholder="Notiz" value={notiz} onChange={(x) => setNotiz(x.target.value)} />
+          <input className="feld" placeholder="Begründung der Entscheidung (optional)" value={grund} onChange={(x) => setGrund(x.target.value)} />
+          <p className="klein">
+            Eingetragen von {e.eingetragenVon ? nameVon(d, e.eingetragenVon) : '–'}
+            {e.erstellt ? ` am ${format(new Date(e.erstellt), 'dd.MM.yyyy HH:mm')}` : ''}
+            {e.entschieden ? ` · ${STATUS[e.status]} von ${nameVon(d, e.entschieden.von)} am ${format(new Date(e.entschieden.am), 'dd.MM.yyyy HH:mm')}` : ''}
+            {e.geaendert ? ` · zuletzt geändert von ${nameVon(d, e.geaendert.von)} am ${format(new Date(e.geaendert.am), 'dd.MM.yyyy HH:mm')}` : ''}
+          </p>
+          <div className="ab-modal-knoepfe">
+            {statusNeu ? (
+              <button className="knopf primaer" disabled={laeuft || bisWert < von} onClick={() => speichern(statusNeu)}>Speichern</button>
+            ) : (
+              <>
+                <button className="knopf primaer" disabled={laeuft || bisWert < von} onClick={() => speichern('genehmigt')}>✓ {e.status === 'genehmigt' ? 'Speichern (genehmigt)' : 'Genehmigen'}</button>
+                <button className="knopf" disabled={laeuft || bisWert < von} onClick={() => speichern('abgelehnt')}>✕ Ablehnen</button>
+                {e.status !== 'genehmigt' && e.status !== 'abgelehnt' && (
+                  <button className="knopf" disabled={laeuft || bisWert < von} onClick={() => speichern(e.status === 'gemeldet' ? 'beantragt' : undefined)}>Speichern (offen)</button>
+                )}
+              </>
+            )}
+            <button className="knopf gefahr" onClick={loeschen}>Löschen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Verwaltung: alle Abwesenheiten mit Filter. */
+function AlleEintraege({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: AbwesenheitDaten) => void }) {
+  const [suche, setSuche] = useState('');
+  const [art, setArt] = useState<AbwArt | ''>('');
+  const [status, setStatus] = useState<Abwesenheit['status'] | ''>('');
+  const [jahr, setJahr] = useState(String(new Date().getFullYear()));
+  const jahre = [...new Set(d.eintraege.flatMap((e) => [e.von.slice(0, 4), e.bis.slice(0, 4)]))].sort().reverse();
+  const s = suche.trim().toLowerCase();
+  const liste = d.eintraege
+    .filter((e) => !e.verdeckt)
+    .filter((e) => !art || e.art === art)
+    .filter((e) => !status || e.status === status)
+    .filter((e) => !jahr || e.von.slice(0, 4) === jahr || e.bis.slice(0, 4) === jahr)
+    .filter((e) => !s || `${e.name ?? ''} ${nameVon(d, e.email)} ${e.notiz ?? ''}`.toLowerCase().includes(s))
+    .sort((a, b) => (a.status === 'beantragt' ? 0 : 1) - (b.status === 'beantragt' ? 0 : 1) || b.von.localeCompare(a.von));
+  const offen = d.eintraege.filter((e) => e.status === 'beantragt').length;
+  return (
+    <section className="glas admin-block">
+      <div className="ab-filter">
+        <input className="feld" type="search" placeholder="Name oder Notiz suchen …" value={suche} onChange={(e) => setSuche(e.target.value)} />
+        <select className="feld" value={art} onChange={(e) => setArt(e.target.value as AbwArt | '')}>
+          <option value="">Alle Arten</option>
+          {ART_LISTE.map((a) => (
+            <option key={a} value={a}>{ARTEN[a].symbol} {ARTEN[a].label}</option>
+          ))}
+        </select>
+        <select className="feld" value={status} onChange={(e) => setStatus(e.target.value as Abwesenheit['status'] | '')}>
+          <option value="">Alle Status</option>
+          {(Object.keys(STATUS) as Abwesenheit['status'][]).map((x) => (
+            <option key={x} value={x}>{STATUS[x]}{x === 'beantragt' && offen ? ` (${offen})` : ''}</option>
+          ))}
+        </select>
+        <select className="feld" value={jahr} onChange={(e) => setJahr(e.target.value)}>
+          <option value="">Alle Jahre</option>
+          {jahre.map((j) => (
+            <option key={j} value={j}>{j}</option>
+          ))}
+        </select>
+      </div>
+      <p className="klein">{liste.length} Einträge{offen ? ` · ${offen} offen zur Genehmigung` : ''}</p>
+      <EintragListe d={d} eintraege={liste} onDaten={onDaten} mitName />
+    </section>
   );
 }
 
@@ -421,11 +607,22 @@ function BelegArchiv({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesen
   );
 }
 
-function TeamMonat({ d }: { d: AbwesenheitDaten }) {
+function TeamMonat({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: AbwesenheitDaten) => void }) {
   const [monat, setMonat] = useState(() => {
     const n = new Date();
     return new Date(n.getFullYear(), n.getMonth(), 1);
   });
+  const [bearbeiten, setBearbeiten] = useState<Abwesenheit | null>(null);
+  const [neu, setNeu] = useState<{ email: string; von: string } | null>(null);
+  const rahmen = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = rahmen.current?.querySelector<HTMLElement>('th.heute');
+    if (el && rahmen.current) rahmen.current.scrollLeft = Math.max(0, el.offsetLeft - rahmen.current.clientWidth / 2);
+  }, [monat]);
+  const klick = (email: string, tag: string, e?: Abwesenheit) => {
+    if (e && !e.verdeckt && d.darfVerwalten) setBearbeiten(e);
+    else if (!e && (d.darfVerwalten || email === d.ich.email)) setNeu({ email, von: tag });
+  };
   const tage = tageListe(datumText(monat), datumText(new Date(monat.getFullYear(), monat.getMonth() + 1, 0)));
   const relevant = d.eintraege.filter((e) => e.status !== 'abgelehnt' && e.bis >= tage[0] && e.von <= tage[tage.length - 1]);
   const emails = [...new Set([...d.personal.filter((p) => !p.austritt || p.austritt >= tage[0]).map((p) => p.email), ...relevant.map((e) => e.email)])].filter((m) => !d.externe?.includes(m)).sort((a, b) =>
@@ -453,10 +650,22 @@ function TeamMonat({ d }: { d: AbwesenheitDaten }) {
         ))}
         <span><i className="beantragt" /> beantragt</span>
       </div>
+      {bearbeiten && <EintragBearbeiten d={d} e={bearbeiten} onDaten={onDaten} onSchliessen={() => setBearbeiten(null)} />}
+      {neu && (
+        <div className="modal-hintergrund" onClick={() => setNeu(null)}>
+          <div className="modal ab-modal ab-modal-neu" role="dialog" aria-modal="true" onClick={(x) => x.stopPropagation()}>
+            <button className="modal-zu ab-modal-zu" onClick={() => setNeu(null)} aria-label="Schließen">✕</button>
+            <Formular d={d} onDaten={onDaten} start={neu} onFertig={() => setTimeout(() => setNeu(null), 1200)} />
+          </div>
+        </div>
+      )}
+      {(d.darfVerwalten || emails.includes(d.ich.email)) && (
+        <p className="klein ab-team-tipp">{d.darfVerwalten ? 'Auf ein Feld tippen: freier Tag = neu eintragen, Eintrag = bearbeiten / genehmigen.' : 'Auf einen freien Tag in deiner Zeile tippen, um etwas einzutragen.'}</p>
+      )}
       {emails.length === 0 ? (
         <p className="leer">Noch keine Mitarbeiter oder Abwesenheiten</p>
       ) : (
-        <div className="bs-block">
+        <div className="bs-block ab-team-rahmen" ref={rahmen}>
           <table className="ab-matrix">
             <thead>
               <tr>
@@ -473,13 +682,14 @@ function TeamMonat({ d }: { d: AbwesenheitDaten }) {
             <tbody>
               {emails.map((m) => (
                 <tr key={m} className={m === d.ich.email ? 'ich' : ''}>
-                  <td className="ab-name">{nameVon(d, m)}</td>
+                  <td className="ab-name" title={nameVon(d, m)}>{nameVon(d, m)}</td>
                   {tage.map((t) => {
                     const e = zelle(m, t);
                     return (
                       <td
                         key={t}
-                        className={`${frei(t) ? 'frei' : ''} ${e?.status === 'beantragt' ? 'beantragt' : ''}`}
+                        className={`${frei(t) ? 'frei' : ''} ${e?.status === 'beantragt' ? 'beantragt' : ''} ${(e && !e.verdeckt && d.darfVerwalten) || (!e && (d.darfVerwalten || m === d.ich.email)) ? 'klickbar' : ''}`}
+                        onClick={() => klick(m, t, e)}
                         style={e && !frei(t) ? { background: artInfo(e).farbe } : undefined}
                         title={e ? `${nameVon(d, m)}: ${artInfo(e).label} (${STATUS[e.status]})` : undefined}
                       >
@@ -607,7 +817,7 @@ function Dashboard({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhe
                     {tage(k.rest, k.stundenProTag)}
                   </td>
                   <td>{tage(k.verplant, k.stundenProTag)}</td>
-                  <td className={k.verfaelltBald > 0 ? 'ab-rot' : ''}>{tage(k.verfaelltBald, k.stundenProTag)}</td>
+                  <td className={!p.ohneVerfall && k.verfaelltBald > 0 ? 'ab-rot' : ''}>{p.ohneVerfall ? '–' : tage(k.verfaelltBald, k.stundenProTag)}</td>
                   <td>{krank} Tage</td>
                 </tr>
               ))}
@@ -650,12 +860,120 @@ function KontoWahl({ wert, personen, leer, neu, onWahl }: { wert: string; person
   );
 }
 
+/** Popup-Maske mit allen Stammdaten eines Mitarbeiters. */
+function StammdatenMaske({ d, p: start, neu, onSpeichern, onEntfernen, onSchliessen }: {
+  d: AbwesenheitDaten;
+  p: Personal & { vorher?: string };
+  neu: boolean;
+  onSpeichern: (p: Personal & { vorher?: string }) => Promise<void>;
+  onEntfernen: () => Promise<void>;
+  onSchliessen: () => void;
+}) {
+  const [p, setP] = useState(start);
+  const [laeuft, setLaeuft] = useState(false);
+  const aendern = (x: Partial<Personal>) => setP({ ...p, ...x });
+  const spt = stundenJeTag(p);
+  const k = p.eintritt ? urlaubskonto(p, d.eintraege, heute()) : null;
+  const fehler = !p.name.trim() ? 'Name fehlt' : !p.email ? 'Konto wählen oder „ohne E-Mail“ anlegen' : !p.eintritt ? 'Eintrittsdatum fehlt' : p.austritt && p.austritt < p.eintritt ? 'Austritt liegt vor dem Eintritt' : null;
+  const ausfuehren = (f: () => Promise<void>) => {
+    setLaeuft(true);
+    f().finally(() => setLaeuft(false));
+  };
+  return (
+    <div className="modal-hintergrund" onClick={onSchliessen}>
+      <div className="modal ab-modal ab-stamm-maske" role="dialog" aria-modal="true" onClick={(x) => x.stopPropagation()}>
+        <div className="modal-kopf" style={{ background: 'var(--akzent)' }}>
+          <div>
+            <div className="modal-kategorie">{neu ? 'Neuer Mitarbeiter' : 'Personal-Stammdaten'}</div>
+            <h2>{p.name || 'Ohne Namen'}</h2>
+            {k && <div className="modal-nr">Resturlaub {tage(k.rest, k.stundenProTag)} · {std(p.tage.reduce((x, y) => x + y, 0))}/Woche</div>}
+          </div>
+          <button className="modal-zu" onClick={onSchliessen} aria-label="Schließen">✕</button>
+        </div>
+        <div className="modal-inhalt">
+          <div className="modal-block">
+            <h4>Person & Konto</h4>
+            <div className="ab-maske-raster">
+              <label className="ab-feld">Name<input className="feld" value={p.name} autoFocus={neu} onChange={(e) => aendern({ name: e.target.value })} /></label>
+              <label className="ab-feld">Konto<KontoWahl wert={p.email} personen={d.personen} leer="Konto wählen …" neu={() => internesKonto(p.name, Date.now().toString(36))} onWahl={(email) => aendern({ email })} /></label>
+              <label className="ab-feld">Gruppe (Monatsbericht)<input className="feld" value={p.gruppe ?? ''} onChange={(e) => aendern({ gruppe: e.target.value || undefined })} /></label>
+            </div>
+          </div>
+          <div className="modal-block">
+            <h4>Beschäftigung</h4>
+            <div className="ab-maske-raster">
+              <label className="ab-feld">Eintritt<input className="feld" type="date" value={p.eintritt} onChange={(e) => aendern({ eintritt: e.target.value })} /></label>
+              <label className="ab-feld">Austritt<input className="feld" type="date" value={p.austritt ?? ''} onChange={(e) => aendern({ austritt: e.target.value || undefined })} /></label>
+            </div>
+            <div className="ab-feld">
+              Sollstunden je Wochentag
+              <div className="ab-tage">
+                {p.tage.map((h, j) => (
+                  <label key={j}>
+                    <small>{WOCHENTAGE[j]}</small>
+                    <input className="feld" type="number" min={0} max={24} step={0.5} value={h} onChange={(e) => aendern({ tage: p.tage.map((x, kk) => (kk === j ? Number(e.target.value) : x)) })} />
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="modal-block">
+            <h4>Urlaub</h4>
+            <div className="ab-maske-raster">
+              <label className="ab-feld">Anrechenbare Vordienstjahre<input className="feld" type="number" min={0} step={1} value={p.vordienstjahre ?? ''} onChange={(e) => aendern({ vordienstjahre: e.target.value ? Number(e.target.value) : undefined })} /></label>
+              <label className="ab-feld">Urlaubswochen (leer = gesetzlich)<input className="feld" type="number" min={0} step={0.2} value={p.urlaubswochen ?? ''} onChange={(e) => aendern({ urlaubswochen: e.target.value ? Number(e.target.value) : undefined })} /></label>
+              <label className="ab-feld">Resturlaub übernommen am<input className="feld" type="date" value={p.saldoAb ?? ''} onChange={(e) => aendern({ saldoAb: e.target.value || undefined })} /></label>
+              <label className="ab-feld">
+                Übernommener Resturlaub (Tage)
+                <input
+                  className="feld"
+                  type="number"
+                  step={0.5}
+                  value={p.urlaubStartSaldo != null && spt > 0 ? Math.round((p.urlaubStartSaldo / spt) * 100) / 100 : ''}
+                  onChange={(e) => aendern({ urlaubStartSaldo: e.target.value ? Math.round(Number(e.target.value) * spt * 100) / 100 : undefined })}
+                />
+              </label>
+            </div>
+            <label className="pille-wahl" title="Aus = Urlaub verfällt nie (wie im alten Programm)">
+              <input type="checkbox" checked={!p.ohneVerfall} onChange={(e) => aendern({ ohneVerfall: e.target.checked ? undefined : true })} /> Urlaub verfällt nach Gesetz (2 Jahre nach Ende des Urlaubsjahres) – zeigt „Verfällt in 3 Monaten“
+            </label>
+          </div>
+          <div className="modal-block">
+            <h4>Überstunden</h4>
+            <div className="ab-maske-raster">
+              <label className="ab-feld">Start-Saldo (h)<input className="feld" type="number" step={0.25} value={p.ueStartSaldo ?? ''} onChange={(e) => aendern({ ueStartSaldo: e.target.value ? Number(e.target.value) : undefined })} /></label>
+              <label className="ab-feld">Zählen ab Monat<input className="feld" type="month" value={p.ueAbMonat ?? ''} onChange={(e) => aendern({ ueAbMonat: e.target.value || undefined })} /></label>
+            </div>
+          </div>
+          {fehler && <p className="klein ab-rot">{fehler}</p>}
+          <div className="ab-modal-knoepfe">
+            <button className="knopf primaer" disabled={laeuft || !!fehler} onClick={() => ausfuehren(() => onSpeichern({ ...p, name: p.name.trim() }))}>Speichern</button>
+            <button className="knopf" onClick={onSchliessen}>Abbrechen</button>
+            {!neu && (
+              <button className="knopf gefahr" disabled={laeuft} onClick={() => confirm(`${p.name} aus den Stammdaten entfernen? Abwesenheiten bleiben erhalten.`) && ausfuehren(onEntfernen)}>
+                Entfernen
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: AbwesenheitDaten) => void }) {
   const [liste, setListe] = useState<(Personal & { vorher?: string })[]>(() => d.personal.map((p) => ({ ...p, vorher: p.email })));
   const [imp, setImp] = useState<{ alt: AltMitarbeiter[]; zuordnung: Record<string, string>; roh: unknown } | null>(null);
   const [meldung, setMeldung] = useState<{ ok: boolean; text: string } | null>(null);
   useEffect(() => setListe(d.personal.map((p) => ({ ...p, vorher: p.email }))), [d.personal]);
-  const aendern = (i: number, x: Partial<Personal>) => setListe(liste.map((p, j) => (j === i ? { ...p, ...x } : p)));
+  const [offen, setOffen] = useState<number | null>(null);
+  const speichern = (neu: (Personal & { vorher?: string })[], text: string) =>
+    personalSpeichern(neu)
+      .then((x) => {
+        setOffen(null);
+        fertig(x, text);
+      })
+      .catch((e: Error) => setMeldung({ ok: false, text: e.message }));
   const fehlend = d.personen.filter((p) => !liste.some((x) => x.email === p.email));
   const fertig = (x: AbwesenheitDaten, text: string) => {
     onDaten(x);
@@ -705,81 +1023,50 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
         <p className="klein">
           Urlaubsanspruch nach Urlaubsgesetz: 5 Wochen je Arbeitsjahr ab Eintritt (ab 25 Dienstjahren inkl. Vordienstzeiten 6), im ersten halben Jahr aliquot, Verfall 2 Jahre nach Ende des Urlaubsjahres – pro Mitarbeiter abschaltbar („verfällt nach Gesetz“; beim Import aus dem alten Programm aus). Angezeigt in Arbeitstagen (bei Teilzeit umgerechnet mit den durchschnittlichen Stunden je Arbeitstag laut Wochenplan).
         </p>
-        <table className="bs-tabelle ab-stamm">
-          <thead>
-            <tr>
-              <th>Mitarbeiter</th>
-              <th>Eintritt / Austritt</th>
-              <th>Stunden Mo–So</th>
-              <th>Vordienst / Wochen</th>
-              <th>Übernahme</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {liste.map((p, i) => (
-              <tr key={i}>
-                <td>
-                  <input className="feld" value={p.name} placeholder="Name" onChange={(e) => aendern(i, { name: e.target.value })} />
-                  <KontoWahl wert={p.email} personen={d.personen} leer="Konto wählen …" neu={() => internesKonto(p.name, Date.now().toString(36))} onWahl={(email) => aendern(i, { email })} />
-                </td>
-                <td>
-                  <input className="feld" type="date" value={p.eintritt} onChange={(e) => aendern(i, { eintritt: e.target.value })} />
-                  <input className="feld" type="date" value={p.austritt ?? ''} onChange={(e) => aendern(i, { austritt: e.target.value || undefined })} />
-                </td>
-                <td>
-                  <div className="ab-tage">
-                    {p.tage.map((h, j) => (
-                      <label key={j}>
-                        <small>{WOCHENTAGE[j]}</small>
-                        <input className="feld" type="number" min={0} max={24} step={0.5} value={h} onChange={(e) => aendern(i, { tage: p.tage.map((x, k) => (k === j ? Number(e.target.value) : x)) })} />
-                      </label>
-                    ))}
-                  </div>
-                </td>
-                <td>
-                  <input className="feld" type="number" min={0} step={1} title="Anrechenbare Vordienstjahre" placeholder="Vordienst J." value={p.vordienstjahre ?? ''} onChange={(e) => aendern(i, { vordienstjahre: e.target.value ? Number(e.target.value) : undefined })} />
-                  <input className="feld" type="number" min={0} step={0.2} title="Urlaubswochen (leer = gesetzlich)" placeholder="Wochen (gesetzl.)" value={p.urlaubswochen ?? ''} onChange={(e) => aendern(i, { urlaubswochen: e.target.value ? Number(e.target.value) : undefined })} />
-                </td>
-                <td>
-                  <input className="feld" type="date" title="Resturlaub übernommen am" value={p.saldoAb ?? ''} onChange={(e) => aendern(i, { saldoAb: e.target.value || undefined })} />
-                  <input
-                    className="feld"
-                    type="number"
-                    step={0.5}
-                    title="Übernommener Resturlaub (Arbeitstage)"
-                    placeholder="Rest Tage"
-                    value={p.urlaubStartSaldo != null && stundenJeTag(p) > 0 ? Math.round((p.urlaubStartSaldo / stundenJeTag(p)) * 100) / 100 : ''}
-                    onChange={(e) => aendern(i, { urlaubStartSaldo: e.target.value ? Math.round(Number(e.target.value) * stundenJeTag(p) * 100) / 100 : undefined })}
-                  />
-                  <label className="pille-wahl" title="Aus = Urlaub verfällt nie (wie im alten Programm)">
-                    <input type="checkbox" checked={!p.ohneVerfall} onChange={(e) => aendern(i, { ohneVerfall: e.target.checked ? undefined : true })} /> verfällt nach Gesetz
-                  </label>
-                  <input className="feld" type="number" step={0.25} title="Überstunden Start-Saldo (h)" placeholder="Ü-Start h" value={p.ueStartSaldo ?? ''} onChange={(e) => aendern(i, { ueStartSaldo: e.target.value ? Number(e.target.value) : undefined })} />
-                  <input className="feld" type="month" title="Überstunden zählen ab Monat" value={p.ueAbMonat ?? ''} onChange={(e) => aendern(i, { ueAbMonat: e.target.value || undefined })} />
-                </td>
-                <td>
-                  <button className="knopf klein" onClick={() => setListe(liste.filter((_, j) => j !== i))} aria-label="Entfernen">✕</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="ab-stamm-liste">
+          {liste.map((p, i) => {
+            const k = p.eintritt ? urlaubskonto(p, d.eintraege, heute()) : null;
+            const wochenStd = p.tage.reduce((x, y) => x + y, 0);
+            return (
+              <button key={i} className={`ab-stamm-karte glas ${p.austritt && p.austritt < heute() ? 'aus' : ''}`} onClick={() => setOffen(i)}>
+                <b>{p.name || 'Ohne Namen'}</b>
+                <span className="klein">{istOhneEmail(p.email) ? 'ohne E-Mail' : p.email || 'kein Konto'}</span>
+                <span className="ab-stamm-werte">
+                  <span>seit {p.eintritt ? format(ausText(p.eintritt), 'dd.MM.yyyy') : '–'}</span>
+                  <span>{std(wochenStd)}/Woche</span>
+                  {k && <span className={k.rest < 0 ? 'ab-rot' : ''}>Rest {tage(k.rest, k.stundenProTag)}</span>}
+                  {!p.ohneVerfall && <span>verfällt nach Gesetz</span>}
+                  {p.austritt && <span>Austritt {format(ausText(p.austritt), 'dd.MM.yyyy')}</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {offen != null && liste[offen] && (
+          <StammdatenMaske
+            d={d}
+            p={liste[offen]}
+            neu={!liste[offen].name && !liste[offen].email}
+            onSpeichern={(x) => speichern(liste.map((p, j) => (j === offen ? x : p)), `${x.name} gespeichert.`)}
+            onEntfernen={() => speichern(liste.filter((_, j) => j !== offen), `${liste[offen].name || 'Mitarbeiter'} entfernt.`)}
+            onSchliessen={() => {
+              if (!liste[offen].name && !liste[offen].email) setListe(liste.filter((_, j) => j !== offen));
+              setOffen(null);
+            }}
+          />
+        )}
         <datalist id="ab-emails">
           {d.personen.map((p) => (
             <option key={p.email} value={p.email}>{p.name}</option>
           ))}
         </datalist>
         <div className="ab-zeile">
-          <button className="knopf" onClick={() => setListe([...liste, { email: '', name: '', eintritt: heute(), tage: [...STANDARD_TAGE] }])}>+ Mitarbeiter</button>
+          <button className="knopf primaer" onClick={() => { setListe([...liste, { email: '', name: '', eintritt: heute(), tage: [...STANDARD_TAGE] }]); setOffen(liste.length); }}>+ Mitarbeiter</button>
           {fehlend.length > 0 && (
-            <button className="knopf" onClick={() => setListe([...liste, ...fehlend.map((p) => ({ email: p.email, name: p.name ?? kurz(p.email), eintritt: heute(), tage: [...STANDARD_TAGE] }))])}>
+            <button className="knopf" onClick={() => speichern([...liste, ...fehlend.map((p) => ({ email: p.email, name: p.name ?? kurz(p.email), eintritt: heute(), tage: [...STANDARD_TAGE] }))], `${fehlend.length} Mitarbeiter übernommen.`)}>
               + {fehlend.length} aus der Rechteverwaltung
             </button>
           )}
-          <button className="knopf primaer" onClick={() => personalSpeichern(liste).then((x) => fertig(x, 'Gespeichert.')).catch((e: Error) => setMeldung({ ok: false, text: e.message }))}>
-            Speichern
-          </button>
         </div>
       </section>
 
@@ -829,7 +1116,7 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
   );
 }
 
-type Modus = 'meine' | 'team' | 'dashboard' | 'belege' | 'zeitkonto' | 'personal';
+type Modus = 'meine' | 'team' | 'alle' | 'dashboard' | 'belege' | 'zeitkonto' | 'personal';
 const LS_MODUS = 'alamida.abwesenheitModus';
 
 export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
@@ -844,7 +1131,7 @@ export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
   const modi: [Modus, string][] = [
     ['meine', '🙋 Meine'],
     ['team', '▦ Team'],
-    ...(daten.darfVerwalten ? ([['dashboard', '◔ Dashboard'], ['belege', '🗂 Belege'], ['zeitkonto', '⏱ Zeitkonten'], ['personal', '👥 Personal']] as [Modus, string][]) : []),
+    ...(daten.darfVerwalten ? ([['alle', '📋 Alle Einträge'], ['dashboard', '◔ Dashboard'], ['belege', '🗂 Belege'], ['zeitkonto', '⏱ Zeitkonten'], ['personal', '👥 Personal']] as [Modus, string][]) : []),
   ];
   const m = modi.some(([x]) => x === modus) ? modus : 'meine';
   const ich = daten.personal.find((p) => p.email === daten.ich.email);
@@ -880,7 +1167,8 @@ export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
           </div>
         </>
       )}
-      {m === 'team' && <TeamMonat d={daten} />}
+      {m === 'team' && <TeamMonat d={daten} onDaten={setDaten} />}
+      {m === 'alle' && <AlleEintraege d={daten} onDaten={setDaten} />}
       {m === 'dashboard' && <Dashboard d={daten} onDaten={setDaten} />}
       {m === 'belege' && <BelegArchiv d={daten} onDaten={setDaten} />}
       {m === 'zeitkonto' && <ZeitkontoAnsicht d={daten} />}

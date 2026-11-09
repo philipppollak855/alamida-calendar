@@ -3,13 +3,14 @@
 import { ALLE, type Konfiguration, type Rechte } from './rechte';
 import { ausText, datumText, feiertage, plusTage } from './bereitschaft';
 
-export type AbwArt = 'urlaub' | 'krank' | 'pflege' | 'za' | 'sonstiges';
+export type AbwArt = 'urlaub' | 'krank' | 'pflege' | 'sonderurlaub' | 'za' | 'sonstiges';
 export type AbwStatus = 'beantragt' | 'genehmigt' | 'abgelehnt' | 'gemeldet';
 
 export const ARTEN: Record<AbwArt, { label: string; symbol: string; farbe: string; genehmigung: boolean }> = {
   urlaub: { label: 'Urlaub', symbol: '🌴', farbe: '#f39c12', genehmigung: true },
   krank: { label: 'Krank', symbol: '🤒', farbe: '#e74c3c', genehmigung: false },
   pflege: { label: 'Pflegeurlaub', symbol: '🤝', farbe: '#3498db', genehmigung: true },
+  sonderurlaub: { label: 'Sonderurlaub', symbol: '🎗', farbe: '#16a085', genehmigung: true },
   za: { label: 'Zeitausgleich', symbol: '⏱', farbe: '#9b59b6', genehmigung: true },
   sonstiges: { label: 'Sonstiges', symbol: '📌', farbe: '#7f8c8d', genehmigung: true },
 };
@@ -55,6 +56,8 @@ export interface Abwesenheit {
   eingetragenVon?: string;
   erstellt?: number;
   entschieden?: { von: string; am: number; grund?: string };
+  /** Zuletzt durch die Verwaltung geändert. */
+  geaendert?: { von: string; am: number };
   /** Für Mitarbeiter ohne Verwaltungsrecht: fremde Einträge nur als „abwesend“ (ohne Art und Notiz). */
   verdeckt?: boolean;
   name?: string;
