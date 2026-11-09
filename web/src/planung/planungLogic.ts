@@ -95,6 +95,36 @@ function parseDatum(d?: { date?: string; dateTime?: string }): { wert: Date; gan
   return null;
 }
 
+const SYMBOL_ANFANG = /^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u;
+const KATEGORIE_WOERTER: Record<Kategorie, string[]> = {
+  Beisetzung: [],
+  Trauerfeier: [],
+  Rosenkranz: [],
+  Trauergespraech: ['Trauergespraech', 'Gespräch'],
+  Abholung: [],
+  Ueberfuehrung: ['Ueberfuehrung', 'Uberfuhrung'],
+  Kremation: [],
+  Vorsorge: ['Vorsorgegespräch'],
+  Sonstiges: [],
+};
+
+/** Titel ohne vorangestelltes Symbol und Kategorie-Wort – die Ansichten zeigen beides schon selbst an. */
+export function titelOhneKategorie(titel: string, kategorie: Kategorie, art?: string): string {
+  const roh = titel.trim();
+  let t = roh.replace(SYMBOL_ANFANG, '');
+  const woerter = [art, ...KATEGORIE_WOERTER[kategorie], KATEGORIEN[kategorie].label]
+    .filter((w): w is string => !!w)
+    .sort((a, b) => b.length - a.length);
+  for (const w of woerter) {
+    if (!t.toLowerCase().startsWith(w.toLowerCase())) continue;
+    const rest = t.slice(w.length);
+    if (rest && !/^[\s:–\-|·]/.test(rest)) continue;
+    t = rest.replace(/^[\s:–\-|·]+/, '');
+    break;
+  }
+  return t.trim() || roh;
+}
+
 export function ausGoogleEvent(ev: GoogleEvent, kalenderId: string, kalenderName: string): Termin | null {
   if (ev.status === 'cancelled') return null;
   const start = parseDatum(ev.start);
@@ -103,16 +133,17 @@ export function ausGoogleEvent(ev: GoogleEvent, kalenderId: string, kalenderName
   const beschreibung = ev.description ?? '';
   const details = { ...(ev.extendedProperties?.private ?? {}) };
   const sf = sterbefallAus(ev);
+  const kategorie = kategorieAus(ev);
   return {
     id: `${kalenderId}/${ev.id}`,
     kalenderId,
     kalenderName,
-    titel: ev.summary ?? '(ohne Titel)',
+    titel: ev.summary ? titelOhneKategorie(ev.summary, kategorie, details.art) : '(ohne Titel)',
     start: start.wert,
     ende,
     ganztaegig: start.ganztaegig,
     ort: ev.location ?? '',
-    kategorie: kategorieAus(ev),
+    kategorie,
     sterbefallId: sf.sterbefallId,
     verstorbener: sf.verstorbener,
     beschreibung,

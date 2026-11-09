@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ausGoogleEvent, checkliste, countdown, fahrten, mapsLink, nachGruppe, orte, sterbefaelle, suche, termineAmTag, warnungen, type GoogleEvent } from './planungLogic';
+import { ausGoogleEvent, titelOhneKategorie, checkliste, countdown, fahrten, mapsLink, nachGruppe, orte, sterbefaelle, suche, termineAmTag, warnungen, type GoogleEvent } from './planungLogic';
 
 const ev = (id: string, kat: string, start: string, end: string, fall = '260087 | Anton Schellmann'): GoogleEvent => ({
   id,
@@ -100,5 +100,20 @@ describe('planungLogic', () => {
     expect(orte([a], jetzt)[0].ort).toBe('Friedhof Ternitz');
     expect(countdown(a, new Date(a.start.getTime() - 25 * 60000))).toBe('in 25 Min.');
     expect(countdown(a, new Date(a.start.getTime() + 60000))).toBe('läuft');
+  });
+});
+
+describe('titelOhneKategorie', () => {
+  it('entfernt Symbol und Kategorie-Wort (sonst doppelt angezeigt)', () => {
+    expect(titelOhneKategorie('📝 Vorsorge Oberger', 'Vorsorge')).toBe('Oberger');
+    expect(titelOhneKategorie('🕯️Trauerfeier Martha Prober – Pfarrkirche', 'Trauerfeier')).toBe('Martha Prober – Pfarrkirche');
+    expect(titelOhneKategorie('Überführung: Anna Bauer (Grafenbach → Ternitz)', 'Ueberfuehrung')).toBe('Anna Bauer (Grafenbach → Ternitz)');
+    expect(titelOhneKategorie('💬 Trauergespräch Kubacsek', 'Trauergespraech', 'Trauergespräch')).toBe('Kubacsek');
+  });
+  it('lässt fremde Wörter und Wortanfänge stehen', () => {
+    expect(titelOhneKategorie('🕯️Besichtigung - Wagner', 'Trauerfeier')).toBe('Besichtigung - Wagner');
+    expect(titelOhneKategorie('Vorsorgemappe Huber', 'Vorsorge')).toBe('Vorsorgemappe Huber');
+    expect(titelOhneKategorie('📝 Vorsorge', 'Vorsorge')).toBe('📝 Vorsorge');
+    expect(titelOhneKategorie('2 Urnen abholen', 'Sonstiges')).toBe('2 Urnen abholen');
   });
 });
