@@ -5,12 +5,46 @@ import { terminTeile } from '../../src/shared/einteilung';
 import { KATEGORIEN, kategorieAus, type GoogleEvent } from '../../src/planung/planungLogic';
 import { angemeldet, einteilungLoeschen, googleGet, googleSenden, json } from '../lib/server';
 
-/** POST: neuen Termin anlegen (Befähigte). DELETE ?id=kalenderId/eventId: in der App angelegten Termin löschen (Ersteller oder Admin). */
+/** POST: neuen Termin anlegen (Befähigte). PUT ?id=…: in der App angelegten Termin ändern (Ersteller oder Admin). DELETE ?id=kalenderId/eventId: in der App angelegten Termin löschen (Ersteller oder Admin). */
 export default async (req: Request) => {
   const a = await angemeldet(req);
   if (!a) return json({ fehler: 'nicht angemeldet' }, 401);
   if (!a.rechte.freigeschaltet) return json({ fehler: 'kein Zugriff' }, 403);
   const ich = a.sitzung.email.toLowerCase();
+
+  if (req.method === 'PUT') {
+    const teile = terminTeile(new URL(req.url).searchParams.get('id') ?? '');
+    if (!teile) return json({ fehler: 'Termin fehlt' }, 400);
+    const pfad = `/calendars/${encodeURIComponent(teile.kalenderId)}/events/${encodeURIComponent(teile.eventId)}`;
+    let ev: GoogleEvent & { colorId?: string };
+    try {
+      ev = await googleGet<GoogleEvent & { colorId?: string }>(pfad);
+    } catch {
+      return json({ fehler: 'Termin nicht gefunden' }, 404);
+    }
+    const alt = ev.extendedProperties?.private ?? {};
+    if (!darfSehen(a.rechte, teile.kalenderId, kategorieAus(ev))) return json({ fehler: 'Kein Zugriff' }, 403);
+    if (alt.quelle !== WEB_QUELLE) return json({ fehler: 'Nur in der App angelegte Termine können hier bearbeitet werden' }, 403);
+    if (alt.angelegtVon !== ich && !a.rechte.admin) return json({ fehler: 'Nur wer den Termin angelegt hat oder ein Admin darf ihn bearbeiten' }, 403);
+    const p = neuerTerminPruefen(await req.json().catch(() => ({})), KATEGORIE_SCHLUESSEL);
+    if ('fehler' in p) return json({ fehler: p.fehler }, 400);
+    if (!darfSehen(a.rechte, teile.kalenderId, p.termin.kategorie)) return json({ fehler: 'Keine Berechtigung für diese Kategorie' }, 403);
+    const k = KATEGORIEN[p.termin.kategorie as keyof typeof KATEGORIEN];
+    const neu = googleEreignis(p.termin, k, { email: alt.angelegtVon ?? ich });
+    const angelegt = (ev.description ?? '').split('\n\n').find((x) => x.startsWith('Angelegt von '));
+    const body = {
+      ...neu,
+      description: [p.termin.notiz, angelegt, `Geändert von ${a.sitzung.name ?? ich}`].filter(Boolean).join('\n\n'),
+      extendedProperties: { private: { ...alt, kategorie: p.termin.kategorie } },
+      ...(ev.colorId ? { colorId: ev.colorId } : {}),
+    };
+    try {
+      const event = await googleSenden<GoogleEvent>('PUT', pfad, body);
+      return json({ kalender: { id: teile.kalenderId, name: a.konfig.kalender.find((x) => x.id === teile.kalenderId)?.name ?? teile.kalenderId }, event });
+    } catch (e) {
+      return json({ fehler: `Google Kalender: ${(e as Error).message}` }, 502);
+    }
+  }
 
   if (req.method === 'DELETE') {
     const teile = terminTeile(new URL(req.url).searchParams.get('id') ?? '');
@@ -47,4 +81,4 @@ export default async (req: Request) => {
   }
 };
 
-export const config: Config = { path: '/api/termin', method: ['POST', 'DELETE'] };
+export const config: Config = { path: '/api/termin', method: ['POST', 'PUT', 'DELETE'] };

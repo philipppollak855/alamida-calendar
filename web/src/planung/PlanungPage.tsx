@@ -30,6 +30,8 @@ import {
   suche,
   termineAmTag,
   warnungen,
+  warnungSchluessel,
+  type Warnung,
   type Gruppe,
   type Kategorie,
   type Termin, personalText, bloecke, istFall, kalenderEintraege, mitAblaufEinteilung, mitTerminEinteilung, type FallEintrag, type KalEintrag } from './planungLogic';
@@ -37,6 +39,7 @@ import {
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek: (d: Date) => startOfWeek(d, { weekStartsOn: 1 }), getDay, locales: { de } });
 
 const LS_BUENDELN = 'alamida.kalBuendeln';
+const LS_QUITTIERT = 'alamida.hinweiseQuittiert';
 
 type Tab = 'tag' | 'kalender' | 'faelle' | 'fahrten' | 'orte' | 'hinweise' | 'bereitschaft' | 'abwesenheit' | 'admin';
 
@@ -312,6 +315,9 @@ export default function PlanungPage() {
     setOffen((o) => o && mitAblaufEinteilung(o, fall, tag, r.personen));
   }, []);
 
+  const [bearbeite, setBearbeite] = useState<Termin | null>(null);
+  const eigenerTermin = (t: Termin) =>
+    echteDaten && t.details.quelle === 'web' && (t.details.angelegtVon === ich?.benutzer?.email?.toLowerCase() || !!ich?.rechte?.admin);
   const loeschen = useCallback(async (t: Termin) => {
     if (!confirm(`Termin „${t.titel}“ wirklich löschen?`)) return;
     await terminLoeschen(t.id);
@@ -356,10 +362,28 @@ export default function PlanungPage() {
 
   const gefiltert = useMemo(() => suche(termine.filter((t) => !aus.includes(t.kategorie)), suchtext), [termine, aus, suchtext]);
   const kalEintraege = useMemo(() => kalenderEintraege(gefiltert, buendeln), [gefiltert, buendeln]);
-  const hinweise = useMemo(() => warnungen(gefiltert, new Date()), [gefiltert]);
+  const alleHinweise = useMemo(() => warnungen(gefiltert, new Date()), [gefiltert]);
+  const [quittiert, setQuittiert] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(LS_QUITTIERT) ?? '[]') as string[];
+    } catch {
+      return [];
+    }
+  });
+  const quittieren = useCallback((w: Warnung, an: boolean) => {
+    setQuittiert((l) => {
+      const k = warnungSchluessel(w);
+      const neu = an ? [...l.filter((x) => x !== k), k] : l.filter((x) => x !== k);
+      localStorage.setItem(LS_QUITTIERT, JSON.stringify(neu.slice(-500)));
+      return neu;
+    });
+  }, []);
+  const hinweise = useMemo(() => alleHinweise.filter((w) => !quittiert.includes(warnungSchluessel(w))), [alleHinweise, quittiert]);
+  const erledigteHinweise = alleHinweise.filter((w) => quittiert.includes(warnungSchluessel(w)));
   const tagTermine = termineAmTag(gefiltert, tag);
   const tagBloecke = bloecke(tagTermine);
   const tagFaelle = tagBloecke.filter((b) => b.art === 'fall');
+  const tagSammel = tagBloecke.filter((b) => b.art === 'sammel');
   const tagGruppen = nachGruppe(tagBloecke.flatMap((b) => (b.art === 'einzel' ? [b.termin] : [])));
   const spalten: Gruppe[] = [...GRUPPEN, ...(tagGruppen.Sonstiges.length ? (['Sonstiges'] as Gruppe[]) : [])];
   const istHeute = isSameDay(tag, jetzt);
@@ -414,16 +438,27 @@ export default function PlanungPage() {
       einteilung={echteDaten ? einteilung : null}
       onEinteilen={einteilen}
       onAblauf={ablaufEinteilen}
-      onLoeschen={
-        echteDaten && offen.details.quelle === 'web' && (offen.details.angelegtVon === ich?.benutzer?.email?.toLowerCase() || ich?.rechte?.admin)
-          ? loeschen
-          : undefined
-      }
+      onLoeschen={eigenerTermin(offen) ? loeschen : undefined}
+      onBearbeiten={eigenerTermin(offen) ? setBearbeite : undefined}
       onWaehlen={setOffen}
       onSchliessen={() => setOffen(null)}
     />
   );
   const darfAnlegen = echteDaten && !!ich?.anlegen?.darf;
+  const bearbeitenDialog = bearbeite && (
+    <NeuerTerminDialog
+      vorlage={bearbeite}
+      datum={format(bearbeite.start, 'yyyy-MM-dd')}
+      dauer={ich?.anlegen?.dauer ?? {}}
+      onSchliessen={() => setBearbeite(null)}
+      onAngelegt={(t) => {
+        const neu = { ...t, personal: bearbeite.personal };
+        setTermine((l) => l.map((x) => (x.id === bearbeite.id ? neu : x)));
+        setBearbeite(null);
+        setOffen(neu);
+      }}
+    />
+  );
   const neuDialog = neu && ich?.anlegen && (
     <NeuerTerminDialog
       datum={neu.datum}
@@ -477,6 +512,7 @@ export default function PlanungPage() {
           termine={gefiltert}
           alle={termine}
           hinweise={hinweise}
+          onQuittieren={(w) => quittieren(w, true)}
           ich={ich}
           stand={stand}
           laedt={laedt}
@@ -702,9 +738,11 @@ export default function PlanungPage() {
                       <span>
                         {GRUPPEN_ICON[g]} {g}
                       </span>
-                      <span className="anzahl">{liste.length}</span>
+                      <span className="anzahl">{liste.length + (g === 'Fahrten' ? tagSammel.reduce((n, b) => n + b.termine.length, 0) : 0)}</span>
                     </h3>
-                    {liste.length === 0 && <p className="leer">Keine Termine</p>}
+                    {g === 'Fahrten' &&
+                      tagSammel.map((b) => b.art === 'sammel' && <FallKarte key={b.schluessel} name={b.name} termine={b.termine} onOeffnen={setOffen} mitName />)}
+                    {liste.length === 0 && !(g === 'Fahrten' && tagSammel.length) && <p className="leer">Keine Termine</p>}
                     {liste.map((t, n) => (
                       <div key={t.id} className="spalte-eintrag">
                         {n === jetztIndex && (
@@ -920,19 +958,38 @@ export default function PlanungPage() {
           <section className="ansicht liste">
             <h2>Hinweise</h2>
             {hinweise.length === 0 && <p className="leer gross">✓ Keine Auffälligkeiten</p>}
-            {hinweise.map((w, i) => (
-              <button key={i} className={`warnung ${w.art}`} onClick={() => geheZu(w.termine[0])}>
-                <strong>{w.art === 'ueberschneidung' ? 'Überschneidung' : w.art === 'ohneUhrzeit' ? 'Ohne Uhrzeit' : 'Reihenfolge'}</strong>
-                <span>{w.text}</span>
-                <small>{w.termine.map((t) => format(t.start, t.ganztaegig ? 'EEE d.M.' : 'EEE d.M. HH:mm', { locale: de })).join(' / ')}</small>
-              </button>
+            {hinweise.map((w) => (
+              <div key={warnungSchluessel(w)} className="warnung-zeile">
+                <button className={`warnung ${w.art}`} onClick={() => geheZu(w.termine[0])}>
+                  <strong>{w.art === 'ueberschneidung' ? 'Überschneidung' : w.art === 'ohneUhrzeit' ? 'Ohne Uhrzeit' : 'Reihenfolge'}</strong>
+                  <span>{w.text}</span>
+                  <small>{w.termine.map((t) => format(t.start, t.ganztaegig ? 'EEE d.M.' : 'EEE d.M. HH:mm', { locale: de })).join(' / ')}</small>
+                </button>
+                <button className="knopf klein" title="Geprüft – Hinweis ausblenden, bis sich der Termin ändert" onClick={() => quittieren(w, true)}>
+                  ✓ Akzeptieren
+                </button>
+              </div>
             ))}
+            {erledigteHinweise.length > 0 && (
+              <details className="hinweise-erledigt">
+                <summary>Akzeptiert ({erledigteHinweise.length})</summary>
+                {erledigteHinweise.map((w) => (
+                  <div key={warnungSchluessel(w)} className="warnung-zeile erledigt">
+                    <button className={`warnung ${w.art}`} onClick={() => geheZu(w.termine[0])}>
+                      <span>{w.text}</span>
+                    </button>
+                    <button className="knopf klein" onClick={() => quittieren(w, false)}>Wieder anzeigen</button>
+                  </div>
+                ))}
+              </details>
+            )}
           </section>
         )}
       </main>
 
       {detail}
       {neuDialog}
+      {bearbeitenDialog}
       {fallDialog}
       {iosDialog}
       {palette && <Palette eintraege={paletteEintraege} onSchliessen={() => setPalette(false)} />}

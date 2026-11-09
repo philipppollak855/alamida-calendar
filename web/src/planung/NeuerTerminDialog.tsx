@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { KATEGORIEN, type Kategorie, type Termin } from './planungLogic';
-import { terminAnlegen } from './api';
+import { KATEGORIEN, notizAus, type Kategorie, type Termin } from './planungLogic';
+import { terminAendern, terminAnlegen } from './api';
 
 const AUSWAHL: Kategorie[] = ['Ueberfuehrung', 'Abholung', 'Kremation', 'Rosenkranz', 'Trauerfeier', 'Beisetzung', 'Trauergespraech', 'Vorsorge', 'Sonstiges'];
 
@@ -11,23 +11,27 @@ export default function NeuerTerminDialog({
   datum,
   zeit,
   dauer,
+  vorlage,
   onAngelegt,
   onSchliessen,
 }: {
+  vorlage?: Termin;
   datum: string;
   zeit?: string;
   dauer: Record<string, number>;
   onAngelegt: (t: Termin) => void;
   onSchliessen: () => void;
 }) {
-  const [kategorie, setKategorie] = useState<Kategorie>('Trauergespraech');
-  const [titel, setTitel] = useState('');
-  const [tag, setTag] = useState(datum);
-  const [ganztaegig, setGanztaegig] = useState(false);
-  const [uhr, setUhr] = useState(zeit && zeit !== '00:00' ? zeit : '09:00');
-  const [minuten, setMinuten] = useState(dauer.Trauergespraech ?? 60);
-  const [ort, setOrt] = useState('');
-  const [notiz, setNotiz] = useState('');
+  const [kategorie, setKategorie] = useState<Kategorie>(vorlage?.kategorie ?? 'Trauergespraech');
+  const [titel, setTitel] = useState(vorlage?.titel ?? '');
+  const [tag, setTag] = useState(vorlage ? format(vorlage.start, 'yyyy-MM-dd') : datum);
+  const [ganztaegig, setGanztaegig] = useState(vorlage?.ganztaegig ?? false);
+  const [uhr, setUhr] = useState(vorlage && !vorlage.ganztaegig ? format(vorlage.start, 'HH:mm') : zeit && zeit !== '00:00' ? zeit : '09:00');
+  const [minuten, setMinuten] = useState(
+    vorlage && !vorlage.ganztaegig ? Math.max(5, Math.round((vorlage.ende.getTime() - vorlage.start.getTime()) / 60000)) : (dauer[vorlage?.kategorie ?? 'Trauergespraech'] ?? 60),
+  );
+  const [ort, setOrt] = useState(vorlage?.ort ?? '');
+  const [notiz, setNotiz] = useState(vorlage ? notizAus(vorlage.beschreibung) : '');
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
 
@@ -43,7 +47,8 @@ export default function NeuerTerminDialog({
     setLaeuft(true);
     setFehler(null);
     try {
-      onAngelegt(await terminAnlegen({ kategorie, titel, datum: tag, ...(ganztaegig ? {} : { zeit: uhr }), dauer: minuten, ort, notiz }));
+      const daten = { kategorie, titel, datum: tag, ...(ganztaegig ? {} : { zeit: uhr }), dauer: minuten, ort, notiz };
+      onAngelegt(await (vorlage ? terminAendern(vorlage.id, daten) : terminAnlegen(daten)));
     } catch (x) {
       setFehler((x as Error).message);
     } finally {
@@ -56,7 +61,7 @@ export default function NeuerTerminDialog({
       <form className="modal neu-termin" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} onSubmit={(e) => void speichern(e)}>
         <header className="modal-kopf" style={{ background: k.farbe }}>
           <div>
-            <div className="modal-kategorie">Neuer Termin</div>
+            <div className="modal-kategorie">{vorlage ? 'Termin bearbeiten' : 'Neuer Termin'}</div>
             <h2>{format(new Date(`${tag}T00:00`), 'EEEE, d. MMMM yyyy', { locale: de })}</h2>
           </div>
           <button type="button" className="modal-zu" onClick={onSchliessen} aria-label="Schließen">
@@ -73,7 +78,7 @@ export default function NeuerTerminDialog({
                 style={{ ['--kat' as string]: KATEGORIEN[x].farbe }}
                 onClick={() => {
                   setKategorie(x);
-                  setMinuten(dauer[x] ?? 60);
+                  if (!vorlage) setMinuten(dauer[x] ?? 60);
                 }}
               >
                 <span>{KATEGORIEN[x].symbol}</span> {KATEGORIEN[x].label}
@@ -116,7 +121,7 @@ export default function NeuerTerminDialog({
           {fehler && <div className="warnung">{fehler}</div>}
           <div className="aktionen">
             <button className="knopf primaer" type="submit" disabled={laeuft}>
-              {laeuft ? 'Speichert …' : 'Termin anlegen'}
+              {laeuft ? 'Speichert …' : vorlage ? 'Speichern' : 'Termin anlegen'}
             </button>
             <button className="knopf" type="button" onClick={onSchliessen}>
               Abbrechen

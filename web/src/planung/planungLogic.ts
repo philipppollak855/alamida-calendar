@@ -181,19 +181,40 @@ export function nachGruppe(termine: Termin[]): Record<Gruppe, Termin[]> {
 }
 
 /** Tagesliste: Termine desselben Sterbefalls (ab 2 Terminen) als ein Block, sonst Einzeltermine – in zeitlicher Reihenfolge. */
-export type Block = { art: 'einzel'; termin: Termin } | { art: 'fall'; schluessel: string; name: string; sterbefallId?: string; termine: Termin[] };
+export type Block =
+  | { art: 'einzel'; termin: Termin }
+  | { art: 'fall'; schluessel: string; name: string; sterbefallId?: string; termine: Termin[] }
+  | { art: 'sammel'; schluessel: string; kategorie: Kategorie; name: string; termine: Termin[] };
+
+/** Kremationen und Überführungen eines Tages stehen gesammelt (ab 2) in einer Karte. */
+export const SAMMEL_KATEGORIEN: Kategorie[] = ['Kremation', 'Ueberfuehrung'];
+const MEHRZAHL: Partial<Record<Kategorie, string>> = { Kremation: 'Kremationen', Ueberfuehrung: 'Überführungen' };
 
 export function bloecke(termine: Termin[]): Block[] {
   const liste = sortiert(termine);
+  const sammel = new Map<Kategorie, Termin[]>();
+  for (const k of SAMMEL_KATEGORIEN) {
+    const g = liste.filter((t) => t.kategorie === k);
+    if (g.length > 1) sammel.set(k, g);
+  }
   const schluessel = (t: Termin) => t.sterbefallId ?? (t.verstorbener ? `name:${t.verstorbener.toLowerCase()}` : null);
   const gruppen = new Map<string, Termin[]>();
   for (const t of liste) {
     const k = schluessel(t);
-    if (k) gruppen.set(k, [...(gruppen.get(k) ?? []), t]);
+    if (k && !sammel.has(t.kategorie)) gruppen.set(k, [...(gruppen.get(k) ?? []), t]);
   }
   const r: Block[] = [];
   const fertig = new Set<string>();
   for (const t of liste) {
+    const s = sammel.get(t.kategorie);
+    if (s) {
+      const sk = `sammel:${t.kategorie}`;
+      if (!fertig.has(sk)) {
+        fertig.add(sk);
+        r.push({ art: 'sammel', schluessel: sk, kategorie: t.kategorie, name: `${KATEGORIEN[t.kategorie].symbol} ${s.length} ${MEHRZAHL[t.kategorie] ?? KATEGORIEN[t.kategorie].label}`, termine: s });
+      }
+      continue;
+    }
     const k = schluessel(t);
     const g = k ? gruppen.get(k)! : [];
     if (!k || g.length < 2) r.push({ art: 'einzel', termin: t });
@@ -344,6 +365,13 @@ export interface Warnung {
   text: string;
   termine: Termin[];
 }
+
+/** Eindeutig je Hinweis und Terminstand – ändert sich ein Termin, erscheint der Hinweis wieder. */
+export const warnungSchluessel = (w: Warnung) => `${w.art}|${w.termine.map((t) => `${t.id}@${t.start.getTime()}-${t.ende.getTime()}`).join(',')}`;
+
+/** Notiz eines in der App angelegten Termins (ohne „Angelegt von …“). */
+export const notizAus = (beschreibung: string) =>
+  beschreibung.split(/\n\n/).filter((x) => !/^(Angelegt|Geändert) von /.test(x.trim())).join('\n\n').trim();
 
 const ZEREMONIEN: Kategorie[] = ['Beisetzung', 'Trauerfeier', 'Rosenkranz'];
 

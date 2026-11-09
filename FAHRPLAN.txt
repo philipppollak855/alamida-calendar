@@ -68,10 +68,10 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] K6 „Verfällt in 3 Monaten“ nur anzeigen, wenn Verfall beim Mitarbeiter aktiviert
 - [x] K7 Personal-Stammdaten als Popup-Maske je Mitarbeiter
 ### K-C Kalender
-- [ ] K8 Selbst angelegte Termine nachbearbeiten
-- [ ] K9 Kalenderhinweise akzeptieren (quittieren)
-- [ ] K10 Tagesplan: Abstand zwischen „Abwesend“ und Tageskarten
-- [ ] K11 Tagesplan (auch mobil): Kremationen und Überführungen je gruppiert
+- [x] K8 Selbst angelegte Termine nachbearbeiten
+- [x] K9 Kalenderhinweise akzeptieren (quittieren)
+- [x] K10 Tagesplan: Abstand zwischen „Abwesend“ und Tageskarten
+- [x] K11 Tagesplan (auch mobil): Kremationen und Überführungen je gruppiert
 ### K-D Bereitschaft
 - [ ] K12 Übersicht: Verteilung als Monats- / Jahresansicht
 - [ ] K13 Bereitschaft erst mit mind. 2 (max. 3) Personen vollständig geplant

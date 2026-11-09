@@ -84,3 +84,27 @@ describe('kalenderEintraege', () => {
     expect(kalenderEintraege(l, false)).toHaveLength(6);
   });
 });
+
+describe('bloecke: Kremationen und Überführungen gesammelt', () => {
+  it('fasst ab zwei Kremationen bzw. Überführungen je eine Sammelkarte zusammen', () => {
+    const l = [
+      t(ev('k1', 'Kremation', '2026-05-28T08:00:00+02:00', '1 | Anton Huber')),
+      t(ev('k2', 'Kremation', '2026-05-28T09:00:00+02:00', '2 | Maria Berger')),
+      t(ev('u1', 'Ueberfuehrung', '2026-05-28T10:00:00+02:00', '3 | Karl Wolf')),
+      t(ev('u2', 'Ueberfuehrung', '2026-05-28T11:00:00+02:00', '1 | Anton Huber')),
+      t(ev('tf', 'Trauerfeier', '2026-05-28T13:00:00+02:00', '1 | Anton Huber')),
+    ];
+    const r = bloecke(l);
+    expect(r.map((b) => b.art)).toEqual(['sammel', 'sammel', 'einzel']);
+    if (r[0].art !== 'sammel' || r[1].art !== 'sammel') throw new Error();
+    expect(r[0].name).toBe('🔥 2 Kremationen');
+    expect(r[1].termine.map((x) => x.id)).toEqual(['cal/u1', 'cal/u2']);
+  });
+  it('eine einzelne Kremation bleibt im Sterbefall-Block', () => {
+    const r = bloecke([
+      t(ev('k1', 'Kremation', '2026-05-28T08:00:00+02:00', '1 | Anton Huber')),
+      t(ev('a1', 'Abholung', '2026-05-28T07:00:00+02:00', '1 | Anton Huber')),
+    ]);
+    expect(r.map((b) => b.art)).toEqual(['fall']);
+  });
+});

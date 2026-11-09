@@ -270,6 +270,13 @@ export async function terminAnlegen(t: NeuerTermin): Promise<Termin> {
   return termin;
 }
 
+export async function terminAendern(id: string, t: NeuerTermin): Promise<Termin> {
+  const r = await holen<{ kalender: KalenderEintrag; event: GoogleEvent }>(`/api/termin?id=${encodeURIComponent(id)}`, jsonInit('PUT', t));
+  const termin = ausGoogleEvent(r.event, r.kalender.id, r.kalender.name);
+  if (!termin) throw new Error('Termin konnte nicht gelesen werden');
+  return termin;
+}
+
 export const terminLoeschen = (id: string) => holen<{ ok: boolean }>(`/api/termin?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
 
 /* Zeitkonten (Überstunden, Auszahlung, Fehltage je Monat) für die Buchhaltung. */
