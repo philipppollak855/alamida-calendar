@@ -1,8 +1,9 @@
+import { nachladen } from '../modulNeuLaden';
 import { BERICHT_SPALTEN, berichtHinweis, berichtWerte, monatText, type BerichtZeile, type ZeitkontoEinstellungen } from '../shared/zeitkonto';
 
 /** Monatsbericht als PDF im Aufbau der bisherigen Vorlage (Titel, Hinweis, je Gruppe eine Tabelle). */
 export async function berichtPdf(gruppen: { gruppe: string; zeilen: BerichtZeile[] }[], monat: string, e: ZeitkontoEinstellungen): Promise<Blob> {
-  const [{ jsPDF }, { autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
+  const [{ jsPDF }, { autoTable }] = await nachladen(() => Promise.all([import('jspdf'), import('jspdf-autotable')]));
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const rand = 15;
   doc.setFont('helvetica', 'bold');
