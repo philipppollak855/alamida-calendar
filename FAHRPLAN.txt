@@ -94,6 +94,8 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] K29 Telefondienst mobil: neue Mitschrift als geführter Ablauf in Schritten ohne Scrollen, Weiter/Zurück unten fest, Aufnahme über alle Schritte
 ||||||| 594147d
 - [x] K30 Pflegefreistellung-Zähler: zählt im laufenden Arbeitsjahr auch bei übernommenem Resturlaub (zeigte 0)
+- [x] K31 E-Mail eines Mitarbeiters im Hub änderbar: Hub (Konfig, PIN, Einstellungen) und Kalender (/api/email-umzug: Urlaub, Zeitkonten, Bereitschaft, Telefonplan, Telefondienst, Einteilungen) übernehmen alles
+- [x] K32 Rollen als Rechte: Hub-Übersicht „Rollen × Apps“ (z. B. Telefon → Telefondienst, Bereitschaft → Bereitschaft); veraltete Hub-Fenster dürfen nicht mehr speichern (hatten Rollen-Freigaben gelöscht)
 
 ## Nicht mehr
 - Urnenwald-PRs #41–#139: nicht weiter bearbeiten (Anweisung Nutzer)

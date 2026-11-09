@@ -8,6 +8,7 @@ import type { Einteilung } from '../../src/shared/einteilung';
 import { zeitkontoPruefen, type BerichtArchiv, type ZeitkontoDaten } from '../../src/shared/zeitkonto';
 import type { Mitschrift } from '../../src/shared/telefon';
 import { telefonJetzt, type TelEinsatz, type TelMuster, type TelSegment } from '../../src/shared/telefonplan';
+import { emailErsetzen } from '../../src/shared/emailUmzug';
 
 export const SESSION_COOKIE = 'alamida_session';
 export const SESSION_TAGE = 90;
@@ -346,4 +347,30 @@ export async function googleSenden<T = unknown>(methode: 'POST' | 'PUT' | 'PATCH
   });
   if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
   return (res.status === 204 ? null : await res.json()) as T;
+}
+
+/* ── E-Mail-Änderung aus dem Hub: alle Daten mit Personenbezug übernehmen (Berichtsarchiv bleibt als fester Stand) ── */
+const UMZUG_SCHLUESSEL = ['konfiguration', 'hub-verzeichnis', 'abwesenheit-personal', 'abwesenheit-zeitkonto', 'telefonplan/muster'];
+const UMZUG_PRAEFIXE = ['abwesenheit/eintrag/', 'bereitschaft/', 'telefonplan/eintrag/', 'telefon/eintrag/', 'einteilung/'];
+
+export async function emailUmziehen(alt: string, neu: string): Promise<number> {
+  const s = store();
+  const listen = await Promise.all(UMZUG_PRAEFIXE.map((prefix) => s.list({ prefix })));
+  const schluessel = [...UMZUG_SCHLUESSEL, ...listen.flatMap((l) => l.blobs.map((b) => b.key))];
+  let anzahl = 0;
+  for (let i = 0; i < schluessel.length; i += 20) {
+    const teil = await Promise.all(
+      schluessel.slice(i, i + 20).map(async (key) => {
+        const vorher = (await s.get(key, { type: 'json' }).catch(() => null)) as unknown;
+        if (vorher == null) return 0;
+        const { wert, geaendert } = emailErsetzen(vorher, alt, neu);
+        if (!geaendert) return 0;
+        await s.setJSON(key, wert);
+        return 1;
+      }),
+    );
+    anzahl += teil.reduce<number>((x, y) => x + y, 0);
+  }
+  verzeichnisCache = null;
+  return anzahl;
 }
