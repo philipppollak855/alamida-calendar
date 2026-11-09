@@ -4,7 +4,8 @@ import { abwesendHeute, bereitschaftHeute, heuteText, termineHeute, type HeuteHi
 import { darfKalender, darfSehen } from '../../src/shared/rechte';
 import { KATEGORIEN, kategorieAus, type GoogleEvent } from '../../src/planung/planungLogic';
 import { alleKalender } from '../lib/kalender';
-import { abwesenheitenLaden, angemeldetOderHub, bereitschaftLaden, einteilungenLaden, env, googleGet, json, personalLaden } from '../lib/server';
+import { darfAbholen, darfTelefon, titel } from '../../src/shared/telefon';
+import { abwesenheitenLaden, angemeldetOderHub, bereitschaftLaden, einteilungenLaden, env, googleGet, json, mitschriftenLaden, personalLaden } from '../lib/server';
 
 /** Tagesübersicht für das Dashboard im Hub: heutige Termine, Bereitschaft, Abwesenheiten – gefiltert nach den Rechten der Person. */
 export default async (req: Request) => {
@@ -57,6 +58,17 @@ export default async (req: Request) => {
   if (verwalter) {
     const offen = abwesenheiten.filter(wartet).length;
     if (offen) hinweise.push({ text: `${offen} offene${offen === 1 ? 'r' : ''} Urlaubsantr${offen === 1 ? 'ag' : 'äge'}`, ziel: `${origin}/abwesenheit` });
+  }
+
+  const personen = a.konfig.benutzer.map((b) => ({ email: b.email.toLowerCase(), rollen: b.rollen }));
+  if (darfAbholen(a.rechte, personen)) {
+    const tel = await mitschriftenLaden().catch(() => []);
+    for (const m of tel.filter((x) => x.status === 'uebergeben').slice(0, 5))
+      hinweise.push({ text: `🚐 Abholung offen: ${titel(m)}${m.ort ? ` – ${m.ort}` : ''}`, ziel: `${origin}/telefon?id=${encodeURIComponent(m.id)}` });
+    if (darfTelefon(a.rechte, personen)) {
+      const offen = tel.filter((x) => x.status === 'offen').length;
+      if (offen) hinweise.push({ text: `📞 ${offen} offene Telefonnotiz${offen === 1 ? '' : 'en'}`, ziel: `${origin}/telefon` });
+    }
   }
 
   return json({

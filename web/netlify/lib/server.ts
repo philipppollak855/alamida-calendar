@@ -6,6 +6,7 @@ import { heuteWien, laufendBis, personalPruefen, type Abwesenheit, type Personal
 import type { AgentStatus } from './agent';
 import type { Einteilung } from '../../src/shared/einteilung';
 import { zeitkontoPruefen, type BerichtArchiv, type ZeitkontoDaten } from '../../src/shared/zeitkonto';
+import type { Mitschrift } from '../../src/shared/telefon';
 
 export const SESSION_COOKIE = 'alamida_session';
 export const SESSION_TAGE = 90;
@@ -182,6 +183,21 @@ export async function berichtArchivLaden(): Promise<BerichtArchiv[]> {
 }
 export const berichtArchivSpeichern = (b: BerichtArchiv) => store().setJSON(archivSchluessel(b), b);
 export const berichtArchivLoeschen = (b: Pick<BerichtArchiv, 'monat' | 'id'>) => store().delete(archivSchluessel(b));
+
+/* Telefondienst: ein Blob je Mitschrift, Aufnahmen getrennt. */
+const telSchluessel = (id: string) => `telefon/eintrag/${id}`;
+export async function mitschriftenLaden(): Promise<Mitschrift[]> {
+  const s = store();
+  const { blobs } = await s.list({ prefix: 'telefon/eintrag/' });
+  const l = await Promise.all(blobs.map((b) => s.get(b.key, { type: 'json' }) as Promise<Mitschrift | null>));
+  return l.filter((m): m is Mitschrift => !!m?.id).sort((a, b) => b.zeit - a.zeit);
+}
+export const mitschriftSpeichern = (m: Mitschrift) => store().setJSON(telSchluessel(m.id), m);
+export const mitschriftLoeschen = (id: string) => store().delete(telSchluessel(id));
+const aufnahmeSchluessel = (id: string) => `telefon/aufnahme/${id}`;
+export const aufnahmeSpeichern = (id: string, daten: ArrayBuffer, typ: string) => store().set(aufnahmeSchluessel(id), daten, { metadata: { typ } });
+export const aufnahmeLaden = (id: string) => store().get(aufnahmeSchluessel(id), { type: 'arrayBuffer' });
+export const aufnahmeLoeschen = (id: string) => store().delete(aufnahmeSchluessel(id));
 
 /* Personalplanung: ein Blob je Termin. */
 const einteilungSchluessel = (termin: string) => `einteilung/${Buffer.from(termin).toString('base64url')}`;

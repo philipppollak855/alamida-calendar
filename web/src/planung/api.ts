@@ -4,6 +4,7 @@ import type { EinteilungPerson } from '../shared/einteilung';
 import type { NeuerTermin } from '../shared/neuerTermin';
 import type { AbwArt, Abwesenheit, Personal } from '../shared/abwesenheit';
 import type { BerichtArchiv, MonatsEintrag, ZeitkontoDaten, ZeitkontoEinstellungen } from '../shared/zeitkonto';
+import type { Mitschrift } from '../shared/telefon';
 import { ausGoogleEvent, personalZuordnen, type GoogleEvent, type Termin } from './planungLogic';
 import { cacheLeeren, cacheLesen, cacheSchreiben, istOffline, OfflineFehler } from './offlineCache';
 
@@ -296,3 +297,42 @@ export const berichtArchivEntfernen = (b: Pick<BerichtArchiv, 'monat' | 'id'>) =
   holen<{ archiv: BerichtArchiv[] }>(`/api/zeitkonto?aktion=archiv&monat=${encodeURIComponent(b.monat)}&id=${encodeURIComponent(b.id)}`, { method: 'DELETE' }).then((r) => r.archiv);
 export const zeitkontoLoeschen = (email: string, monat: string) =>
   holen<ZeitkontoDaten>(`/api/zeitkonto?email=${encodeURIComponent(email)}&monat=${encodeURIComponent(monat)}`, { method: 'DELETE' });
+
+/* ── Telefondienst ── */
+export interface TelefonDaten {
+  mitschriften: Mitschrift[];
+  darfTelefon: boolean;
+  darfAbholen: boolean;
+  admin: boolean;
+  bereitschaft: { email: string; name?: string }[];
+  kuehlraeume: string[];
+  ich: { email: string; name?: string };
+  neu?: string;
+  offlineStand?: number;
+}
+const telAdresse = (p: Record<string, string> = {}) => `/api/telefon${Object.keys(p).length ? `?${new URLSearchParams(p)}` : ''}`;
+export const telefonLaden = () => mitCache('telefon', () => holen<TelefonDaten>(telAdresse()));
+export const mitschriftAnlegen = (d: Record<string, unknown>) => holen<TelefonDaten>(telAdresse(), jsonInit('POST', d));
+export const mitschriftAendern = (id: string, d: Record<string, unknown>) => holen<TelefonDaten>(telAdresse({ id }), jsonInit('PUT', d));
+export const mitschriftAktion = (id: string, aktion: 'uebergeben' | 'abholung' | 'erledigt', d: Record<string, unknown> = {}) =>
+  holen<TelefonDaten>(telAdresse({ id, aktion }), jsonInit('POST', d));
+export const mitschriftEntfernen = (id: string) => holen<TelefonDaten>(telAdresse({ id }), { method: 'DELETE' });
+export const aufnahmeHochladen = (id: string, datei: Blob) =>
+  holen<TelefonDaten>(telAdresse({ id, aktion: 'aufnahme' }), { method: 'POST', headers: { 'content-type': datei.type.split(';')[0] }, body: datei });
+export const aufnahmeEntfernen = (id: string) => holen<TelefonDaten>(telAdresse({ id, aktion: 'aufnahme' }), { method: 'DELETE' });
+export async function aufnahmeDatei(id: string): Promise<Blob> {
+  const headers = new Headers();
+  const hub = hubSitzung();
+  if (hub) headers.set('authorization', `Bearer ${hub}`);
+  let res: Response;
+  try {
+    res = await fetch(telAdresse({ id, aktion: 'aufnahme' }), { credentials: 'same-origin', headers });
+  } catch {
+    throw new OfflineFehler();
+  }
+  if (!res.ok) {
+    const d = (await res.json().catch(() => ({}))) as { fehler?: string };
+    throw new Error(d.fehler ?? `Fehler ${res.status}`);
+  }
+  return res.blob();
+}
