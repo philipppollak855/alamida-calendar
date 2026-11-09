@@ -600,3 +600,18 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .personal-ablauf, .personal-abweichend { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.55rem 0.7rem; border-radius: 10px; }
 .personal-ablauf { background: color-mix(in srgb, #8b7cf6 10%, transparent); border-left: 3px solid #8b7cf6; margin-bottom: 0.5rem; }
 .personal-abweichend { border: 1px dashed var(--rand); }
+
+/* Zeitkonten / Monatsbericht */
+.ab-zeitkonto { display: grid; gap: 1rem; }
+.zk-kopf { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+.zk-monat { display: flex; align-items: center; gap: 0.35rem; }
+.zk-monat .feld { width: auto; }
+.zk-scroll { overflow-x: auto; }
+.zk-tabelle td { vertical-align: top; }
+.zk-tabelle .zk-zahl { width: 4.8rem; min-width: 0; margin-right: 0.25rem; }
+.zk-tabelle .knopf.klein { margin: 0.15rem 0.15rem 0 0; }
+.zk-tabelle tr.zk-fertig td:first-child b { color: var(--akzent); }
+.zk-minus { color: #ef4444; font-weight: 600; }
+.zk-aktionen { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.zk-einstellungen { display: flex; gap: 1rem; flex-wrap: wrap; }
+.zk-einstellungen label { display: grid; gap: 0.25rem; font-size: 0.85rem; color: var(--text-3); }
