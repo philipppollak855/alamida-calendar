@@ -10,10 +10,13 @@ import {
   monatsbericht,
   monatText,
   runden,
+  type BerichtArchiv,
+  type BerichtGruppen,
   type MonatsEintrag,
   type ZeitkontoDaten,
+  type ZeitkontoEinstellungen,
 } from '../shared/zeitkonto';
-import { zeitkontoEinstellungen, zeitkontoLaden, zeitkontoLoeschen, zeitkontoSpeichern, type AbwesenheitDaten } from './api';
+import { berichtArchivEntfernen, berichtArchivieren, berichtArchivLaden, zeitkontoEinstellungen, zeitkontoLaden, zeitkontoLoeschen, zeitkontoSpeichern, type AbwesenheitDaten } from './api';
 import { drucken, herunterladen } from './beleg';
 import { berichtPdf } from './zeitkontoPdf';
 
@@ -40,6 +43,10 @@ export default function ZeitkontoAnsicht({ d }: { d: AbwesenheitDaten }) {
   const [entwurf, setEntwurf] = useState<Record<string, Partial<Record<keyof Werte, string>>>>({});
   const [meldung, setMeldung] = useState<{ ok: boolean; text: string } | null>(null);
   const [laeuft, setLaeuft] = useState(false);
+  const [archiv, setArchiv] = useState<BerichtArchiv[] | null>(null);
+  useEffect(() => {
+    if (d.darfVerwalten) berichtArchivLaden().then(setArchiv).catch(() => setArchiv([]));
+  }, [d.darfVerwalten]);
 
   useEffect(() => {
     zeitkontoLaden()
@@ -96,11 +103,18 @@ export default function ZeitkontoAnsicht({ d }: { d: AbwesenheitDaten }) {
 
   const bericht = monatsbericht(d.personal.filter((p) => !externe.has(p.email)), d.eintraege, zk, monat);
   const anzahl = bericht.reduce((s, g) => s + g.zeilen.length, 0);
-  const dateiname = `Monatsbericht_${monat.slice(5, 7)}_${monat.slice(0, 4)}`;
-  const pdf = (aktion: 'laden' | 'drucken') =>
-    berichtPdf(bericht, monat, e)
-      .then((b) => (aktion === 'laden' ? herunterladen(b, `${dateiname}.pdf`) : drucken(b, 'application/pdf')))
-      .catch((x: Error) => setMeldung({ ok: false, text: `PDF nicht erstellt: ${x.message}` }));
+  const archivieren = (still = true) =>
+    d.darfVerwalten &&
+    berichtArchivieren(monat)
+      .then((a) => {
+        setArchiv(a);
+        if (!still) setMeldung({ ok: true, text: `Monatsbericht ${monatText(monat)} ist im Archiv.` });
+      })
+      .catch((x: Error) => setMeldung({ ok: false, text: `Nicht archiviert: ${x.message}` }));
+  const pdf = (aktion: 'laden' | 'drucken') => {
+    void archivieren();
+    return berichtAusgeben(bericht, monat, e, aktion).catch((x: Error) => setMeldung({ ok: false, text: `PDF nicht erstellt: ${x.message}` }));
+  };
   const offen = personal.filter((p) => !zk.eintraege.some((x) => x.email === p.email && x.monat === monat));
 
   return (
@@ -198,9 +212,14 @@ export default function ZeitkontoAnsicht({ d }: { d: AbwesenheitDaten }) {
         <div className="zk-aktionen">
           <button className="knopf primaer" disabled={!anzahl} onClick={() => pdf('laden')}>⬇ PDF</button>
           <button className="knopf" disabled={!anzahl} onClick={() => pdf('drucken')}>🖨 Drucken</button>
-          <button className="knopf" disabled={!anzahl} onClick={() => herunterladen(new Blob([berichtCsv(bericht)], { type: 'text/csv;charset=utf-8' }), `${dateiname}.csv`)}>
+          <button className="knopf" disabled={!anzahl} onClick={() => { void archivieren(); csvLaden(bericht, monat); }}>
             ⬇ CSV (Excel)
           </button>
+          {d.darfVerwalten && (
+            <button className="knopf" disabled={!anzahl} onClick={() => void archivieren(false)} title="Fester Stand – wird beim Herunterladen und Drucken auch automatisch abgelegt">
+              📁 Archivieren
+            </button>
+          )}
         </div>
         <div className="zk-einstellungen">
           <label>
@@ -221,6 +240,71 @@ export default function ZeitkontoAnsicht({ d }: { d: AbwesenheitDaten }) {
           </label>
         </div>
       </section>
+      {d.darfVerwalten && <BerichtArchivListe archiv={archiv} onArchiv={setArchiv} onFehler={(t) => setMeldung({ ok: false, text: t })} />}
     </div>
+  );
+}
+
+const dateinameVon = (monat: string) => `Monatsbericht_${monat.slice(5, 7)}_${monat.slice(0, 4)}`;
+const berichtAusgeben = (g: BerichtGruppen, monat: string, e: ZeitkontoEinstellungen, aktion: 'laden' | 'drucken', zusatz = '') =>
+  berichtPdf(g, monat, e).then((b) => (aktion === 'laden' ? herunterladen(b, `${dateinameVon(monat)}${zusatz}.pdf`) : drucken(b, 'application/pdf')));
+const csvLaden = (g: BerichtGruppen, monat: string, zusatz = '') =>
+  herunterladen(new Blob([berichtCsv(g)], { type: 'text/csv;charset=utf-8' }), `${dateinameVon(monat)}${zusatz}.csv`);
+
+/** Archiv der Monatsberichte: je Monat alle abgelegten Stände, neuester zuerst. */
+function BerichtArchivListe({ archiv, onArchiv, onFehler }: { archiv: BerichtArchiv[] | null; onArchiv: (a: BerichtArchiv[]) => void; onFehler: (t: string) => void }) {
+  const [jahr, setJahr] = useState('');
+  if (!archiv) return null;
+  const jahre = [...new Set(archiv.map((b) => b.monat.slice(0, 4)))];
+  const liste = archiv.filter((b) => !jahr || b.monat.startsWith(jahr));
+  const monate = [...new Set(liste.map((b) => b.monat))];
+  const stand = (b: BerichtArchiv) => new Date(b.erstellt).toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' });
+  const fehler = (x: Error) => onFehler(x.message);
+  return (
+    <section className="glas admin-block">
+      <div className="zk-archiv-kopf">
+        <h3>📁 Archiv Monatsberichte</h3>
+        {jahre.length > 1 && (
+          <select className="feld" value={jahr} onChange={(x) => setJahr(x.target.value)}>
+            <option value="">Alle Jahre</option>
+            {jahre.map((j) => (
+              <option key={j} value={j}>{j}</option>
+            ))}
+          </select>
+        )}
+      </div>
+      {!monate.length && <p className="leer">Noch nichts archiviert. Beim Herunterladen oder Drucken wird der Bericht automatisch abgelegt.</p>}
+      {monate.map((m) => {
+        const staende = liste.filter((b) => b.monat === m);
+        return (
+          <div key={m} className="zk-archiv-monat">
+            <b>{monatText(m)}</b>
+            {staende.map((b, i) => {
+              const n = b.gruppen.reduce((s, g) => s + g.zeilen.length, 0);
+              const zusatz = i ? `_Stand_${new Date(b.erstellt).toISOString().slice(0, 10)}` : '';
+              return (
+                <div key={b.id} className={`zk-archiv-stand ${i ? 'alt' : ''}`}>
+                  <span className="klein">
+                    {i ? 'älterer Stand' : 'aktuell'} · {stand(b)} · {b.von} · {n} Mitarbeiter
+                  </span>
+                  <span className="zk-aktionen">
+                    <button className="knopf klein" onClick={() => berichtAusgeben(b.gruppen, b.monat, b.einstellungen, 'laden', zusatz).catch(fehler)}>⬇ PDF</button>
+                    <button className="knopf klein" onClick={() => berichtAusgeben(b.gruppen, b.monat, b.einstellungen, 'drucken').catch(fehler)}>🖨</button>
+                    <button className="knopf klein" onClick={() => csvLaden(b.gruppen, b.monat, zusatz)}>CSV</button>
+                    <button
+                      className="knopf klein gefahr"
+                      title="Aus dem Archiv entfernen"
+                      onClick={() => confirm(`Stand vom ${stand(b)} für ${monatText(b.monat)} aus dem Archiv entfernen?`) && berichtArchivEntfernen(b).then(onArchiv).catch(fehler)}
+                    >
+                      🗑
+                    </button>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </section>
   );
 }

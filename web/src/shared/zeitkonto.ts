@@ -122,6 +122,22 @@ export interface BerichtZeile {
 
 export const OHNE_GRUPPE = 'Standard';
 
+export type BerichtGruppen = { gruppe: string; zeilen: BerichtZeile[] }[];
+
+/** Archivierter Monatsbericht: fester Stand zum Zeitpunkt der Erstellung. */
+export interface BerichtArchiv {
+  id: string;
+  monat: string;
+  erstellt: number;
+  von: string;
+  einstellungen: ZeitkontoEinstellungen;
+  gruppen: BerichtGruppen;
+}
+
+/** Gleicher Inhalt wie der letzte archivierte Stand des Monats? Dann kein neuer Eintrag. */
+export const berichtGleich = (a: Pick<BerichtArchiv, 'einstellungen' | 'gruppen'>, b: Pick<BerichtArchiv, 'einstellungen' | 'gruppen'>) =>
+  JSON.stringify([a.einstellungen, a.gruppen]) === JSON.stringify([b.einstellungen, b.gruppen]);
+
 /** Zeile je Mitarbeiter für den Berichtsmonat (Werte wie gespeichert bzw. Vorschlag aus dem Kalender). */
 export function berichtZeile(p: Personal, abw: Abwesenheit[], d: ZeitkontoDaten, monat: string): BerichtZeile {
   const e = d.eintraege.find((x) => x.email === p.email && x.monat === monat);

@@ -50,8 +50,6 @@ const TABS: { id: Tab; label: string; icon: string; taste: string }[] = [
   { id: 'fahrten', label: 'Fahrten', icon: '➜', taste: '4' },
   { id: 'orte', label: 'Orte', icon: '⌖', taste: '5' },
   { id: 'hinweise', label: 'Hinweise', icon: '⚑', taste: '6' },
-  { id: 'bereitschaft', label: 'Bereitschaft', icon: '🛡', taste: '7' },
-  { id: 'abwesenheit', label: 'Urlaub / Krank', icon: '🌴', taste: '8' },
 ];
 const GRUPPEN_ICON: Record<Gruppe, string> = { Zeremonien: '🕯️', Fahrten: '🚐', 'Gespräche': '💬', Sonstiges: '📌' };
 
@@ -204,7 +202,7 @@ export default function PlanungPage() {
   const bereitschaft = useBereitschaft(freigeschaltet);
   const abwesenheit = useAbwesenheit(freigeschaltet);
   const tabs = useMemo(
-    () => (ich?.rechte?.admin ? [...TABS, { id: 'admin' as Tab, label: 'Rechte', icon: '⚿', taste: '9' }] : TABS),
+    () => (ich?.rechte?.admin ? [...TABS, { id: 'admin' as Tab, label: 'Kalender-Einstellungen', icon: '⚙', taste: '7' }] : TABS),
     [ich],
   );
 

@@ -5,7 +5,7 @@ import type { Einsatz } from '../../src/shared/bereitschaft';
 import { heuteWien, laufendBis, personalPruefen, type Abwesenheit, type Personal } from '../../src/shared/abwesenheit';
 import type { AgentStatus } from './agent';
 import type { Einteilung } from '../../src/shared/einteilung';
-import { zeitkontoPruefen, type ZeitkontoDaten } from '../../src/shared/zeitkonto';
+import { zeitkontoPruefen, type BerichtArchiv, type ZeitkontoDaten } from '../../src/shared/zeitkonto';
 
 export const SESSION_COOKIE = 'alamida_session';
 export const SESSION_TAGE = 90;
@@ -173,6 +173,15 @@ export const personalLaden = async (): Promise<Personal[]> => personalPruefen(aw
 export const personalSpeichern = (p: Personal[]) => store().setJSON('abwesenheit-personal', p);
 export const zeitkontoLaden = async (): Promise<ZeitkontoDaten> => zeitkontoPruefen(await store().get('abwesenheit-zeitkonto', { type: 'json' }));
 export const zeitkontoSpeichern = (d: ZeitkontoDaten) => store().setJSON('abwesenheit-zeitkonto', d);
+const archivSchluessel = (b: Pick<BerichtArchiv, 'monat' | 'id'>) => `abwesenheit-bericht/${b.monat}/${b.id}`;
+export async function berichtArchivLaden(): Promise<BerichtArchiv[]> {
+  const s = store();
+  const { blobs } = await s.list({ prefix: 'abwesenheit-bericht/' });
+  const l = await Promise.all(blobs.map((b) => s.get(b.key, { type: 'json' }) as Promise<BerichtArchiv | null>));
+  return l.filter((b): b is BerichtArchiv => !!b).sort((a, b) => b.monat.localeCompare(a.monat) || b.erstellt - a.erstellt);
+}
+export const berichtArchivSpeichern = (b: BerichtArchiv) => store().setJSON(archivSchluessel(b), b);
+export const berichtArchivLoeschen = (b: Pick<BerichtArchiv, 'monat' | 'id'>) => store().delete(archivSchluessel(b));
 
 /* Personalplanung: ein Blob je Termin. */
 const einteilungSchluessel = (termin: string) => `einteilung/${Buffer.from(termin).toString('base64url')}`;

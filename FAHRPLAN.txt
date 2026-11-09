@@ -88,6 +88,8 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [ ] K21 Sterbefall per Knopfdruck ans Bereitschaftsteam; Team schließt Abholung ab (Kühlraum eintragen, offene Daten nachtragen)
 - [ ] K22 Archiv, Suche und Export der Mitschriften / Aufzeichnungen
 - [x] K23 Krank / Pflegeurlaub / Urlaub ohne neuen Antrag verlängern: „bis auf Weiteres“ bis zur Gesundmeldung oder manuell (Urlaub: Verlängerung wartet auf Genehmigung)
+- [x] K24 Monatsberichte im Archiv (fester Stand je Monat, automatisch beim Herunterladen/Drucken)
+- [x] K25 Kalender-App ohne fremde Unter-Apps (Bereitschaft, Urlaub / Krank eigene Hub-Apps; Rechte → Kalender-Einstellungen)
 
 ## Nicht mehr
 - Urnenwald-PRs #41–#139: nicht weiter bearbeiten (Anweisung Nutzer)
