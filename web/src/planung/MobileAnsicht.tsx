@@ -24,6 +24,7 @@ interface Props {
   termine: Termin[];
   alle: Termin[];
   hinweise: Warnung[];
+  onQuittieren?: (w: Warnung) => void;
   ich: Ich | null;
   stand: Date | null;
   laedt: boolean;
@@ -160,13 +161,15 @@ export default function MobileAnsicht(p: Props) {
             <div className="m-liste" {...wischen}>
               {tagListe.length === 0 && <div className="m-leer">Keine Termine 🌿</div>}
               {tagBloecke.map((b, n) => (
-                <div key={b.art === 'fall' ? b.schluessel : b.termin.id}>
+                <div key={b.art === 'einzel' ? b.termin.id : b.schluessel}>
                   {n === jetztIndex && (
                     <div className="jetzt-linie">
                       <span>Jetzt {format(jetzt, 'HH:mm')}</span>
                     </div>
                   )}
-                  {b.art === 'fall' ? (
+                  {b.art === 'sammel' ? (
+                    <FallKarte name={b.name} termine={b.termine} onOeffnen={p.onOeffnen} mitName />
+                  ) : b.art === 'fall' ? (
                     <FallKarte name={b.name} sterbefallId={b.sterbefallId} termine={b.termine} onOeffnen={p.onOeffnen} />
                   ) : (
                     <Zeile t={b.termin} onOeffnen={p.onOeffnen} />
@@ -251,10 +254,15 @@ export default function MobileAnsicht(p: Props) {
             <h2>Hinweise {p.hinweise.length > 0 && `(${p.hinweise.length})`}</h2>
             {p.hinweise.length === 0 && <div className="m-leer">✓ Keine Auffälligkeiten</div>}
             {p.hinweise.map((w, i) => (
-              <button key={i} className={`warnung ${w.art}`} onClick={() => p.onOeffnen(w.termine[0])}>
-                <span>{w.text}</span>
-                <small>{w.termine.map((t) => format(t.start, t.ganztaegig ? 'EEE d.M.' : 'EEE d.M. HH:mm', { locale: de })).join(' / ')}</small>
-              </button>
+              <div key={i} className="warnung-zeile">
+                <button className={`warnung ${w.art}`} onClick={() => p.onOeffnen(w.termine[0])}>
+                  <span>{w.text}</span>
+                  <small>{w.termine.map((t) => format(t.start, t.ganztaegig ? 'EEE d.M.' : 'EEE d.M. HH:mm', { locale: de })).join(' / ')}</small>
+                </button>
+                {p.onQuittieren && (
+                  <button className="knopf klein" onClick={() => p.onQuittieren!(w)}>✓ Akzeptieren</button>
+                )}
+              </div>
             ))}
             {p.ich?.rechte?.admin && <p className="klein">Benutzer & Rechte lassen sich am PC unter „Rechte“ verwalten.</p>}
           </div>

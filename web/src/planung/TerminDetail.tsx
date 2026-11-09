@@ -237,6 +237,7 @@ export default function TerminDetail({
   onEinteilen,
   onAblauf,
   onLoeschen,
+  onBearbeiten,
   onWaehlen,
   onSchliessen,
 }: {
@@ -247,6 +248,7 @@ export default function TerminDetail({
   onEinteilen?: (t: Termin, emails: string[]) => Promise<void>;
   onAblauf?: (fall: string, tag: string, emails: string[]) => Promise<void>;
   onLoeschen?: (t: Termin) => Promise<void>;
+  onBearbeiten?: (t: Termin) => void;
   onWaehlen: (t: Termin) => void;
   onSchliessen: () => void;
 }) {
@@ -393,11 +395,16 @@ export default function TerminDetail({
               <pre className="beschreibung">{termin.beschreibung}</pre>
             </section>
           )}
-          {onLoeschen && (
+          {(onLoeschen || onBearbeiten) && (
             <div className="aktionen">
-              <button className="knopf rot" onClick={() => void onLoeschen(termin).catch((e: Error) => alert(e.message))}>
+              {onBearbeiten && (
+                <button className="knopf primaer" onClick={() => onBearbeiten(termin)}>
+                  ✎ Bearbeiten
+                </button>
+              )}
+              {onLoeschen && <button className="knopf rot" onClick={() => void onLoeschen(termin).catch((e: Error) => alert(e.message))}>
                 Termin löschen
-              </button>
+              </button>}
             </div>
           )}
           <p className="klein modal-fuss">Kalender: {termin.kalenderName}</p>

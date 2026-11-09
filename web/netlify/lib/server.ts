@@ -285,7 +285,7 @@ export async function googleGet<T>(pfad: string, params: Record<string, string> 
 }
 
 /** Schreibender Zugriff (Termine anlegen/löschen) – der Service Account braucht im Kalender „Änderungen an Terminen vornehmen“. */
-export async function googleSenden<T = unknown>(methode: 'POST' | 'PATCH' | 'DELETE', pfad: string, daten?: unknown): Promise<T> {
+export async function googleSenden<T = unknown>(methode: 'POST' | 'PUT' | 'PATCH' | 'DELETE', pfad: string, daten?: unknown): Promise<T> {
   const res = await fetch(`https://www.googleapis.com/calendar/v3${pfad}`, {
     method: methode,
     headers: { authorization: `Bearer ${await serviceAccountToken(SCHREIBEN)}`, ...(daten ? { 'content-type': 'application/json' } : {}) },
