@@ -5,7 +5,9 @@ import { darfKalender, darfSehen } from '../../src/shared/rechte';
 import { KATEGORIEN, kategorieAus, type GoogleEvent } from '../../src/planung/planungLogic';
 import { alleKalender } from '../lib/kalender';
 import { darfAbholen, darfTelefon, titel } from '../../src/shared/telefon';
-import { abwesenheitenLaden, angemeldetOderHub, bereitschaftLaden, einteilungenLaden, env, googleGet, json, mitschriftenLaden, personalLaden } from '../lib/server';
+import { belegung } from '../../src/shared/telefonplan';
+import { ausText, plusTage } from '../../src/shared/bereitschaft';
+import { abwesenheitenLaden, angemeldetOderHub, bereitschaftLaden, einteilungenLaden, env, googleGet, json, mitschriftenLaden, personalLaden, telMusterLaden, telPlanLaden } from '../lib/server';
 
 /** Tagesübersicht für das Dashboard im Hub: heutige Termine, Bereitschaft, Abwesenheiten – gefiltert nach den Rechten der Person. */
 export default async (req: Request) => {
@@ -40,6 +42,7 @@ export default async (req: Request) => {
     personalLaden().catch(() => []),
     einteilungenLaden().catch(() => []),
   ]);
+  const [telPlan, telMuster] = await Promise.all([telPlanLaden(heute).catch(() => []), telMusterLaden().catch(() => [])]);
 
   const namen = new Map<string, string>([...a.konfig.benutzer.map((b) => [b.email, b.name ?? ''] as [string, string]), ...personal.map((p) => [p.email, p.name] as [string, string])]);
   const termine = termineHeute(
@@ -73,7 +76,17 @@ export default async (req: Request) => {
 
   return json({
     datum: heute,
-    eintraege: [...termine, ...bereitschaftHeute(einsaetze, heute, ich, origin, namen), ...abwesendHeute(abwesenheiten, heute, ich, verwalter, origin, namen)],
+    eintraege: [...termine, ...bereitschaftHeute(einsaetze, heute, ich, origin, namen),
+      ...belegung(telPlan, telMuster, ausText(heute), plusTage(ausText(heute), 1)).map((s) => ({
+        art: 'bereitschaft' as const,
+        id: `tel-${s.id}`,
+        titel: `Telefon: ${s.name || namen.get(s.email) || s.email}`,
+        von: s.von,
+        bis: s.bis,
+        symbol: '📞',
+        meins: s.email === ich,
+        ziel: `${origin}/bereitschaft`,
+      })), ...abwesendHeute(abwesenheiten, heute, ich, verwalter, origin, namen)],
     hinweise,
     fehler: ergebnisse.flatMap((r, i) => (r.status === 'rejected' ? [`${kalender[i].name}: ${(r.reason as Error).message}`] : [])),
   });

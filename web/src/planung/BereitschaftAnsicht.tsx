@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { standText } from './offlineCache';
+import TelefonplanAnsicht from './TelefonplanAnsicht';
 import { Calendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
 import { endOfMonth, format, getDay, parse, startOfMonth, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -205,7 +206,7 @@ function DienstKarte({ d, daten, onDaten, ab }: KartenProps) {
   );
 }
 
-type Modus = 'planung' | 'liste' | 'uebersicht';
+type Modus = 'planung' | 'liste' | 'uebersicht' | 'telefon';
 const LS_MODUS = 'alamida.bereitschaftModus';
 const FARBEN = ['#d4b06a', '#60a5fa', '#34d399', '#f472b6', '#a78bfa', '#f97316', '#22d3ee', '#facc15'];
 const farbeFuer = (email: string) => FARBEN[[...email].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % FARBEN.length];
@@ -511,17 +512,18 @@ export default function BereitschaftAnsicht({ aktiv }: { aktiv: boolean }) {
   const schliessen = useCallback(() => setGewaehlt(null), []);
 
   if (!aktiv) return <p className="leer">Für die Bereitschaft bitte anmelden – oder du hast noch keine Freigabe.</p>;
-  if (!daten) return <p className="leer">{fehler ?? 'Lädt …'}</p>;
-  const gezeigt = nurMeine ? liste.filter((d) => einsaetzeIn(daten.eintraege, d).some((e) => e.email === daten.ich.email)) : liste;
+  if (!daten && modus !== 'telefon') return <p className="leer">{fehler ?? 'Lädt …'}</p>;
+  const gezeigt = !daten ? [] : nurMeine ? liste.filter((d) => einsaetzeIn(daten.eintraege, d).some((e) => e.email === daten.ich.email)) : liste;
 
   return (
     <div className={`bereitschaft bs-modus-${modus}`}>
       <div className="bereitschaft-kopf">
         <div>
-          <h2>Bereitschaft</h2>
+          <h2>{modus === 'telefon' ? 'Telefonbereitschaft' : 'Bereitschaft'}</h2>
           <p className="klein">
-            Wochenenden (Fr–So) und Feiertage · 2 bis {MAX_GLEICHZEITIG} Personen ·{' '}
-            {daten.darfPlanen ? 'du darfst alle einteilen' : 'trag dich selbst ein oder aus'}
+            {modus === 'telefon'
+              ? 'Genau eine Person gleichzeitig · Muster und freie Einträge'
+              : `Wochenenden (Fr–So) und Feiertage · 2 bis ${MAX_GLEICHZEITIG} Personen · ${daten?.darfPlanen ? 'du darfst alle einteilen' : 'trag dich selbst ein oder aus'}`}
           </p>
         </div>
         <div className="tag-nav-knoepfe bs-umschalter" role="tablist">
@@ -529,6 +531,7 @@ export default function BereitschaftAnsicht({ aktiv }: { aktiv: boolean }) {
             ['planung', '▦ Planung'],
             ['liste', '☰ Liste'],
             ['uebersicht', '◔ Übersicht'],
+            ['telefon', '📞 Telefon'],
           ] as [Modus, string][]).map(([m, label]) => (
             <button key={m} role="tab" aria-selected={modus === m} className={modus === m ? 'aktiv' : ''} onClick={() => setModus(m)}>
               {label}
@@ -538,9 +541,10 @@ export default function BereitschaftAnsicht({ aktiv }: { aktiv: boolean }) {
       </div>
       {fehler && <div className="banner fehler">{fehler}</div>}
 
-      {modus === 'planung' && <PlanungKalender daten={daten} datum={datum} setDatum={setDatum} onWahl={setGewaehlt} />}
-      {modus === 'uebersicht' && <Uebersicht daten={daten} jahr={jahr} setJahr={setJahr} onWahl={setGewaehlt} />}
-      {modus === 'liste' && (
+      {modus === 'telefon' && <TelefonplanAnsicht />}
+      {modus === 'planung' && daten && <PlanungKalender daten={daten} datum={datum} setDatum={setDatum} onWahl={setGewaehlt} />}
+      {modus === 'uebersicht' && daten && <Uebersicht daten={daten} jahr={jahr} setJahr={setJahr} onWahl={setGewaehlt} />}
+      {modus === 'liste' && daten && (
         <section className="ansicht liste bs-liste">
           <label className="pille-wahl">
             <input type="checkbox" checked={nurMeine} onChange={() => setNurMeine(!nurMeine)} /> Nur meine
@@ -552,7 +556,7 @@ export default function BereitschaftAnsicht({ aktiv }: { aktiv: boolean }) {
           <button className="knopf" onClick={() => setWochen(wochen + WOCHEN)}>Weitere Wochen anzeigen</button>
         </section>
       )}
-      {gewaehlt && <DienstModal d={gewaehlt} daten={daten} onDaten={setDaten} ab={ab} onSchliessen={schliessen} />}
+      {gewaehlt && daten && <DienstModal d={gewaehlt} daten={daten} onDaten={setDaten} ab={ab} onSchliessen={schliessen} />}
     </div>
   );
 }
