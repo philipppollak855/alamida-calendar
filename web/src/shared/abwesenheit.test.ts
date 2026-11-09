@@ -177,3 +177,16 @@ describe('Übernommener Resturlaub', () => {
     expect(urlaubskonto(p, [], '2027-10-01').rest).toBe(288);
   });
 });
+
+describe('Pflegefreistellung', () => {
+  const luka: Personal = { email: anna.email, name: 'L', eintritt: '2026-08-10', saldoAb: '2026-11-04', urlaubStartSaldo: 80, tage: [8, 8, 8, 8, 8, 0, 0] };
+  it('zählt auch bei übernommenem Resturlaub im laufenden Arbeitsjahr', () => {
+    const k = urlaubskonto(luka, [abw('2026-10-23', '2026-10-23', 'pflege')], '2026-11-09');
+    expect(k.pflege).toEqual({ verbraucht: 8, anspruch: 40 });
+  });
+  it('zählt nur das laufende Arbeitsjahr und nur genehmigte Einträge', () => {
+    const k = urlaubskonto(luka, [abw('2026-10-23', '2026-10-23', 'pflege'), abw('2026-11-02', '2026-11-03', 'pflege', 'beantragt')], '2027-08-12');
+    expect(k.pflege.verbraucht).toBe(0);
+    expect(urlaubskonto(anna, [abw('2026-02-23', '2026-02-24', 'pflege'), abw('2026-03-02', '2026-03-02', 'pflege')], '2026-06-01').pflege.verbraucht).toBe(8);
+  });
+});
