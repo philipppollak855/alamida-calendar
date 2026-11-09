@@ -159,3 +159,21 @@ describe('Verlängern ohne neuen Antrag', () => {
     expect(wartet({ ...urlaub, verlaengerung: { bis: '2026-11-14', von: 'a@x', am: 1 } })).toBe(true);
   });
 });
+
+describe('Übernommener Resturlaub', () => {
+  // wie nach dem Import: 11 Tage zum 4.11., Arbeitsjahr ab 1.10. steckt schon drin
+  const p: Personal = { ...anna, eintritt: '2020-10-01', saldoAb: '2026-11-04', urlaubStartSaldo: 88, ohneVerfall: true };
+  it('zählt das laufende Urlaubsjahr nicht doppelt und zieht Urlaub ab', () => {
+    const k = urlaubskonto(p, [abw('2026-11-05', '2026-11-06'), abw('2026-11-13', '2026-11-13'), abw('2026-11-20', '2026-11-20', 'urlaub', 'beantragt')], '2026-11-09');
+    expect(k.rest).toBe(72);
+    expect(k.vorgeplant).toBe(8);
+    expect(k.beantragt).toBe(8);
+    expect(k.restGeplant).toBe(64);
+  });
+  it('der Stichtag selbst ist schon im übernommenen Rest abgezogen', () => {
+    expect(urlaubskonto(p, [abw('2026-11-04', '2026-11-04')], '2026-11-09').rest).toBe(88);
+  });
+  it('neues Urlaubsjahr kommt nach dem Stichtag dazu', () => {
+    expect(urlaubskonto(p, [], '2027-10-01').rest).toBe(288);
+  });
+});

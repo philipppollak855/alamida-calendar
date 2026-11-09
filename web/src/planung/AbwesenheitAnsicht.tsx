@@ -26,6 +26,7 @@ import {
   stundenVon,
   tageListe,
   urlaubskonto,
+  type Urlaubskonto,
   zaehlt,
   type AbwArt,
   type Abwesenheit,
@@ -110,13 +111,14 @@ export function AbwesenheitZeile({ eintraege }: { eintraege: Abwesenheit[] }) {
   );
 }
 
-function Kachel({ label, wert, klein, klasse }: { label: string; wert: string | number; klein?: string; klasse?: string }) {
+function Kachel({ label, wert, klein, klasse, unter }: { label: string; wert: string | number; klein?: string; klasse?: string; unter?: string }) {
   return (
     <div className="kachel glas">
       <div className="kachel-label">{label}</div>
       <div className={`kachel-wert ${klasse ?? ''}`}>
         {wert} {klein && <small>{klein}</small>}
       </div>
+      {unter && <div className="kachel-unter">{unter}</div>}
     </div>
   );
 }
@@ -129,12 +131,15 @@ function krankTageImJahr(p: Personal, eintraege: Abwesenheit[], jahr: number): n
     .reduce((s, e) => s + arbeitstage(p, { ...e, von: e.von > a ? e.von : a, bis: e.bis < b ? e.bis : b }), 0);
 }
 
+const restUnter = (k: Urlaubskonto) =>
+  `heute ${tage(k.rest, k.stundenProTag)}${k.vorgeplant ? ` · vorgeplant −${tage(k.vorgeplant, k.stundenProTag)}` : ''}${k.beantragt ? ` · beantragt −${tage(k.beantragt, k.stundenProTag)}` : ''}`;
+
 function KontoKacheln({ p, eintraege }: { p: Personal; eintraege: Abwesenheit[] }) {
   const k = useMemo(() => urlaubskonto(p, eintraege, heute()), [p, eintraege]);
   return (
     <div className="bs-kacheln ab-kacheln">
-      <Kachel label="Resturlaub" wert={tage(k.rest, k.stundenProTag)} klasse={k.rest < 0 ? 'bs-warn' : 'bs-ok'} />
-      <Kachel label="Verplant / beantragt" wert={tage(k.verplant, k.stundenProTag)} klasse="bs-klein" />
+      <Kachel label="Resturlaub" wert={tage(k.restGeplant, k.stundenProTag)} klasse={k.restGeplant < 0 ? 'bs-warn' : 'bs-ok'} unter={restUnter(k)} />
+      <Kachel label="Verplant / beantragt" wert={tage(k.verplant, k.stundenProTag)} klasse="bs-klein" unter={`${tage(k.vorgeplant, k.stundenProTag)} genehmigt · ${tage(k.beantragt, k.stundenProTag)} offen`} />
       {!p.ohneVerfall && <Kachel label="Verfällt in 3 Monaten" wert={tage(k.verfaelltBald, k.stundenProTag)} klasse={k.verfaelltBald > 0 ? 'bs-warn bs-klein' : 'bs-klein'} />}
       <Kachel label="Pflegefreistellung" wert={`${tage(k.pflege.verbraucht, k.stundenProTag)} / ${tage(k.pflege.anspruch, k.stundenProTag)}`} klasse="bs-klein" />
       <Kachel label={`Krankentage ${new Date().getFullYear()}`} wert={krankTageImJahr(p, eintraege, new Date().getFullYear())} klasse="bs-klein" />
@@ -852,7 +857,7 @@ function Dashboard({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhe
                     {e.verlaengerung && `bisher ${zeitraumText(e)} → ${e.verlaengerung.offen ? 'bis auf Weiteres' : `neu bis ${datumKurz(e.verlaengerung.bis)}`} · `}
                     {!e.verlaengerung && zeitraumText(e)}
                     {p ? ` · ${e.art === 'urlaub' || e.art === 'pflege' ? tage(stundenVon(p, e), stundenJeTag(p)) : std(stundenVon(p, e))}` : ''}
-                    {k && e.art === 'urlaub' ? ` · Rest ${tage(k.rest, k.stundenProTag)}` : ''}
+                    {k && e.art === 'urlaub' ? ` · Rest ${tage(k.restGeplant, k.stundenProTag)}` : ''}
                   </div>
                   {e.notiz && <div className="klein">„{e.notiz}“</div>}
                 </div>
@@ -898,8 +903,9 @@ function Dashboard({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhe
               {konten.map(({ p, k, krank }) => (
                 <tr key={p.email}>
                   <td>{p.name}</td>
-                  <td className={k.rest < 0 ? 'ab-rot' : ''}>
-                    {tage(k.rest, k.stundenProTag)}
+                  <td className={k.restGeplant < 0 ? 'ab-rot' : ''}>
+                    {tage(k.restGeplant, k.stundenProTag)}
+                    <div className="klein">{restUnter(k)}</div>
                   </td>
                   <td>{tage(k.verplant, k.stundenProTag)}</td>
                   <td className={!p.ohneVerfall && k.verfaelltBald > 0 ? 'ab-rot' : ''}>{p.ohneVerfall ? '–' : tage(k.verfaelltBald, k.stundenProTag)}</td>
@@ -966,12 +972,21 @@ function StammdatenMaske({ d, p: start, neu, onSpeichern, onEntfernen, onSchlies
   };
   return (
     <div className="modal-hintergrund" onClick={onSchliessen}>
-      <div className="modal ab-modal ab-stamm-maske" role="dialog" aria-modal="true" onClick={(x) => x.stopPropagation()}>
+      <div
+        className="modal ab-modal ab-stamm-maske"
+        role="dialog"
+        aria-modal="true"
+        onClick={(x) => x.stopPropagation()}
+        onKeyDown={(x) => {
+          if (x.key === 'Escape') onSchliessen();
+          if (x.key === 'Enter' && (x.ctrlKey || x.metaKey) && !fehler && !laeuft) ausfuehren(() => onSpeichern({ ...p, name: p.name.trim() }));
+        }}
+      >
         <div className="modal-kopf" style={{ background: 'var(--akzent)' }}>
           <div>
             <div className="modal-kategorie">{neu ? 'Neuer Mitarbeiter' : 'Personal-Stammdaten'}</div>
             <h2>{p.name || 'Ohne Namen'}</h2>
-            {k && <div className="modal-nr">Resturlaub {tage(k.rest, k.stundenProTag)} · {std(p.tage.reduce((x, y) => x + y, 0))}/Woche</div>}
+            {k && <div className="modal-nr">Resturlaub {tage(k.restGeplant, k.stundenProTag)} ({restUnter(k)}) · {std(p.tage.reduce((x, y) => x + y, 0))}/Woche</div>}
           </div>
           <button className="modal-zu" onClick={onSchliessen} aria-label="Schließen">✕</button>
         </div>
@@ -991,7 +1006,21 @@ function StammdatenMaske({ d, p: start, neu, onSpeichern, onEntfernen, onSchlies
               <label className="ab-feld">Austritt<input className="feld" type="date" value={p.austritt ?? ''} onChange={(e) => aendern({ austritt: e.target.value || undefined })} /></label>
             </div>
             <div className="ab-feld">
-              Sollstunden je Wochentag
+              <span>
+                Sollstunden je Wochentag · <b>{std(p.tage.reduce((x, y) => x + y, 0))}/Woche</b>
+              </span>
+              <div className="ab-vorlagen">
+                {[
+                  ['Vollzeit 40 h', [8, 8, 8, 8, 8, 0, 0]],
+                  ['30 h', [6, 6, 6, 6, 6, 0, 0]],
+                  ['20 h', [4, 4, 4, 4, 4, 0, 0]],
+                  ['38,5 h', [7.7, 7.7, 7.7, 7.7, 7.7, 0, 0]],
+                ].map(([l, t]) => (
+                  <button key={l as string} type="button" className={`pille ${JSON.stringify(p.tage) === JSON.stringify(t) ? 'an' : ''}`} onClick={() => aendern({ tage: t as number[] })}>
+                    {l as string}
+                  </button>
+                ))}
+              </div>
               <div className="ab-tage">
                 {p.tage.map((h, j) => (
                   <label key={j}>
@@ -1009,7 +1038,7 @@ function StammdatenMaske({ d, p: start, neu, onSpeichern, onEntfernen, onSchlies
               <label className="ab-feld">Urlaubswochen (leer = gesetzlich)<input className="feld" type="number" min={0} step={0.2} value={p.urlaubswochen ?? ''} onChange={(e) => aendern({ urlaubswochen: e.target.value ? Number(e.target.value) : undefined })} /></label>
               <label className="ab-feld">Resturlaub übernommen am<input className="feld" type="date" value={p.saldoAb ?? ''} onChange={(e) => aendern({ saldoAb: e.target.value || undefined })} /></label>
               <label className="ab-feld">
-                Übernommener Resturlaub (Tage)
+                Übernommener Resturlaub (Tage, inkl. laufendes Urlaubsjahr)
                 <input
                   className="feld"
                   type="number"
@@ -1030,8 +1059,8 @@ function StammdatenMaske({ d, p: start, neu, onSpeichern, onEntfernen, onSchlies
               <label className="ab-feld">Zählen ab Monat<input className="feld" type="month" value={p.ueAbMonat ?? ''} onChange={(e) => aendern({ ueAbMonat: e.target.value || undefined })} /></label>
             </div>
           </div>
-          {fehler && <p className="klein ab-rot">{fehler}</p>}
-          <div className="ab-modal-knoepfe">
+          <div className="ab-modal-knoepfe ab-stamm-fuss">
+            {fehler && <span className="klein ab-rot ab-stamm-fehler">{fehler}</span>}
             <button className="knopf primaer" disabled={laeuft || !!fehler} onClick={() => ausfuehren(() => onSpeichern({ ...p, name: p.name.trim() }))}>Speichern</button>
             <button className="knopf" onClick={onSchliessen}>Abbrechen</button>
             {!neu && (
@@ -1119,7 +1148,7 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
                 <span className="ab-stamm-werte">
                   <span>seit {p.eintritt ? format(ausText(p.eintritt), 'dd.MM.yyyy') : '–'}</span>
                   <span>{std(wochenStd)}/Woche</span>
-                  {k && <span className={k.rest < 0 ? 'ab-rot' : ''}>Rest {tage(k.rest, k.stundenProTag)}</span>}
+                  {k && <span className={k.restGeplant < 0 ? 'ab-rot' : ''}>Rest {tage(k.restGeplant, k.stundenProTag)}</span>}
                   {!p.ohneVerfall && <span>verfällt nach Gesetz</span>}
                   {p.austritt && <span>Austritt {format(ausText(p.austritt), 'dd.MM.yyyy')}</span>}
                 </span>
