@@ -1,6 +1,16 @@
 /** Bereitschaft an Wochenenden (Fr–So) und Feiertagen. Zeiten sind lokale Zeitangaben „JJJJ-MM-TTTHH:mm“ (Österreich). */
 
 import { ALLE, type Konfiguration, type Rechte } from './rechte';
+import { hatRolle, rolleVergeben, type MitRollen } from './rollen';
+
+export const MIN_PERSONEN = 2;
+
+/** Ein Dienst ist vollständig mit mind. 2 Personen – 3, wenn jemand Eingeteiltes „braucht Dritten“ hat. */
+export function besetzung(eintraege: Einsatz[], d: { von: string; bis: string }, dritter: ReadonlySet<string>): { personen: number; noetig: number; vollstaendig: boolean } {
+  const emails = new Set(einsaetzeIn(eintraege, d).map((e) => e.email));
+  const noetig = [...emails].some((e) => dritter.has(e)) ? MAX_GLEICHZEITIG : MIN_PERSONEN;
+  return { personen: emails.size, noetig, vollstaendig: emails.size >= noetig };
+}
 
 export const MAX_GLEICHZEITIG = 3;
 
@@ -102,7 +112,9 @@ const ZEIT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 export const gueltigeZeit = (s: string) => ZEIT.test(s) && zeitText(ausText(s)) === s;
 
 /** Prüft einen neuen Eintrag; liefert eine Fehlermeldung oder null. */
-export function einsatzFehler(eintraege: Einsatz[], neu: { email: string; von: string; bis: string }): string | null {
+export function einsatzFehler(eintraege: Einsatz[], neu: { email: string; von: string; bis: string }, personen?: MitRollen[]): string | null {
+  if (personen && rolleVergeben(personen, 'bereitschaft') && !hatRolle(personen.find((p) => p.email === neu.email), 'bereitschaft'))
+    return 'Nur Mitarbeiter mit der Rolle „Bereitschaft“ können eingeteilt werden';
   if (!gueltigeZeit(neu.von) || !gueltigeZeit(neu.bis) || neu.von >= neu.bis) return 'Ungültiger Zeitraum';
   const start = ausText(neu.von);
   const dienst = dienste(plusTage(start, -3), plusTage(start, 3)).find((d) => d.von <= neu.von && neu.bis <= d.bis);
@@ -143,13 +155,19 @@ function deckt(z: { von: string; bis: string }, teile: { von: string; bis: strin
 
 /** Jahresübersicht pro Person: ganze Wochenenden, Bereitschaftstage und Feiertage im Jahr und der nächste Einsatz. */
 export function jahresUebersicht(eintraege: Einsatz[], jahr: number, jetzt: string): PersonStatistik[] {
-  const jahrVon = `${jahr}-01-01T00:00`;
-  const jahrBis = `${jahr + 1}-01-01T00:00`;
-  const ds = dienste(new Date(jahr, 0, 1), new Date(jahr, 11, 31));
-  const ft = new Set(feiertage(jahr).map((f) => f.datum));
+  return uebersichtZeitraum(eintraege, new Date(jahr, 0, 1), new Date(jahr + 1, 0, 1), jetzt);
+}
+
+/** Wie die Jahresübersicht, für einen beliebigen Zeitraum [ab, bis) – z. B. einen Monat. */
+export function uebersichtZeitraum(eintraege: Einsatz[], ab: Date, bis: Date, jetzt: string): PersonStatistik[] {
+  const jahrVon = zeitText(ab);
+  const jahrBis = zeitText(bis);
+  const ds = dienste(ab, plusTage(bis, -1)).filter((d) => d.von >= jahrVon && d.von < jahrBis);
+  const ft = new Set<string>();
+  for (let j = ab.getFullYear(); j <= bis.getFullYear(); j++) for (const f of feiertage(j)) ft.add(f.datum);
   const dienstTage = new Set<string>();
-  for (const d of ds)
-    for (let t = ausText(d.von); zeitText(t) < d.bis; t = plusTage(t, 1)) if (t.getFullYear() === jahr) dienstTage.add(datumText(t));
+  for (const d of dienste(plusTage(ab, -3), bis))
+    for (let t = ausText(d.von); zeitText(t) < d.bis; t = plusTage(t, 1)) if (zeitText(t) >= jahrVon && zeitText(t) < jahrBis) dienstTage.add(datumText(t));
   const m = new Map<string, { p: PersonStatistik; tage: Set<string>; eigene: Einsatz[] }>();
   for (const e of eintraege) {
     let x = m.get(e.email);

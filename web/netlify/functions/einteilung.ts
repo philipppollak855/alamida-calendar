@@ -1,6 +1,7 @@
 import type { Config } from '@netlify/functions';
 import { ablaufId, darfEinteilen, einteilungFehler, terminTeile, type EinteilungPerson } from '../../src/shared/einteilung';
 import { darfKalender, darfSehen } from '../../src/shared/rechte';
+import { bedarf, zeremonieMax } from '../../src/shared/rollen';
 import { kategorieAus, type GoogleEvent } from '../../src/planung/planungLogic';
 import { angemeldet, einteilungLoeschen, einteilungSpeichern, einteilungenLaden, googleGet, json } from '../lib/server';
 
@@ -12,6 +13,7 @@ export default async (req: Request) => {
   if (!a.rechte.freigeschaltet) return json({ fehler: 'kein Zugriff' }, 403);
   const darf = darfEinteilen(a.rechte, a.konfig);
   const benutzer = new Map(a.konfig.benutzer.map((b) => [b.email.toLowerCase(), b.name]));
+  const rollen = a.konfig.benutzer.map((b) => ({ email: b.email.toLowerCase(), rollen: b.rollen }));
 
   if (req.method === 'PUT') {
     if (!darf) return json({ fehler: 'Keine Berechtigung für die Personalplanung' }, 403);
@@ -21,7 +23,7 @@ export default async (req: Request) => {
     if (b.fall !== undefined) {
       if (typeof b.fall !== 'string' || !b.fall.trim() || b.fall.length > 200) return json({ fehler: 'Fall fehlt' }, 400);
       if (typeof b.tag !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(b.tag)) return json({ fehler: 'Tag fehlt' }, 400);
-      const fehler = einteilungFehler('Beisetzung', liste, new Set(benutzer.keys()));
+      const fehler = einteilungFehler('Beisetzung', liste, new Set(benutzer.keys()), zeremonieMax(liste, rollen));
       if (fehler) return json({ fehler }, 400);
       const termin = ablaufId(b.fall, b.tag);
       const personen = mitNamen(liste);
@@ -42,7 +44,7 @@ export default async (req: Request) => {
     if (event.status === 'cancelled') return json({ fehler: 'Termin wurde abgesagt' }, 404);
     if (!darfSehen(a.rechte, teile.kalenderId, kategorie)) return json({ fehler: 'Kein Zugriff auf diesen Termin' }, 403);
     const emails = liste;
-    const fehler = einteilungFehler(kategorie, emails, new Set(benutzer.keys()));
+    const fehler = einteilungFehler(kategorie, emails, new Set(benutzer.keys()), bedarf(kategorie) === 'zeremonie' ? zeremonieMax(emails, rollen) : undefined);
     if (fehler) return json({ fehler }, 400);
     const termin = `${teile.kalenderId}/${teile.eventId}`;
     const personen = mitNamen(emails);
@@ -56,7 +58,7 @@ export default async (req: Request) => {
     // Namen aus dem aktuellen Verzeichnis (falls im Hub umbenannt).
     einteilungen: alle.map((e) => ({ termin: e.termin, personen: e.personen.map((p) => ({ ...p, name: benutzer.get(p.email) ?? p.name })) })),
     darfEinteilen: darf,
-    personen: darf ? a.konfig.benutzer.map((x) => ({ email: x.email.toLowerCase(), name: x.name, ...(x.extern ? { extern: true } : {}) })) : [],
+    personen: darf ? a.konfig.benutzer.map((x) => ({ email: x.email.toLowerCase(), name: x.name, ...(x.extern ? { extern: true } : {}), ...(x.rollen?.length ? { rollen: x.rollen } : {}) })) : [],
   });
 };
 

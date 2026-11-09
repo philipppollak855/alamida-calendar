@@ -1,6 +1,7 @@
 import type { Config } from '@netlify/functions';
 import { randomBytes } from 'node:crypto';
 import { darfPlanen, datumText, einsatzFehler, plusTage, type Einsatz } from '../../src/shared/bereitschaft';
+import { hatRolle, mitRolle, rolleVergeben } from '../../src/shared/rollen';
 import { angemeldet, bereitschaftLaden, einsatzLoeschen, einsatzSpeichern, json } from '../lib/server';
 
 /** Bereitschaft: GET Liste, POST eintragen, DELETE ?id= austragen. Jeder trägt sich selbst ein, Planer/Admins alle. */
@@ -10,6 +11,8 @@ export default async (req: Request) => {
   if (!a.rechte.freigeschaltet) return json({ fehler: 'keine Freigabe' }, 403);
   const planer = darfPlanen(a.rechte, a.konfig);
   const ich = a.sitzung.email.toLowerCase();
+  const rollen = a.konfig.benutzer.map((b) => ({ email: b.email.toLowerCase(), rollen: b.rollen }));
+  const rolleAktiv = rolleVergeben(rollen, 'bereitschaft');
   // Standard: ab 31 Tagen zurück; mit ?von=JJJJ-MM-TT (Kalender, Jahresübersicht) bis zu gut 2 Jahre zurück.
   const standardAb = datumText(plusTage(new Date(), -31));
   const vonParam = new URL(req.url).searchParams.get('von') ?? '';
@@ -23,7 +26,7 @@ export default async (req: Request) => {
     const person = a.konfig.benutzer.find((x) => x.email === email);
     if (email !== ich && !person) return json({ fehler: 'Unbekannter Mitarbeiter' }, 400);
     const neu = { email, von: String(b.von ?? ''), bis: String(b.bis ?? '') };
-    const fehler = einsatzFehler(liste, neu);
+    const fehler = einsatzFehler(liste, neu, rollen);
     if (fehler) return json({ fehler }, 400);
     const name = person?.name ?? (email === ich ? a.sitzung.name : undefined);
     const e: Einsatz = { id: randomBytes(9).toString('base64url'), ...neu, ...(name ? { name } : {}), eingetragenVon: ich, erstellt: Date.now() };
@@ -31,7 +34,7 @@ export default async (req: Request) => {
     // Gleichzeitige Anfragen: nach dem Speichern gegen alle anderen Einträge erneut prüfen und bei Konflikt den eigenen
     // zurücknehmen. Im ungünstigsten Fall werden beide abgelehnt, aber nie mehr als erlaubt eingetragen.
     liste = await bereitschaftLaden(ab);
-    const konflikt = einsatzFehler(liste.filter((x) => x.id !== e.id), neu);
+    const konflikt = einsatzFehler(liste.filter((x) => x.id !== e.id), neu, rollen);
     if (konflikt) {
       await einsatzLoeschen(e);
       return json({ fehler: konflikt }, 409);
@@ -49,7 +52,9 @@ export default async (req: Request) => {
     eintraege: liste.map(({ eingetragenVon, erstellt: _e, ...rest }) => (planer ? { ...rest, eingetragenVon } : rest)),
     darfPlanen: planer,
     ich: { email: ich, name: a.sitzung.name },
-    personen: planer ? a.konfig.benutzer.map((x) => ({ email: x.email, name: x.name })) : [],
+    personen: planer ? mitRolle(a.konfig.benutzer, 'bereitschaft').map((x) => ({ email: x.email, name: x.name })) : [],
+    dritter: a.konfig.benutzer.filter((x) => x.dritterNoetig).map((x) => x.email.toLowerCase()),
+    darfEintragen: !rolleAktiv || hatRolle(rollen.find((x) => x.email === ich), 'bereitschaft'),
   });
 };
 

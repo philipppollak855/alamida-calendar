@@ -201,6 +201,10 @@ export interface BereitschaftDaten {
   darfPlanen: boolean;
   ich: { email: string; name?: string };
   personen: { email: string; name?: string }[];
+  /** E-Mails der Personen, mit denen es eine dritte Person braucht. */
+  dritter?: string[];
+  /** Ich habe die Rolle „Bereitschaft“ (oder die Rolle ist noch niemandem zugewiesen). */
+  darfEintragen?: boolean;
 }
 
 const mitVon = (pfad: string, von?: string) => (von ? `${pfad}${pfad.includes('?') ? '&' : '?'}von=${von}` : pfad);
