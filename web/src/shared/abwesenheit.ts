@@ -29,7 +29,7 @@ export interface Personal {
   vordienstjahre?: number;
   /** Überschreibt die gesetzlichen Urlaubswochen (5 bzw. 6). */
   urlaubswochen?: number;
-  /** Übernommener Resturlaub (Stunden) zum Stichtag `saldoAb`; ältere Einträge zählen dann nicht. */
+  /** Übernommener Resturlaub (Stunden) zum Stichtag `saldoAb`, inkl. des dann laufenden Urlaubsjahres; ältere Einträge und Ansprüche zählen dann nicht. */
   urlaubStartSaldo?: number;
   saldoAb?: string;
   /** Urlaub verfällt nicht (wie im alten Programm); Standard: Verfall nach UrlG. */
@@ -183,6 +183,12 @@ export interface Urlaubskonto {
   rest: number;
   /** Beantragte oder künftige genehmigte Stunden, die den Rest noch verringern. */
   verplant: number;
+  /** Davon künftige genehmigte Urlaube. */
+  vorgeplant: number;
+  /** Davon offene Anträge. */
+  beantragt: number;
+  /** Resturlaub nach allen genehmigten (auch künftigen) Urlauben. */
+  restGeplant: number;
   /** Stunden, die innerhalb der nächsten 3 Monate verfallen. */
   verfaelltBald: number;
   /** Bezogener Pflegeurlaub im laufenden Arbeitsjahr / Anspruch. */
@@ -200,6 +206,9 @@ export function urlaubskonto(p: Personal, abw: Abwesenheit[], stichtag: string):
   const verfallAm = (d: string) => (p.ohneVerfall ? '9999-12-31' : d);
   const eigene = abw.filter((a) => a.email === p.email && a.art === 'urlaub');
   const ab = p.saldoAb && p.saldoAb > p.eintritt ? p.saldoAb : p.eintritt;
+  // Der Stichtag selbst ist im übernommenen Resturlaub schon abgezogen.
+  const mitSaldo = !!p.saldoAb && p.saldoAb > p.eintritt;
+  const abVerbrauch = mitSaldo ? datumText(plusTage(ausText(ab), 1)) : ab;
   const jahre: UrlaubsJahr[] = [];
   if (p.saldoAb && p.saldoAb > p.eintritt) {
     jahre.push({ start: p.saldoAb, ende: p.saldoAb, anspruch: p.urlaubStartSaldo ?? 0, verbraucht: 0, verfall: verfallAm(jahrePlus(p.saldoAb, 2)), rest: 0 });
@@ -208,7 +217,8 @@ export function urlaubskonto(p: Personal, abw: Abwesenheit[], stichtag: string):
     const start = jahrePlus(p.eintritt, n);
     if (start > stichtag || (p.austritt && start > p.austritt)) break;
     const ende = datumText(plusTage(ausText(jahrePlus(p.eintritt, n + 1)), -1));
-    if (ende < ab) continue;
+    // Das beim Stichtag laufende Urlaubsjahr steckt schon im übernommenen Resturlaub.
+    if (start < ab || ende < ab) continue;
     const wochen = p.urlaubswochen ?? (n + (p.vordienstjahre ?? 0) >= 25 ? 6 : 5);
     let anspruch = wochen * ws;
     if (n === 0 && stichtag < monatePlus(p.eintritt, 6)) {
@@ -223,7 +233,7 @@ export function urlaubskonto(p: Personal, abw: Abwesenheit[], stichtag: string):
   const tage = eigene
     .filter((a) => a.status === 'genehmigt')
     .flatMap((a) => tageListe(a.von, a.bis).map((d) => ({ d, h: a.stunden != null && a.von === a.bis ? Math.min(a.stunden, sollStunden(p, d)) : sollStunden(p, d) })))
-    .filter((x) => x.h > 0 && x.d >= ab && x.d <= stichtag)
+    .filter((x) => x.h > 0 && (mitSaldo ? x.d > ab : x.d >= ab) && x.d <= stichtag)
     .sort((x, y) => x.d.localeCompare(y.d));
   let ueberzogen = 0;
   for (const { d, h } of tage) {
@@ -244,9 +254,11 @@ export function urlaubskonto(p: Personal, abw: Abwesenheit[], stichtag: string):
   const gueltig = jahre.filter((j) => j.verfall > stichtag);
   const rest = Math.round((gueltig.reduce((s, j) => s + j.rest, 0) - ueberzogen) * 100) / 100;
   const in3 = monatePlus(stichtag, 3);
-  const verplant = eigene
-    .filter((a) => a.status === 'beantragt' || (a.status === 'genehmigt' && a.bis > stichtag))
-    .reduce((s, a) => s + stundenVon(p, a, a.status === 'genehmigt' ? datumText(plusTage(ausText(stichtag), 1)) : undefined), 0);
+  const morgen = datumText(plusTage(ausText(stichtag), 1));
+  const ab0 = abVerbrauch > morgen ? abVerbrauch : morgen;
+  const vorgeplant = eigene.filter((a) => a.status === 'genehmigt' && a.bis >= ab0).reduce((s, a) => s + stundenVon(p, a, ab0), 0);
+  const beantragt = eigene.filter((a) => a.status === 'beantragt' && a.bis >= abVerbrauch).reduce((s, a) => s + stundenVon(p, a, abVerbrauch), 0);
+  const verplant = vorgeplant + beantragt;
   const aktJahr = [...jahre].reverse().find((j) => j.start <= stichtag && j.ende >= stichtag && j.start !== j.ende);
   const pflegeVerbraucht = aktJahr
     ? abw.filter((a) => a.email === p.email && a.art === 'pflege' && zaehlt(a)).reduce((s, a) => s + stundenVon(p, a, aktJahr.start, aktJahr.ende), 0)
@@ -256,6 +268,9 @@ export function urlaubskonto(p: Personal, abw: Abwesenheit[], stichtag: string):
     jahre,
     rest,
     verplant: Math.round(verplant * 100) / 100,
+    vorgeplant: Math.round(vorgeplant * 100) / 100,
+    beantragt: Math.round(beantragt * 100) / 100,
+    restGeplant: Math.round((rest - vorgeplant) * 100) / 100,
     verfaelltBald: Math.round(gueltig.filter((j) => j.verfall <= in3).reduce((s, j) => s + j.rest, 0) * 100) / 100,
     pflege: { verbraucht: pflegeVerbraucht, anspruch: ws },
     stundenProTag: Math.round((ws / arbeitstageProWoche) * 100) / 100,

@@ -436,6 +436,7 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .kachel-wert.bs-klein { font-size: 1.35rem; }
 .kachel-wert.bs-warn { color: var(--warn); }
 .kachel-wert.bs-ok { color: var(--gruen); }
+.kachel-unter { font-size: 0.72rem; color: var(--text-3); margin-top: 0.15rem; line-height: 1.3; }
 .bs-uebersicht { display: grid; gap: 0.9rem; }
 .bs-spalten { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 0.9rem; align-items: start; }
 .bs-block { padding: 1rem; display: grid; gap: 0.6rem; }
@@ -665,3 +666,18 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .hinweise-erledigt summary { cursor: pointer; color: var(--text-3); margin-bottom: 0.5rem; }
 @media (max-width: 600px) { .warnung-zeile { flex-direction: column; } .warnung-zeile > .knopf { align-self: flex-end; } }
 .personal-titel { margin: 0.5rem 0 0.25rem; font-weight: 600; color: var(--text-2); }
+/* Personal-Stammdaten: breiter, zweispaltig am PC, Kopf und Knöpfe bleiben sichtbar */
+.ab-stamm-maske { width: min(920px, 100%); max-height: min(92vh, calc(100dvh - 1rem)); display: flex; flex-direction: column; }
+.ab-stamm-maske .modal-kopf { z-index: 3; flex: none; }
+.ab-stamm-maske .modal-inhalt { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 0 1.6rem; padding-bottom: 0; }
+.ab-stamm-maske .modal-block { border-bottom: 1px solid var(--rand); min-width: 0; }
+.ab-stamm-maske .ab-maske-raster { grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); }
+.ab-stamm-maske .ab-feld { min-width: 0; }
+.ab-stamm-maske .feld { width: 100%; box-sizing: border-box; }
+.ab-stamm-maske .ab-tage { grid-template-columns: repeat(7, minmax(0, 1fr)); max-width: 30rem; }
+.ab-stamm-maske .ab-tage .feld { padding: 0.45rem 0.2rem; text-align: center; }
+.ab-vorlagen { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.2rem 0 0.3rem; }
+.ab-vorlagen .pille { font-size: 0.75rem; padding: 0.2rem 0.6rem; }
+.ab-stamm-fuss { grid-column: 1 / -1; position: sticky; bottom: 0; z-index: 3; margin: 0 -1.5rem; padding: 0.7rem 1.5rem calc(0.7rem + env(safe-area-inset-bottom)); background: var(--flaeche-fest); border-top: 1px solid var(--rand-stark); align-items: center; }
+.ab-stamm-fehler { flex-basis: 100%; }
+.ab-stamm-maske .pille-wahl { align-items: flex-start; line-height: 1.35; }
