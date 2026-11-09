@@ -77,7 +77,7 @@ export function zeitkontoPruefen(x: unknown): ZeitkontoDaten {
 
 export type KalenderTage = { kr: number; ur: number; so: number; za: number };
 
-const SPALTE: Partial<Record<AbwArt, keyof KalenderTage>> = { krank: 'kr', urlaub: 'ur', pflege: 'so', za: 'za' };
+const SPALTE: Partial<Record<AbwArt, keyof KalenderTage>> = { krank: 'kr', urlaub: 'ur', pflege: 'so', sonderurlaub: 'so', za: 'za' };
 
 /** Fehltage eines Kalendermonats aus Urlaub / Krank: Arbeitstage laut Wochenplan (ohne Wochenende/Feiertage), stundenweise anteilig. */
 export function kalenderTage(p: Personal, abw: Abwesenheit[], monat: string): KalenderTage {

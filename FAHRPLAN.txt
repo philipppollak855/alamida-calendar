@@ -62,11 +62,11 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] K1 Vorsorge-Termine: kamen an, aber als „📝 Überführung …“ (falscher Kategorie-Name in der lokalen Konfiguration) -> Name-Schutz, bestehende Einträge korrigiert; Agent aktualisiert sich künftig selbst von GitHub (Modus „source“)
 - [x] K2 Verschwindende Termine: Agent löschte, wenn ein anderer Reiter/eine andere Maske desselben Falls offen war -> Löschen nur bei sichtbarem, leerem Datumsfeld, nach 20 s, nie für vergangene Termine; gelöschte Termine wiederhergestellt
 ### K-B Urlaub / Krank
-- [ ] K3 Urlaubsanträge und Sonderurlaub nie automatisch genehmigen, nur durch Berechtigte
-- [ ] K4 Berechtigte sehen alle Abwesenheiten und können genehmigen, ablehnen, ändern
-- [ ] K5 Team-Kalender mobil schön; direkt im Kalender pflegbar
-- [ ] K6 „Verfällt in 3 Monaten“ nur anzeigen, wenn Verfall beim Mitarbeiter aktiviert
-- [ ] K7 Personal-Stammdaten als Popup-Maske je Mitarbeiter
+- [x] K3 Urlaubsanträge und Sonderurlaub nie automatisch genehmigen, nur durch Berechtigte
+- [x] K4 Berechtigte sehen alle Abwesenheiten und können genehmigen, ablehnen, ändern
+- [x] K5 Team-Kalender mobil schön; direkt im Kalender pflegbar
+- [x] K6 „Verfällt in 3 Monaten“ nur anzeigen, wenn Verfall beim Mitarbeiter aktiviert
+- [x] K7 Personal-Stammdaten als Popup-Maske je Mitarbeiter
 ### K-C Kalender
 - [ ] K8 Selbst angelegte Termine nachbearbeiten
 - [ ] K9 Kalenderhinweise akzeptieren (quittieren)

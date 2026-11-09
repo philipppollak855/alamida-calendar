@@ -222,10 +222,14 @@ export interface AbwesenheitDaten {
 
 const jsonInit = (method: string, daten: unknown): RequestInit => ({ method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(daten) });
 export const abwesenheitLaden = () => mitCache('abwesenheit', () => holen<AbwesenheitDaten>('/api/abwesenheit'));
-export const abwesenheitEintragen = (e: { email?: string; art: AbwArt; von: string; bis: string; stunden?: number; notiz?: string }) =>
+export const abwesenheitEintragen = (e: { email?: string; art: AbwArt; von: string; bis: string; stunden?: number; notiz?: string; genehmigen?: boolean }) =>
   holen<AbwesenheitDaten>('/api/abwesenheit', jsonInit('POST', e));
 export const abwesenheitEntscheiden = (id: string, status: 'genehmigt' | 'abgelehnt', grund?: string) =>
   holen<AbwesenheitDaten>('/api/abwesenheit?aktion=entscheiden', jsonInit('POST', { id, status, grund }));
+export const abwesenheitAendern = (
+  id: string,
+  x: { art?: AbwArt; von?: string; bis?: string; stunden?: number | null; notiz?: string; status?: Abwesenheit['status']; grund?: string },
+) => holen<AbwesenheitDaten>('/api/abwesenheit?aktion=aendern', jsonInit('PUT', { id, ...x }));
 export const abwesenheitLoeschen = (id: string) => holen<AbwesenheitDaten>(`/api/abwesenheit?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
 const belegAdresse = (id: string, beleg?: string) =>
   `/api/abwesenheit?aktion=beleg&id=${encodeURIComponent(id)}${beleg ? `&beleg=${encodeURIComponent(beleg)}` : ''}`;

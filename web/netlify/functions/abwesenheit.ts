@@ -35,7 +35,9 @@ const text = (v: unknown, max = 500) => (typeof v === 'string' ? v.trim().slice(
  * Urlaub / Krank: GET Liste; POST eintragen/beantragen; POST ?aktion=entscheiden (genehmigen/ablehnen);
  * POST ?aktion=import (altes Programm); PUT ?aktion=personal (Stammdaten); DELETE ?id= zurückziehen/löschen;
  * ?aktion=beleg&id=…(&beleg=…): Bestätigung hochladen (POST, Datei als Body), abrufen (GET), entfernen (DELETE).
- * Krankmeldungen gelten sofort, Urlaub & Co. brauchen eine Genehmigung (Verwalter tragen direkt genehmigt ein).
+ * PUT ?aktion=aendern: Verwalter ändern Art, Zeitraum, Notiz und Status eines Eintrags.
+ * Krankmeldungen gelten sofort; Urlaub, Sonderurlaub & Co. sind immer offen, bis ein Berechtigter entscheidet
+ * (Verwalter können beim Eintragen ausdrücklich „gleich genehmigen“ wählen).
  */
 export default async (req: Request) => {
   const a = await angemeldet(req);
@@ -143,7 +145,7 @@ export default async (req: Request) => {
     if (fehler) return json({ fehler }, 400);
     const doppelt = liste.some((x) => x.email === email && x.status !== 'abgelehnt' && x.stunden == null && neu.stunden == null && ueberschneidet(x, neu));
     if (doppelt) return json({ fehler: 'Für diesen Zeitraum ist schon eine Abwesenheit eingetragen' }, 400);
-    const status: AbwStatus = neu.art === 'krank' ? 'gemeldet' : verwalter ? 'genehmigt' : 'beantragt';
+    const status: AbwStatus = neu.art === 'krank' ? 'gemeldet' : verwalter && b.genehmigen === true ? 'genehmigt' : 'beantragt';
     const notiz = text(b.notiz);
     const e: Abwesenheit = {
       id: neueId(),
@@ -156,6 +158,35 @@ export default async (req: Request) => {
     };
     await abwesenheitSpeichern(e);
     liste = [...liste, e];
+  } else if (req.method === 'PUT' && aktion === 'aendern') {
+    const verboten = nur(verwalter);
+    if (verboten) return verboten;
+    const e = liste.find((x) => x.id === b.id);
+    if (!e) return json({ fehler: 'Eintrag nicht gefunden' }, 404);
+    const stunden = typeof b.stunden === 'number' ? b.stunden : b.stunden === null ? undefined : e.stunden;
+    const geprueft = { email: e.email, art: (b.art ?? e.art) as AbwArt, von: text(b.von ?? e.von, 10), bis: text(b.bis ?? e.bis, 10), ...(stunden != null ? { stunden } : {}) };
+    const fehler = abwesenheitFehler(geprueft);
+    if (fehler) return json({ fehler }, 400);
+    const status = (b.status ?? e.status) as AbwStatus;
+    if (!['beantragt', 'genehmigt', 'abgelehnt', 'gemeldet'].includes(status)) return json({ fehler: 'Ungültiger Status' }, 400);
+    if (status !== 'abgelehnt' && geprueft.stunden == null && liste.some((x) => x.id !== e.id && x.email === e.email && x.status !== 'abgelehnt' && x.stunden == null && ueberschneidet(x, geprueft))) {
+      return json({ fehler: 'Für diesen Zeitraum ist schon eine Abwesenheit eingetragen' }, 400);
+    }
+    const notiz = b.notiz === undefined ? e.notiz : text(b.notiz) || undefined;
+    const grund = text(b.grund, 300);
+    const { stunden: _s, notiz: _n, ...basis } = e;
+    const neu: Abwesenheit = {
+      ...basis,
+      ...geprueft,
+      status,
+      ...(notiz ? { notiz } : {}),
+      ...(status !== e.status && (status === 'genehmigt' || status === 'abgelehnt')
+        ? { entschieden: { von: ich, am: Date.now(), ...(grund ? { grund } : {}) } }
+        : {}),
+      geaendert: { von: ich, am: Date.now() },
+    };
+    await abwesenheitSpeichern(neu);
+    liste = liste.map((x) => (x.id === e.id ? neu : x));
   } else if (req.method === 'PUT' && aktion === 'personal') {
     const verboten = nur(verwalter);
     if (verboten) return verboten;
