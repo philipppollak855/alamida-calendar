@@ -21,6 +21,14 @@ public static class UiaFieldExtractor
         return result;
     }
 
+    /// <summary>Feld-Schlüssel, deren Element in der Maske existiert (auch wenn leer).</summary>
+    public static HashSet<string> VorhandeneFelder(UiaElementInfo[] candidates, Dictionary<string, FieldLocator> locators) =>
+        locators
+            .Where(kv => kv.Value.AutomationIdContains.Count > 0
+                && candidates.Any(el => AutomationIdMatches(el.AutomationId, kv.Value, kv.Key)))
+            .Select(kv => kv.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
     private static bool IsTrauerfeier2AutomationId(string automationId) =>
         automationId.Contains("Trauerfeier2", StringComparison.OrdinalIgnoreCase)
         || automationId.Contains("Trauerfeier_2", StringComparison.OrdinalIgnoreCase)

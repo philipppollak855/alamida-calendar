@@ -57,5 +57,36 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] J3 Monatsbericht wie Vorlage „Monatsbericht MM/JJJJ“ (gruppiert nach Gruppe: Name, Mon., Ü-Übertrag, Ü-Neu, Ü-Ausz., Ü-Saldo, Kr., Ur., So.; Hinweis: Überstunden aus Monat M, Fehltage aus Monat M+1) generieren
 - [x] J4 Export für die Buchhaltung (PDF + CSV/Excel)
 
+## K. Anweisungen (Anweisungen.txt) – produktionsreif, keine Platzhalter
+### K-A Fehler (zuerst)
+- [x] K1 Vorsorge-Termine: kamen an, aber als „📝 Überführung …“ (falscher Kategorie-Name in der lokalen Konfiguration) -> Name-Schutz, bestehende Einträge korrigiert; Agent aktualisiert sich künftig selbst von GitHub (Modus „source“)
+- [x] K2 Verschwindende Termine: Agent löschte, wenn ein anderer Reiter/eine andere Maske desselben Falls offen war -> Löschen nur bei sichtbarem, leerem Datumsfeld, nach 20 s, nie für vergangene Termine; gelöschte Termine wiederhergestellt
+### K-B Urlaub / Krank
+- [ ] K3 Urlaubsanträge und Sonderurlaub nie automatisch genehmigen, nur durch Berechtigte
+- [ ] K4 Berechtigte sehen alle Abwesenheiten und können genehmigen, ablehnen, ändern
+- [ ] K5 Team-Kalender mobil schön; direkt im Kalender pflegbar
+- [ ] K6 „Verfällt in 3 Monaten“ nur anzeigen, wenn Verfall beim Mitarbeiter aktiviert
+- [ ] K7 Personal-Stammdaten als Popup-Maske je Mitarbeiter
+### K-C Kalender
+- [ ] K8 Selbst angelegte Termine nachbearbeiten
+- [ ] K9 Kalenderhinweise akzeptieren (quittieren)
+- [ ] K10 Tagesplan: Abstand zwischen „Abwesend“ und Tageskarten
+- [ ] K11 Tagesplan (auch mobil): Kremationen und Überführungen je gruppiert
+### K-D Bereitschaft
+- [ ] K12 Übersicht: Verteilung als Monats- / Jahresansicht
+- [ ] K13 Bereitschaft erst mit mind. 2 (max. 3) Personen vollständig geplant
+### K-E Hub
+- [ ] K14 Start „Heute“: Infos + 4 App-Kacheln ohne Scrollen auf einem Bildschirm, v. a. mobil
+- [ ] K15 Rechteverwaltung moderner, intelligenter, aufgeräumter
+- [ ] K16 Kiosk: Anmeldung nur per PIN (erkennt die Person), Kamera für Hinzutreten / Weggehen (Logout)
+### K-F Rollen und Personalauswahl
+- [ ] K17 Rollen je Mitarbeiter: Arrangeur, Arrangeur i.A., Träger, Bereitschaft, Telefon, Berater
+- [ ] K18 Personalauswahl nach Rolle: Feiern/Rosenkranz/Beisetzung mind. 1 Arrangeur (Vorzug) oder Arrangeur i.A. (darf 6. Person sein); Träger als Arrangeur nur nach Warnung + Bestätigung; Rest nur Träger
+- [ ] K19 Gespräche (Trauer, Vorsorge …) brauchen einen Berater; Telefonbereitschaft Rolle Telefon; Bereitschaft nur Rolle Bereitschaft; Einstellung „braucht dritte Person“ je Mitarbeiter
+### K-G Telefondienst (Hub-App für Rolle Telefon)
+- [ ] K20 Mitschrift schnell: Sterbefall (Verstorbener, Sterbeort Adresse/KH/Pflegeheim + Notiz, Geburtsdatum, Hausarzt optional, Anrufer + Nummer, Notiz, Polizeieinsatz) oder Anliegen (Anrufer, Nummer, Anliegen, optional Sterbefall); immer Zeitstempel; optional Mitschnitt
+- [ ] K21 Sterbefall per Knopfdruck ans Bereitschaftsteam; Team schließt Abholung ab (Kühlraum eintragen, offene Daten nachtragen)
+- [ ] K22 Archiv, Suche und Export der Mitschriften / Aufzeichnungen
+
 ## Nicht mehr
 - Urnenwald-PRs #41–#139: nicht weiter bearbeiten (Anweisung Nutzer)

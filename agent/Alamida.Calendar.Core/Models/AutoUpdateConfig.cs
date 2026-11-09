@@ -6,8 +6,8 @@ public sealed class AutoUpdateConfig
 
     public bool CheckOnStartup { get; set; } = true;
 
-    /// <summary>release = GitHub-ZIP (Standard für Arbeitsplätze), git = Entwickler-Repo.</summary>
-    public string Mode { get; set; } = "release";
+    /// <summary>source = neuesten Stand von GitHub bauen (Standard), git = Entwickler-Repo.</summary>
+    public string Mode { get; set; } = "source";
 
     public string GitHubOwner { get; set; } = "philipppollak855";
 

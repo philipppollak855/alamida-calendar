@@ -19,7 +19,7 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlamidaCalendar", "sync-state.json");
     private readonly SyncState _state;
     private SynchronizationContext? _ui;
-    private string? _offeneLoeschungen;
+    private readonly LoeschSchutz _loeschSchutz = new();
     private DateTime _pauseBis = DateTime.MinValue;
     private bool _isRunning = true;
     private readonly ZentraleEinstellungen _zentral;
@@ -56,6 +56,7 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
 
         StartWatching();
         StartZentraleEinstellungen();
+        StartUpdatePruefung();
         AktualisiereTrayText();
         
         ShowBalloon("Alamida Kalender gestartet", ToolTipIcon.Info);
@@ -85,6 +86,33 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
         });
     }
 
+    private void StartUpdatePruefung()
+    {
+        _ = Task.Run(async () =>
+        {
+            while (_isRunning)
+            {
+                await Task.Delay(TimeSpan.FromHours(4));
+                try
+                {
+                    var checker = new AgentUpdateChecker(_config.AutoUpdate, AppContext.BaseDirectory);
+                    if (checker.TryApplyUpdateNow(out var msg))
+                    {
+                        _statusText = msg ?? "Update";
+                        await StatusSendenAsync();
+                        _isRunning = false;
+                        _ui?.Post(_ => { _tray.Visible = false; Application.Exit(); }, null);
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Update-Prüfung: {ex.Message}");
+                }
+            }
+        });
+    }
+
     private void StartZentraleEinstellungen()
     {
         _ = Task.Run(async () =>
@@ -100,6 +128,8 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
 
     private static string AgentVersion()
     {
+        var stand = new AgentUpdateChecker(new AutoUpdateConfig(), AppContext.BaseDirectory).InstallierterStand();
+        if (stand != null) return "Stand " + stand;
         var v = typeof(CalendarTrayApplicationContext).Assembly.GetName().Version?.ToString(3) ?? "?";
         try
         {
@@ -152,11 +182,10 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
             var neueIds = termine.Select(t => t.Event.Id).ToHashSet();
             var entfernt = alteTermine.Where(a => !neueIds.Contains(a.Key)).ToList();
 
-            // Loeschen erst, wenn der Termin bei zwei Abfragen hintereinander fehlt (kein Loeschen bei kurzem Lesefehler).
-            var loeschSchluessel = fallId + "|" + string.Join(",", entfernt.Select(e => e.Key).OrderBy(k => k));
-            var loeschenBestaetigt = sofort || entfernt.Count == 0 || _offeneLoeschungen == loeschSchluessel;
-            _offeneLoeschungen = entfernt.Count == 0 ? null : loeschSchluessel;
-            if (!loeschenBestaetigt) entfernt.Clear();
+            var freigegeben = _loeschSchutz.Pruefen(fallId,
+                entfernt.Select(e => new LoeschSchutz.Fehlend(e.Key, e.Value.Start)).ToList(),
+                snapshot.VorhandeneTerminArten, DateTime.Now, sofort).ToHashSet();
+            entfernt = entfernt.Where(e => freigegeben.Contains(e.Key)).ToList();
 
             if (geaendert.Count == 0 && entfernt.Count == 0) return;
 
@@ -192,7 +221,7 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
 
             var eintrag = new SyncState.FallEintrag { Aktualisiert = DateTime.Now };
             foreach (var t in termine)
-                eintrag.Termine[t.Event.Id] = new SyncState.TerminEintrag { CalendarId = t.CalendarId, Hash = t.Hash };
+                eintrag.Termine[t.Event.Id] = new SyncState.TerminEintrag { CalendarId = t.CalendarId, Hash = t.Hash, Start = t.Event.Start };
             foreach (var a in alteTermine.Where(a => !neueIds.Contains(a.Key) && !entfernt.Any(e => e.Key == a.Key)))
                 eintrag.Termine[a.Key] = a.Value;
             _state.Faelle[fallId] = eintrag;

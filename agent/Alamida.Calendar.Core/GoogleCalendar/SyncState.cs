@@ -43,5 +43,6 @@ public sealed class SyncState
     {
         public string CalendarId { get; set; } = "";
         public string Hash { get; set; } = "";
+        public DateTime? Start { get; set; }
     }
 }
