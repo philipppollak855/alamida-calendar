@@ -91,6 +91,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] K26 Krank / Pflegeurlaub / Urlaub ohne neuen Antrag verlängern: „bis auf Weiteres“ bis zur Gesundmeldung oder manuell (Urlaub: Verlängerung wartet auf Genehmigung)
 - [x] K27 Monatsberichte im Archiv (fester Stand je Monat, automatisch beim Herunterladen/Drucken)
 - [x] K28 Kalender-App ohne fremde Unter-Apps (Bereitschaft, Urlaub / Krank eigene Hub-Apps; Rechte → Kalender-Einstellungen)
+- [x] K29 Telefondienst mobil: neue Mitschrift als geführter Ablauf in Schritten ohne Scrollen, Weiter/Zurück unten fest, Aufnahme über alle Schritte
 
 ## Nicht mehr
 - Urnenwald-PRs #41–#139: nicht weiter bearbeiten (Anweisung Nutzer)

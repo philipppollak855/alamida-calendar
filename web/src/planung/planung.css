@@ -743,3 +743,35 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
   .telplan-abschnitte { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   .telplan-muster-zeile { grid-template-columns: 1fr; gap: 0.15rem; }
 }
+
+/* Telefondienst: geführte Eingabe am Handy */
+.tel-polizei.an { border-color: #dc2626; color: #dc2626; background: rgba(220, 38, 38, 0.12); }
+.tel-x { border: none; background: transparent; color: inherit; padding: 0 0 0 0.3rem; cursor: pointer; }
+.tel-assistent { display: flex; flex-direction: column; gap: 0.55rem; min-height: calc(100dvh - 9rem); }
+.tel-assistent-kopf { display: grid; gap: 0.45rem; }
+.tel-assistent .tel-art { padding: 0.6rem; font-size: 1rem; }
+.tel-assistent-werkzeug { display: flex; justify-content: space-between; align-items: center; gap: 0.4rem; }
+.tel-assistent-werkzeug .tel-aufnahme { flex: 1; }
+.tel-schritte { display: flex; gap: 0.3rem; }
+.tel-punkt { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.15rem; border: none; background: transparent; color: var(--text-3); font-size: 0.75rem; padding: 0.15rem 0; }
+.tel-punkt span { width: 1.7rem; height: 1.7rem; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--rand-stark); font-weight: 600; font-size: 0.85rem; }
+.tel-punkt.an { color: var(--text); }
+.tel-punkt.an span { background: var(--akzent); border-color: var(--akzent); color: #1a1a1a; }
+.tel-punkt.fertig span { border-color: var(--akzent); color: var(--akzent); }
+.tel-schritt { flex: 1; display: flex; flex-direction: column; gap: 0.7rem; padding: 0.9rem; }
+.tel-schritt h3 { margin: 0; font-size: 1.2rem; }
+.tel-schritt .feld { font-size: 16px; padding: 0.7rem 0.8rem; }
+.tel-schritt .ab-zeile { display: grid; grid-template-columns: 1fr; gap: 0.7rem; }
+.tel-schritt .tel-ort { display: grid; gap: 0.7rem; }
+.tel-schritt .tel-ort-arten { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+.tel-schritt .tel-ort-arten .pille, .tel-schritt .tel-polizei { padding: 0.75rem 0.6rem; font-size: 0.98rem; justify-content: center; text-align: center; }
+.tel-schritt textarea.feld { min-height: 6rem; }
+.tel-schritt-fuss { position: sticky; bottom: 0; display: flex; gap: 0.5rem; padding: 0.6rem 0 calc(0.6rem + env(safe-area-inset-bottom)); background: var(--bg); }
+.tel-schritt-fuss .knopf { flex: 1; padding: 0.8rem 0.5rem; font-size: 1rem; }
+.tel-schritt-fuss .tel-gleich { flex: 0 0 auto; }
+@media (max-width: 760px) {
+  .telefon .bereitschaft-kopf { margin-bottom: 0.4rem; }
+  .telefon .bereitschaft-kopf h2 { font-size: 1.15rem; margin: 0; }
+  .telefon .bereitschaft-kopf p { display: none; }
+  .bereitschaft-seite .inhalt:has(.telefon) { padding: 0.6rem 0.6rem 0.5rem; }
+}
