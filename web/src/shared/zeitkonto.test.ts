@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Abwesenheit, Personal } from './abwesenheit';
-import { altEintraegeLesen, berichtCsv, berichtHinweis, kalenderTage, monatPlus, monatsbericht, uebertrag, zeitkontoPruefen, type ZeitkontoDaten } from './zeitkonto';
+import { altEintraegeLesen, berichtCsv, berichtGleich, berichtHinweis, kalenderTage, monatPlus, monatsbericht, uebertrag, zeitkontoPruefen, type ZeitkontoDaten } from './zeitkonto';
 
 const p = (email: string, name: string, gruppe?: string, x: Partial<Personal> = {}): Personal => ({ email, name, gruppe, eintritt: '2024-01-01', tage: [8, 8, 8, 8, 8, 0, 0], ...x });
 const abw = (email: string, art: Abwesenheit['art'], von: string, bis: string, x: Partial<Abwesenheit> = {}): Abwesenheit => ({ id: von + art, email, art, von, bis, status: art === 'krank' ? 'gemeldet' : 'genehmigt', ...x });
@@ -64,5 +64,14 @@ describe('zeitkonto', () => {
     expect(d.einstellungen).toEqual({ verschiebungUe: 0, verschiebungAbw: 1 });
     const alt = altEintraegeLesen({ eintraege: [{ m_id: '1', jahr: '2026', monat: '9', ue: '14,5', ue_ausb: 14.5, kr: 0, ur: 1, so: 1 }, { m_id: '1', jahr: 'x', monat: '1' }] });
     expect(alt.get('1')).toEqual([{ monat: '2026-09', ue: 14.5, ueAusb: 14.5, kr: 0, ur: 1, so: 1 }]);
+  });
+});
+
+describe('Berichtsarchiv', () => {
+  it('erkennt gleichen Stand', () => {
+    const e = { verschiebungUe: 0, verschiebungAbw: 1 };
+    const g = [{ gruppe: 'Standard', zeilen: [] }];
+    expect(berichtGleich({ einstellungen: e, gruppen: g }, { einstellungen: { ...e }, gruppen: [{ gruppe: 'Standard', zeilen: [] }] })).toBe(true);
+    expect(berichtGleich({ einstellungen: e, gruppen: g }, { einstellungen: { ...e, verschiebungAbw: 0 }, gruppen: g })).toBe(false);
   });
 });

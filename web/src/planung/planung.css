@@ -681,3 +681,7 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .ab-stamm-fuss { grid-column: 1 / -1; position: sticky; bottom: 0; z-index: 3; margin: 0 -1.5rem; padding: 0.7rem 1.5rem calc(0.7rem + env(safe-area-inset-bottom)); background: var(--flaeche-fest); border-top: 1px solid var(--rand-stark); align-items: center; }
 .ab-stamm-fehler { flex-basis: 100%; }
 .ab-stamm-maske .pille-wahl { align-items: flex-start; line-height: 1.35; }
+.zk-archiv-kopf { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.zk-archiv-monat { display: grid; gap: 0.3rem; padding: 0.6rem 0; border-top: 1px solid var(--rand); }
+.zk-archiv-stand { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.zk-archiv-stand.alt { opacity: 0.7; }

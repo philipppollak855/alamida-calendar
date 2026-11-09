@@ -3,7 +3,7 @@ import type { Einsatz } from '../shared/bereitschaft';
 import type { EinteilungPerson } from '../shared/einteilung';
 import type { NeuerTermin } from '../shared/neuerTermin';
 import type { AbwArt, Abwesenheit, Personal } from '../shared/abwesenheit';
-import type { MonatsEintrag, ZeitkontoDaten, ZeitkontoEinstellungen } from '../shared/zeitkonto';
+import type { BerichtArchiv, MonatsEintrag, ZeitkontoDaten, ZeitkontoEinstellungen } from '../shared/zeitkonto';
 import { ausGoogleEvent, personalZuordnen, type GoogleEvent, type Termin } from './planungLogic';
 import { cacheLeeren, cacheLesen, cacheSchreiben, istOffline, OfflineFehler } from './offlineCache';
 
@@ -289,5 +289,10 @@ export const terminLoeschen = (id: string) => holen<{ ok: boolean }>(`/api/termi
 export const zeitkontoLaden = () => mitCache('zeitkonto', () => holen<ZeitkontoDaten>('/api/zeitkonto'));
 export const zeitkontoSpeichern = (eintraege: MonatsEintrag[]) => holen<ZeitkontoDaten>('/api/zeitkonto', jsonInit('PUT', { eintraege }));
 export const zeitkontoEinstellungen = (einstellungen: ZeitkontoEinstellungen) => holen<ZeitkontoDaten>('/api/zeitkonto', jsonInit('PUT', { einstellungen }));
+export const berichtArchivLaden = () => holen<{ archiv: BerichtArchiv[] }>('/api/zeitkonto?aktion=archiv').then((r) => r.archiv);
+export const berichtArchivieren = (monat: string) =>
+  holen<{ archiv: BerichtArchiv[] }>('/api/zeitkonto?aktion=archiv', jsonInit('POST', { monat })).then((r) => r.archiv);
+export const berichtArchivEntfernen = (b: Pick<BerichtArchiv, 'monat' | 'id'>) =>
+  holen<{ archiv: BerichtArchiv[] }>(`/api/zeitkonto?aktion=archiv&monat=${encodeURIComponent(b.monat)}&id=${encodeURIComponent(b.id)}`, { method: 'DELETE' }).then((r) => r.archiv);
 export const zeitkontoLoeschen = (email: string, monat: string) =>
   holen<ZeitkontoDaten>(`/api/zeitkonto?email=${encodeURIComponent(email)}&monat=${encodeURIComponent(monat)}`, { method: 'DELETE' });
