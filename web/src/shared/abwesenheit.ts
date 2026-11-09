@@ -259,7 +259,15 @@ export function urlaubskonto(p: Personal, abw: Abwesenheit[], stichtag: string):
   const vorgeplant = eigene.filter((a) => a.status === 'genehmigt' && a.bis >= ab0).reduce((s, a) => s + stundenVon(p, a, ab0), 0);
   const beantragt = eigene.filter((a) => a.status === 'beantragt' && a.bis >= abVerbrauch).reduce((s, a) => s + stundenVon(p, a, abVerbrauch), 0);
   const verplant = vorgeplant + beantragt;
-  const aktJahr = [...jahre].reverse().find((j) => j.start <= stichtag && j.ende >= stichtag && j.start !== j.ende);
+  // Pflegefreistellung gilt je Arbeitsjahr, unabhängig davon, ob das Urlaubsjahr im übernommenen Resturlaub steckt.
+  let aktJahr: { start: string; ende: string } | undefined;
+  for (let n = 0; n < 80 && p.eintritt <= stichtag; n++) {
+    const naechstes = jahrePlus(p.eintritt, n + 1);
+    if (naechstes > stichtag) {
+      aktJahr = { start: jahrePlus(p.eintritt, n), ende: datumText(plusTage(ausText(naechstes), -1)) };
+      break;
+    }
+  }
   const pflegeVerbraucht = aktJahr
     ? abw.filter((a) => a.email === p.email && a.art === 'pflege' && zaehlt(a)).reduce((s, a) => s + stundenVon(p, a, aktJahr.start, aktJahr.ende), 0)
     : 0;
