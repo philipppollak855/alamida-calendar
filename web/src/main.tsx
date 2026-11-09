@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
+import { Fehlergrenze } from './Fehlergrenze';
 import './styles.css';
 import { neuLadenEinmal } from './modulNeuLaden';
 
@@ -12,7 +13,9 @@ window.addEventListener('vite:preloadError', (e) => {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <Fehlergrenze>
+        <App />
+      </Fehlergrenze>
     </BrowserRouter>
   </StrictMode>
 );
