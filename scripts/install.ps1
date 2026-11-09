@@ -171,11 +171,18 @@ function Get-GitHubSource {
     Remove-DirectoryWithRetry $dlDir
     New-Item -ItemType Directory -Path $dlDir -Force | Out-Null
     $zip = Join-Path $dlDir 'source.zip'
-    Invoke-WebRequest -UseBasicParsing -Uri "https://codeload.github.com/$GitHubOwner/$GitHubRepo/zip/refs/heads/$GitHubBranch" -OutFile $zip
+    $ref = "refs/heads/$GitHubBranch"
+    $commit = $null
+    try {
+        $c = Invoke-RestMethod -UseBasicParsing -Headers @{ 'User-Agent' = 'AlamidaCalendar-Installer' } -Uri "https://api.github.com/repos/$GitHubOwner/$GitHubRepo/commits/$GitHubBranch"
+        $commit = @{ Sha = $c.sha; Datum = $c.commit.committer.date }
+        $ref = $c.sha
+    } catch { Write-Warn "Commit-Stand nicht abrufbar ($($_.Exception.Message)) - lade $GitHubBranch" }
+    Invoke-WebRequest -UseBasicParsing -Uri "https://codeload.github.com/$GitHubOwner/$GitHubRepo/zip/$ref" -OutFile $zip
     Expand-Archive -LiteralPath $zip -DestinationPath $dlDir -Force
     $root = Get-ChildItem -LiteralPath $dlDir -Directory | Select-Object -First 1
     if (-not $root) { throw "Download von GitHub fehlgeschlagen." }
-    return @{ Kind = 'repo'; Root = $root.FullName }
+    return @{ Kind = 'repo'; Root = $root.FullName; Commit = $commit }
 }
 
 function Get-DotnetSdk {
@@ -199,7 +206,7 @@ function Get-DotnetSdk {
     return $localDotnet
 }
 
-function Build-Agent([string] $RepoRoot) {
+function Build-Agent([string] $RepoRoot, $Commit) {
     $dotnet = Get-DotnetSdk
     $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
     $env:DOTNET_NOLOGO = '1'
@@ -220,6 +227,19 @@ function Build-Agent([string] $RepoRoot) {
         } catch { }
     }
     Set-Content -LiteralPath (Join-Path $out 'version.txt') -Value $version -Encoding ASCII -NoNewline
+    if (-not $Commit -and (Get-Command git -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath (Join-Path $RepoRoot '.git'))) {
+        try {
+            $sha = (& git -C $RepoRoot log -1 --format=%H 2>$null)
+            $datum = (& git -C $RepoRoot log -1 --format=%cI 2>$null)
+            if ($sha -and $datum) { $Commit = @{ Sha = $sha.Trim(); Datum = $datum.Trim() } }
+        } catch { }
+    }
+    if ($Commit) {
+        # Stand fuer das automatische Update des Agents (vergleicht mit dem neuesten Agent-Commit auf GitHub)
+        $d = $Commit.Datum
+        if ($d -is [datetime]) { $d = $d.ToUniversalTime().ToString('o') }
+        Set-Content -LiteralPath (Join-Path $out 'source-commit.txt') -Value "$($Commit.Sha)`n$d" -Encoding ASCII
+    }
     Copy-Item -LiteralPath (Join-Path $RepoRoot 'docs\field-mapping-9.2.1.json') -Destination (Join-Path $out 'field-mapping-9.2.1.json') -Force
     return $out
 }
@@ -303,7 +323,7 @@ try {
         Write-Ok "Fertiges Installationspaket gefunden"
     } else {
         Write-Info "Quellcode: $($source.Root)"
-        $appSource = Build-Agent $source.Root
+        $appSource = Build-Agent $source.Root $source.Commit
         Write-Ok "Agent gebaut"
     }
 
@@ -364,7 +384,7 @@ try {
     if (-not $poll -or [int]$poll -ge 5000) { Set-JsonProperty $settings 'PollIntervalMs' 1000 }
     $au = Get-JsonProperty $settings 'AutoUpdate'
     if (-not $au) { $au = New-Object PSObject; Set-JsonProperty $settings 'AutoUpdate' $au }
-    Set-JsonProperty $au 'Mode' 'release'
+    if ((Get-JsonProperty $au 'Mode') -ne 'git') { Set-JsonProperty $au 'Mode' 'source' }
     Set-JsonProperty $au 'GitHubOwner' $GitHubOwner
     Set-JsonProperty $au 'GitHubRepo' $GitHubRepo
     Set-JsonProperty $au 'AssetFileName' 'AlamidaCalendarAgent-win-x64.zip'

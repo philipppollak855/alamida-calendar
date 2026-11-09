@@ -43,7 +43,110 @@ public sealed class AgentUpdateChecker
         if (IsGitMode())
             return TryApplyGitUpdate(out message);
 
-        return TryApplyReleaseUpdate(out message);
+        return TryApplySourceUpdate(out message);
+    }
+
+    /// <summary>Prüft im laufenden Betrieb (ohne CheckOnStartup) und startet ggf. das Update.</summary>
+    public bool TryApplyUpdateNow(out string? message)
+    {
+        message = null;
+        if (!_config.Enabled || IsGitMode()) return false;
+        return TryApplySourceUpdate(out message);
+    }
+
+    // ---- Quellcode-Update: neuester Agent-Stand von GitHub wird mit install.ps1 -Silent gebaut ----
+
+    private const string SourceCommitFile = "source-commit.txt";
+    private static readonly string[] AgentPfade = ["agent", "docs/field-mapping-9.2.1.json", "scripts/install.ps1"];
+    private static readonly string WorkDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AlamidaCalendar");
+
+    private bool TryApplySourceUpdate(out string? message)
+    {
+        message = null;
+        try
+        {
+            if (!IsSourceUpdateAvailable(out var remoteDatum)) return false;
+            var marker = Path.Combine(WorkDir, "update-versuch.txt");
+            var versuch = $"{remoteDatum:O}";
+            if (File.Exists(marker))
+            {
+                var alt = File.ReadAllText(marker).Trim();
+                if (alt == versuch && DateTime.Now - File.GetLastWriteTime(marker) < TimeSpan.FromHours(12)) return false;
+            }
+            Directory.CreateDirectory(WorkDir);
+            File.WriteAllText(marker, versuch);
+
+            var script = Path.Combine(WorkDir, "update-install.ps1");
+            var url = $"https://raw.githubusercontent.com/{_config.GitHubOwner}/{_config.GitHubRepo}/{_config.Branch}/scripts/install.ps1";
+            var text = Http.GetStringAsync(url).GetAwaiter().GetResult();
+            File.WriteAllText(script, text, new System.Text.UTF8Encoding(true));
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{script}\" -Silent",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = WorkDir,
+            });
+            message = $"Agent-Update wird installiert ({LocalVersion} → {RemoteVersion}). Der Agent startet danach automatisch neu.";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            message = $"Auto-Update übersprungen: {ex.Message}";
+            return false;
+        }
+    }
+
+    private bool IsSourceUpdateAvailable(out DateTimeOffset remoteDatum)
+    {
+        remoteDatum = DateTimeOffset.MinValue;
+        var lokal = ReadSourceCommit();
+        LocalVersion = lokal?.Sha is { Length: > 7 } s ? s[..7] : ReadLocalVersion();
+        string? remoteSha = null;
+        foreach (var pfad in AgentPfade)
+        {
+            var url = $"https://api.github.com/repos/{_config.GitHubOwner}/{_config.GitHubRepo}/commits?sha={Uri.EscapeDataString(_config.Branch)}&path={Uri.EscapeDataString(pfad)}&per_page=1";
+            using var res = Http.GetAsync(url).GetAwaiter().GetResult();
+            if (!res.IsSuccessStatusCode) return false;
+            using var doc = JsonDocument.Parse(res.Content.ReadAsStringAsync().GetAwaiter().GetResult());
+            if (doc.RootElement.ValueKind != JsonValueKind.Array || doc.RootElement.GetArrayLength() == 0) continue;
+            var c = doc.RootElement[0];
+            var datum = c.GetProperty("commit").GetProperty("committer").GetProperty("date").GetDateTimeOffset();
+            if (datum > remoteDatum)
+            {
+                remoteDatum = datum;
+                remoteSha = c.GetProperty("sha").GetString();
+            }
+        }
+        if (remoteSha == null) return false;
+        RemoteVersion = remoteSha[..Math.Min(7, remoteSha.Length)];
+        // Ohne source-commit.txt (alte Installation) ist jeder GitHub-Stand neuer.
+        return lokal == null || remoteDatum > lokal.Value.Datum;
+    }
+
+    private (string Sha, DateTimeOffset Datum)? ReadSourceCommit()
+    {
+        try
+        {
+            var pfad = Path.Combine(_installDir, SourceCommitFile);
+            if (!File.Exists(pfad)) return null;
+            var zeilen = File.ReadAllLines(pfad);
+            if (zeilen.Length < 2 || !DateTimeOffset.TryParse(zeilen[1].Trim(), System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeUniversal, out var d)) return null;
+            return (zeilen[0].Trim(), d);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public string? InstallierterStand()
+    {
+        var s = ReadSourceCommit();
+        return s == null ? null : $"{s.Value.Sha[..Math.Min(7, s.Value.Sha.Length)]} vom {s.Value.Datum.ToLocalTime():dd.MM.yyyy HH:mm}";
     }
 
     public bool IsUpdateAvailable()

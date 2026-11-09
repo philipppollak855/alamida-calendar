@@ -1,3 +1,4 @@
+using Alamida.Calendar.Core.GoogleCalendar;
 using Alamida.Calendar.Core.Models;
 using Alamida.Calendar.Profiles;
 using FlaUI.UIA3;
@@ -62,7 +63,10 @@ public sealed class AlamidaMaskWatcher
             var maxZeilen = _profile.Detailmaske.Ueberfuehrung.MaxEtappen > 0
                 ? _profile.Detailmaske.Ueberfuehrung.MaxEtappen
                 : AlamidaEtappenFields.DefaultMaxEtappen;
-            return NeuerSterbefallSnapshotBuilder.Build(fields, maxZeilen);
+            return NeuerSterbefallSnapshotBuilder.Build(fields, maxZeilen) with
+            {
+                VorhandeneTerminArten = LoeschSchutz.ArtenAusFeldern(UiaFieldExtractor.VorhandeneFelder(elements, _profile.NeuerSterbefall.Fields)),
+            };
         }
 
         // Nur echte Termine/Überführungs-Maske — sonst keine Felder auslesen (verhindert Leer-Sync).
@@ -114,6 +118,7 @@ public sealed class AlamidaMaskWatcher
                 ErfassungsPhase = "detail",
                 IstNeuerFall = false,
                 ErfassungSchluessel = snap.SterbefallId ?? snap.VerstorbenerName,
+                VorhandeneTerminArten = LoeschSchutz.ArtenAusFeldern(UiaFieldExtractor.VorhandeneFelder(elements, detailMask.Fields)),
             };
         }
 
@@ -141,10 +146,13 @@ public sealed class AlamidaMaskWatcher
         }
 
         var termine = new List<VorsorgeTermin>();
+        var vorhanden = new HashSet<string>(StringComparer.Ordinal);
         var debug = new List<string> { $"Maske={MaskKind.VorsorgeTermine}", $"kopf({quelle})={kopfText ?? "(leer)"}" };
         for (var n = 1; n <= Math.Max(1, cfg.MaxTermine); n++)
         {
-            var f = UiaFieldExtractor.ExtractFields(elements, cfg.FelderFuer(n));
+            var locators = cfg.FelderFuer(n);
+            var f = UiaFieldExtractor.ExtractFields(elements, locators);
+            if (UiaFieldExtractor.VorhandeneFelder(elements, locators).Contains("datum")) vorhanden.Add($"vorsorge{n}");
             debug.AddRange(f.Select(kv => $"{n}.{kv.Key}={kv.Value ?? "(leer)"}"));
             termine.Add(new VorsorgeTermin
             {
@@ -175,6 +183,7 @@ public sealed class AlamidaMaskWatcher
             QuelleMaske = "vorsorge_termine",
             ErfassungsPhase = "detail",
             VorsorgeTermine = termine,
+            VorhandeneTerminArten = vorhanden,
         };
     }
 

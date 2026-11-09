@@ -61,6 +61,9 @@ public sealed record DetailSnapshot
     /// <summary>Nur bei QuelleMaske „vorsorge_termine“; SterbefallId ist dann „V“ + Vorsorgenummer.</summary>
     public IReadOnlyList<VorsorgeTermin> VorsorgeTermine { get; init; } = [];
 
+    /// <summary>Termin-Arten, deren Datumsfelder in der gelesenen Maske vorhanden waren (null = unbekannt, nie löschen).</summary>
+    public IReadOnlySet<string>? VorhandeneTerminArten { get; init; }
+
     public bool IsVorsorge => string.Equals(QuelleMaske, "vorsorge_termine", StringComparison.Ordinal);
 
     public string ContentHash()
