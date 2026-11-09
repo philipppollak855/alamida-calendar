@@ -5,6 +5,7 @@ import type { NeuerTermin } from '../shared/neuerTermin';
 import type { AbwArt, Abwesenheit, Personal } from '../shared/abwesenheit';
 import type { BerichtArchiv, MonatsEintrag, ZeitkontoDaten, ZeitkontoEinstellungen } from '../shared/zeitkonto';
 import type { Mitschrift } from '../shared/telefon';
+import type { TelEinsatz, TelMuster, TelSegment } from '../shared/telefonplan';
 import { ausGoogleEvent, personalZuordnen, type GoogleEvent, type Termin } from './planungLogic';
 import { cacheLeeren, cacheLesen, cacheSchreiben, istOffline, OfflineFehler } from './offlineCache';
 
@@ -307,6 +308,7 @@ export interface TelefonDaten {
   bereitschaft: { email: string; name?: string }[];
   kuehlraeume: string[];
   ich: { email: string; name?: string };
+  telefonJetzt?: TelSegment | null;
   neu?: string;
   offlineStand?: number;
 }
@@ -336,3 +338,21 @@ export async function aufnahmeDatei(id: string): Promise<Blob> {
   }
   return res.blob();
 }
+
+/* ── Telefonbereitschaft ── */
+export interface TelefonplanDaten {
+  eintraege: TelEinsatz[];
+  muster: TelMuster[];
+  darfPlanen: boolean;
+  darfEintragen: boolean;
+  ich: { email: string; name?: string };
+  personen: { email: string; name?: string }[];
+  jetzt: TelSegment | null;
+  offlineStand?: number;
+}
+const tpAdresse = (von: string, p: Record<string, string> = {}) => `/api/telefonplan?${new URLSearchParams({ von, ...p })}`;
+export const telefonplanLaden = (von: string) => mitCache(`telefonplan:${von}`, () => holen<TelefonplanDaten>(tpAdresse(von)));
+export const telefonplanEintragen = (von: string, e: { email?: string; von: string; bis: string }) => holen<TelefonplanDaten>(tpAdresse(von), jsonInit('POST', e));
+export const telefonplanAustragen = (von: string, id: string) => holen<TelefonplanDaten>(tpAdresse(von, { id }), { method: 'DELETE' });
+export const telMusterSpeichern = (von: string, m: Partial<TelMuster>) => holen<TelefonplanDaten>(tpAdresse(von, { aktion: 'muster' }), jsonInit('POST', m));
+export const telMusterLoeschen = (von: string, id: string) => holen<TelefonplanDaten>(tpAdresse(von, { aktion: 'muster', id }), { method: 'DELETE' });

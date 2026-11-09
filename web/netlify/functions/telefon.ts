@@ -22,6 +22,7 @@ import {
   mitschriftenLaden,
   mitschriftLoeschen,
   mitschriftSpeichern,
+  telefonJetztLaden,
 } from '../lib/server';
 
 const neueId = () => `${Date.now().toString(36)}-${randomBytes(6).toString('base64url')}`;
@@ -140,6 +141,7 @@ export default async (req: Request) => {
       bereitschaft: await bereitschaftJetzt(),
       kuehlraeume: [...new Set(liste.flatMap((x) => (x.abholung ? [x.abholung.kuehlraum] : [])))].slice(0, 12),
       ich: { email: ich, name: a!.sitzung.name },
+      telefonJetzt: await telefonJetztLaden().catch(() => null),
       ...(neu ? { neu } : {}),
     });
   }

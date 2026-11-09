@@ -7,6 +7,7 @@ import type { AgentStatus } from './agent';
 import type { Einteilung } from '../../src/shared/einteilung';
 import { zeitkontoPruefen, type BerichtArchiv, type ZeitkontoDaten } from '../../src/shared/zeitkonto';
 import type { Mitschrift } from '../../src/shared/telefon';
+import { telefonJetzt, type TelEinsatz, type TelMuster, type TelSegment } from '../../src/shared/telefonplan';
 
 export const SESSION_COOKIE = 'alamida_session';
 export const SESSION_TAGE = 90;
@@ -149,6 +150,29 @@ export async function bereitschaftLaden(ab: string): Promise<Einsatz[]> {
 
 export const einsatzSpeichern = (e: Einsatz) => store().setJSON(einsatzSchluessel(e), e);
 export const einsatzLoeschen = (e: Einsatz) => store().delete(einsatzSchluessel(e));
+
+/* Telefonbereitschaft: ein Blob je Eintrag, Muster gemeinsam. */
+const telPlanSchluessel = (e: Pick<TelEinsatz, 'id' | 'bis'>) => `telefonplan/eintrag/${e.bis.slice(0, 10)}/${e.id}`;
+export async function telPlanLaden(ab: string): Promise<TelEinsatz[]> {
+  const s = store();
+  const { blobs } = await s.list({ prefix: 'telefonplan/eintrag/' });
+  const keys = blobs.map((b) => b.key).filter((k) => k.split('/')[2] >= ab);
+  const l = await Promise.all(keys.map((k) => s.get(k, { type: 'json' }) as Promise<TelEinsatz | null>));
+  return l.filter((e): e is TelEinsatz => !!e).sort((a, b) => a.von.localeCompare(b.von));
+}
+export const telPlanSpeichern = (e: TelEinsatz) => store().setJSON(telPlanSchluessel(e), e);
+export const telPlanLoeschen = (e: TelEinsatz) => store().delete(telPlanSchluessel(e));
+export const telMusterLaden = async () => ((await store().get('telefonplan/muster', { type: 'json' })) as TelMuster[] | null) ?? [];
+export const telMusterSpeichern = (l: TelMuster[]) => store().setJSON('telefonplan/muster', l);
+/** Wer gerade Telefondienst hat (Ortszeit Wien). */
+export async function telefonJetztLaden(): Promise<TelSegment | null> {
+  const jetzt = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Vienna', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .format(new Date())
+    .replace(' ', 'T');
+  const gestern = new Date(Date.parse(`${jetzt.slice(0, 10)}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  const [l, m] = await Promise.all([telPlanLaden(gestern), telMusterLaden()]);
+  return telefonJetzt(l, m, jetzt);
+}
 
 /* Urlaub / Krank: ein Blob je Abwesenheit, Personal-Stammdaten als ein Blob. */
 const abwSchluessel = (id: string) => `abwesenheit/eintrag/${id}`;

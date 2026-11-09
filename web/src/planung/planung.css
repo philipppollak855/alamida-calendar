@@ -716,3 +716,30 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
   .tel-zeile { grid-template-columns: 1fr; gap: 0.1rem; }
   .tel-karte .tel-status { display: none; }
 }
+
+/* Telefonbereitschaft */
+.telplan { display: grid; gap: 0.8rem; }
+.tel-jetzt { padding: 0.8rem 1rem; font-size: 1.02rem; }
+.telplan-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; }
+.telplan-nav .knopf { margin-left: auto; }
+.telplan-woche { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.5rem; }
+.telplan-tag { padding: 0.55rem; display: grid; gap: 0.4rem; align-content: start; }
+.telplan-tag.heute { border-color: var(--akzent); }
+.telplan-datum { font-size: 0.9rem; color: var(--text-2); }
+.telplan-abschnitte { display: grid; gap: 0.3rem; }
+.telplan-abschnitt { display: grid; gap: 0.1rem; text-align: left; padding: 0.4rem 0.5rem; border-radius: 10px; border: 1px solid var(--rand); background: var(--flaeche); color: var(--text); font-size: 0.86rem; cursor: pointer; }
+.telplan-abschnitt.muster { border-color: rgba(59, 130, 246, 0.45); background: rgba(59, 130, 246, 0.1); }
+.telplan-abschnitt.eintrag { border-color: rgba(59, 130, 246, 0.8); background: rgba(59, 130, 246, 0.22); }
+.telplan-abschnitt.meins { box-shadow: 0 0 0 1px var(--akzent) inset; }
+.telplan-abschnitt.frei { border-style: dashed; color: var(--text-3); background: transparent; }
+.telplan-abschnitt:disabled { cursor: default; }
+.telplan-zeit { font-variant-numeric: tabular-nums; font-weight: 600; }
+.telplan-muster-kopf { display: flex; justify-content: space-between; align-items: center; }
+.telplan-muster-zeile { display: grid; grid-template-columns: minmax(8rem, auto) 1fr auto; gap: 0.7rem; align-items: center; width: 100%; text-align: left; padding: 0.55rem 0.4rem; border: none; border-top: 1px solid var(--rand); background: transparent; color: var(--text); cursor: pointer; }
+.telplan-muster-zeile:disabled { cursor: default; }
+@media (max-width: 900px) {
+  .telplan-woche { grid-template-columns: 1fr; }
+  .telplan-tag { grid-template-columns: 4.5rem 1fr; align-items: start; }
+  .telplan-abschnitte { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .telplan-muster-zeile { grid-template-columns: 1fr; gap: 0.15rem; }
+}

@@ -677,6 +677,7 @@ export default function TelefonAnsicht() {
           <p className="klein">
             {daten.darfTelefon ? 'Anrufe schnell mitschreiben, Sterbefälle an die Bereitschaft übergeben.' : 'Übergebene Sterbefälle abholen und abschließen.'} Bereitschaft jetzt:{' '}
             {daten.bereitschaft.length ? personText(daten.bereitschaft) : 'niemand eingeteilt'}
+            {daten.telefonJetzt && ` · Telefon jetzt: ${daten.telefonJetzt.name || daten.telefonJetzt.email} bis ${daten.telefonJetzt.bis.slice(11, 16)}`}
           </p>
         </div>
         <div className="tag-nav-knoepfe bs-umschalter" role="tablist">
