@@ -5,6 +5,7 @@ import type { Einsatz } from '../../src/shared/bereitschaft';
 import { personalPruefen, type Abwesenheit, type Personal } from '../../src/shared/abwesenheit';
 import type { AgentStatus } from './agent';
 import type { Einteilung } from '../../src/shared/einteilung';
+import { zeitkontoPruefen, type ZeitkontoDaten } from '../../src/shared/zeitkonto';
 
 export const SESSION_COOKIE = 'alamida_session';
 export const SESSION_TAGE = 90;
@@ -166,6 +167,8 @@ export const belegLaden = (id: string) => store().get(belegSchluessel(id), { typ
 export const belegLoeschen = (id: string) => store().delete(belegSchluessel(id));
 export const personalLaden = async (): Promise<Personal[]> => personalPruefen(await store().get('abwesenheit-personal', { type: 'json' }));
 export const personalSpeichern = (p: Personal[]) => store().setJSON('abwesenheit-personal', p);
+export const zeitkontoLaden = async (): Promise<ZeitkontoDaten> => zeitkontoPruefen(await store().get('abwesenheit-zeitkonto', { type: 'json' }));
+export const zeitkontoSpeichern = (d: ZeitkontoDaten) => store().setJSON('abwesenheit-zeitkonto', d);
 
 /* Personalplanung: ein Blob je Termin. */
 const einteilungSchluessel = (termin: string) => `einteilung/${Buffer.from(termin).toString('base64url')}`;

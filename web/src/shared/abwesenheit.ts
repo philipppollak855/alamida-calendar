@@ -34,6 +34,8 @@ export interface Personal {
   /** Urlaub verfällt nicht (wie im alten Programm); Standard: Verfall nach UrlG. */
   ohneVerfall?: boolean;
   ueStartSaldo?: number;
+  /** Überstunden zählen ab diesem Monat (JJJJ-MM), davor gilt ueStartSaldo. */
+  ueAbMonat?: string;
   ueAusbezahlt?: boolean;
 }
 
@@ -297,6 +299,7 @@ export function personalPruefen(x: unknown): Personal[] {
       }
       if (n(o?.ueStartSaldo) != null) p.ueStartSaldo = n(o?.ueStartSaldo);
       if (o?.ueAusbezahlt === true) p.ueAusbezahlt = true;
+      if (/^\d{4}-(0[1-9]|1[0-2])$/.test(t(o?.ueAbMonat))) p.ueAbMonat = t(o?.ueAbMonat);
       if (o?.ohneVerfall === true) p.ohneVerfall = true;
       return p;
     })
@@ -393,6 +396,7 @@ export function altdatenLesen(x: unknown, stichtag: string): AltMitarbeiter[] {
     if (anspruch !== 25 && anspruch > 0) personal.urlaubswochen = Math.round((anspruch / 5) * 100) / 100;
     if (zahl(m.ue_start_saldo, 0)) personal.ueStartSaldo = zahl(m.ue_start_saldo, 0);
     if (m.ue_ausbezahlt === true) personal.ueAusbezahlt = true;
+    if (/^\d{4}-(0[1-9]|1[0-2])$/.test(String(m.ue_ab_monat ?? ''))) personal.ueAbMonat = String(m.ue_ab_monat);
     if (zuordnung[mId] && zuordnung[mId] !== 'Standard') personal.gruppe = zuordnung[mId];
 
     const nachArt = new Map<AbwArt, string[]>();

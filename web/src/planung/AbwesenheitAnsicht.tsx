@@ -36,6 +36,9 @@ import {
 import { ausText, datumText, plusTage } from '../shared/bereitschaft';
 import { useBereitschaft } from './BereitschaftAnsicht';
 import { belegVorbereiten, drucken, herunterladen } from './beleg';
+import ZeitkontoAnsicht from './ZeitkontoAnsicht';
+import { altEintraegeLesen } from '../shared/zeitkonto';
+import { zeitkontoSpeichern } from './api';
 
 /** Lädt Urlaub/Krank (nur mit Freigabe). */
 export function useAbwesenheit(aktiv: boolean) {
@@ -649,7 +652,7 @@ function KontoWahl({ wert, personen, leer, neu, onWahl }: { wert: string; person
 
 function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: AbwesenheitDaten) => void }) {
   const [liste, setListe] = useState<(Personal & { vorher?: string })[]>(() => d.personal.map((p) => ({ ...p, vorher: p.email })));
-  const [imp, setImp] = useState<{ alt: AltMitarbeiter[]; zuordnung: Record<string, string> } | null>(null);
+  const [imp, setImp] = useState<{ alt: AltMitarbeiter[]; zuordnung: Record<string, string>; roh: unknown } | null>(null);
   const [meldung, setMeldung] = useState<{ ok: boolean; text: string } | null>(null);
   useEffect(() => setListe(d.personal.map((p) => ({ ...p, vorher: p.email }))), [d.personal]);
   const aendern = (i: number, x: Partial<Personal>) => setListe(liste.map((p, j) => (j === i ? { ...p, ...x } : p)));
@@ -662,13 +665,14 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
   const dateiLesen = (f: File) =>
     f.text().then((t) => {
       try {
-        const alt = altdatenLesen(JSON.parse(t), heute());
+        const roh: unknown = JSON.parse(t);
+        const alt = altdatenLesen(roh, heute());
         const zuordnung: Record<string, string> = {};
         for (const a of alt) {
           const treffer = d.personen.find((p) => p.name && p.name.toLowerCase() === a.name.toLowerCase()) ?? liste.find((p) => p.name.toLowerCase() === a.name.toLowerCase());
           zuordnung[a.mId] = treffer ? treffer.email : internesKonto(a.name, a.mId);
         }
-        setImp({ alt, zuordnung });
+        setImp({ alt, zuordnung, roh });
         setMeldung(null);
       } catch {
         setMeldung({ ok: false, text: 'Die Datei ist keine gültige personal_daten.json.' });
@@ -683,9 +687,12 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
       personal: gewaehlt.map((a) => ({ ...a.personal, email: z[a.mId] })),
       abwesenheiten: gewaehlt.flatMap((a) => a.abwesenheiten.map((x) => ({ ...x, email: z[a.mId] }))),
     })
-      .then((x) => {
+      .then(async (x) => {
+        const monate = altEintraegeLesen(imp.roh);
+        const eintraege = gewaehlt.flatMap((a) => (monate.get(a.mId) ?? []).map((e) => ({ ...e, email: z[a.mId] })));
+        if (eintraege.length) await zeitkontoSpeichern(eintraege);
         setImp(null);
-        fertig(x, `${gewaehlt.length} Mitarbeiter importiert.`);
+        fertig(x, `${gewaehlt.length} Mitarbeiter importiert${eintraege.length ? `, ${eintraege.length} Monatsabschlüsse übernommen` : ''}.`);
       })
       .catch((e: Error) => setMeldung({ ok: false, text: e.message }));
   };
@@ -748,6 +755,8 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
                   <label className="pille-wahl" title="Aus = Urlaub verfällt nie (wie im alten Programm)">
                     <input type="checkbox" checked={!p.ohneVerfall} onChange={(e) => aendern(i, { ohneVerfall: e.target.checked ? undefined : true })} /> verfällt nach Gesetz
                   </label>
+                  <input className="feld" type="number" step={0.25} title="Überstunden Start-Saldo (h)" placeholder="Ü-Start h" value={p.ueStartSaldo ?? ''} onChange={(e) => aendern(i, { ueStartSaldo: e.target.value ? Number(e.target.value) : undefined })} />
+                  <input className="feld" type="month" title="Überstunden zählen ab Monat" value={p.ueAbMonat ?? ''} onChange={(e) => aendern(i, { ueAbMonat: e.target.value || undefined })} />
                 </td>
                 <td>
                   <button className="knopf klein" onClick={() => setListe(liste.filter((_, j) => j !== i))} aria-label="Entfernen">✕</button>
@@ -820,7 +829,7 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
   );
 }
 
-type Modus = 'meine' | 'team' | 'dashboard' | 'belege' | 'personal';
+type Modus = 'meine' | 'team' | 'dashboard' | 'belege' | 'zeitkonto' | 'personal';
 const LS_MODUS = 'alamida.abwesenheitModus';
 
 export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
@@ -835,7 +844,7 @@ export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
   const modi: [Modus, string][] = [
     ['meine', '🙋 Meine'],
     ['team', '▦ Team'],
-    ...(daten.darfVerwalten ? ([['dashboard', '◔ Dashboard'], ['belege', '🗂 Belege'], ['personal', '👥 Personal']] as [Modus, string][]) : []),
+    ...(daten.darfVerwalten ? ([['dashboard', '◔ Dashboard'], ['belege', '🗂 Belege'], ['zeitkonto', '⏱ Zeitkonten'], ['personal', '👥 Personal']] as [Modus, string][]) : []),
   ];
   const m = modi.some(([x]) => x === modus) ? modus : 'meine';
   const ich = daten.personal.find((p) => p.email === daten.ich.email);
@@ -874,6 +883,7 @@ export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
       {m === 'team' && <TeamMonat d={daten} />}
       {m === 'dashboard' && <Dashboard d={daten} onDaten={setDaten} />}
       {m === 'belege' && <BelegArchiv d={daten} onDaten={setDaten} />}
+      {m === 'zeitkonto' && <ZeitkontoAnsicht d={daten} />}
       {m === 'personal' && <PersonalVerwaltung d={daten} onDaten={setDaten} />}
     </section>
   );

@@ -52,10 +52,10 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] I1 Desktop: Seitenleiste einklappbar (Zustand bleibt gespeichert)
 
 ## J. Urlaub / Krank: Zeitkonten und Buchhaltung
-- [ ] J1 Überstunden pflegen: Übertrag, neue Überstunden, Auszahlung, Saldo je Mitarbeiter und Monat
-- [ ] J2 Abwesenheiten je Monat: Krank, Urlaub, Sonstiges (Tage)
-- [ ] J3 Monatsbericht wie Vorlage „Monatsbericht MM/JJJJ“ (gruppiert nach Gruppe: Name, Mon., Ü-Übertrag, Ü-Neu, Ü-Ausz., Ü-Saldo, Kr., Ur., So.; Hinweis: Überstunden aus Monat M, Fehltage aus Monat M+1) generieren
-- [ ] J4 Export für die Buchhaltung (PDF + CSV/Excel)
+- [x] J1 Überstunden pflegen: Übertrag, neue Überstunden, Auszahlung, Saldo je Mitarbeiter und Monat
+- [x] J2 Abwesenheiten je Monat: Krank, Urlaub, Sonstiges (Tage)
+- [x] J3 Monatsbericht wie Vorlage „Monatsbericht MM/JJJJ“ (gruppiert nach Gruppe: Name, Mon., Ü-Übertrag, Ü-Neu, Ü-Ausz., Ü-Saldo, Kr., Ur., So.; Hinweis: Überstunden aus Monat M, Fehltage aus Monat M+1) generieren
+- [x] J4 Export für die Buchhaltung (PDF + CSV/Excel)
 
 ## Nicht mehr
 - Urnenwald-PRs #41–#139: nicht weiter bearbeiten (Anweisung Nutzer)

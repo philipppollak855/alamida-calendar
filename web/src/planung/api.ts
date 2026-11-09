@@ -3,6 +3,7 @@ import type { Einsatz } from '../shared/bereitschaft';
 import type { EinteilungPerson } from '../shared/einteilung';
 import type { NeuerTermin } from '../shared/neuerTermin';
 import type { AbwArt, Abwesenheit, Personal } from '../shared/abwesenheit';
+import type { MonatsEintrag, ZeitkontoDaten, ZeitkontoEinstellungen } from '../shared/zeitkonto';
 import { ausGoogleEvent, personalZuordnen, type GoogleEvent, type Termin } from './planungLogic';
 import { cacheLeeren, cacheLesen, cacheSchreiben, istOffline, OfflineFehler } from './offlineCache';
 
@@ -266,3 +267,10 @@ export async function terminAnlegen(t: NeuerTermin): Promise<Termin> {
 }
 
 export const terminLoeschen = (id: string) => holen<{ ok: boolean }>(`/api/termin?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+
+/* Zeitkonten (Überstunden, Auszahlung, Fehltage je Monat) für die Buchhaltung. */
+export const zeitkontoLaden = () => mitCache('zeitkonto', () => holen<ZeitkontoDaten>('/api/zeitkonto'));
+export const zeitkontoSpeichern = (eintraege: MonatsEintrag[]) => holen<ZeitkontoDaten>('/api/zeitkonto', jsonInit('PUT', { eintraege }));
+export const zeitkontoEinstellungen = (einstellungen: ZeitkontoEinstellungen) => holen<ZeitkontoDaten>('/api/zeitkonto', jsonInit('PUT', { einstellungen }));
+export const zeitkontoLoeschen = (email: string, monat: string) =>
+  holen<ZeitkontoDaten>(`/api/zeitkonto?email=${encodeURIComponent(email)}&monat=${encodeURIComponent(monat)}`, { method: 'DELETE' });
