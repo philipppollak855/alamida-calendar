@@ -92,6 +92,8 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] K27 Monatsberichte im Archiv (fester Stand je Monat, automatisch beim Herunterladen/Drucken)
 - [x] K28 Kalender-App ohne fremde Unter-Apps (Bereitschaft, Urlaub / Krank eigene Hub-Apps; Rechte → Kalender-Einstellungen)
 - [x] K29 Telefondienst mobil: neue Mitschrift als geführter Ablauf in Schritten ohne Scrollen, Weiter/Zurück unten fest, Aufnahme über alle Schritte
+||||||| 594147d
+- [x] K30 Pflegefreistellung-Zähler: zählt im laufenden Arbeitsjahr auch bei übernommenem Resturlaub (zeigte 0)
 
 ## Nicht mehr
 - Urnenwald-PRs #41–#139: nicht weiter bearbeiten (Anweisung Nutzer)
