@@ -1,4 +1,10 @@
 /** Rechteverwaltung: wer sieht welche Kalender und Kategorien. Wird vom Server (Netlify Functions) und der Admin-Ansicht genutzt. */
+import { rollenPruefen, type Rolle } from './rollen';
+
+const zusatz = (b: Record<string, unknown>) => {
+  const rollen = rollenPruefen(b.rollen);
+  return { ...(rollen.length ? { rollen } : {}), ...(b.dritterNoetig === true ? { dritterNoetig: true } : {}) };
+};
 
 export const ALLE = '*';
 
@@ -30,6 +36,10 @@ export interface Benutzer {
   admin?: boolean;
   /** Externe Kraft: einteilbar, aber ohne Urlaub / Krank. */
   extern?: boolean;
+  /** Rollen aus dem Hub (Personalauswahl). */
+  rollen?: Rolle[];
+  /** Bereitschaft: mit dieser Person braucht es eine dritte. */
+  dritterNoetig?: boolean;
 }
 
 export interface KalenderEintrag {
@@ -172,7 +182,7 @@ export function konfigPruefen(x: unknown): Konfiguration {
         email: norm(text(b.email, 200)),
         name: text(b.name, 80) || undefined,
         gruppen: texte(b.gruppen).filter((g) => gruppenIds.has(g)),
-        admin: b.admin === true, ...(b.extern === true ? { extern: true } : {}),
+        admin: b.admin === true, ...(b.extern === true ? { extern: true } : {}), ...zusatz(b),
       }))
       .filter((b) => b.email.includes('@')),
     domains: arr('domains')
@@ -206,7 +216,7 @@ export function verzeichnisPruefen(x: unknown): Verzeichnis | null {
   return {
     gruppen,
     benutzer: arr('benutzer')
-      .map((b) => ({ email: text(b.email).toLowerCase(), name: text(b.name) || undefined, gruppen: texte(b.gruppen).filter((g) => ids.has(g)), admin: b.admin === true, ...(b.extern === true ? { extern: true } : {}) }))
+      .map((b) => ({ email: text(b.email).toLowerCase(), name: text(b.name) || undefined, gruppen: texte(b.gruppen).filter((g) => ids.has(g)), admin: b.admin === true, ...(b.extern === true ? { extern: true } : {}), ...zusatz(b) }))
       .filter((b) => b.email.includes('@')),
     domains: arr('domains')
       .map((d) => ({ domain: text(d.domain).toLowerCase(), gruppen: texte(d.gruppen).filter((g) => ids.has(g)) }))

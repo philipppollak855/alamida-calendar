@@ -4,6 +4,7 @@ import { de } from 'date-fns/locale';
 import { KATEGORIEN, ablaufGeeignet, ablaufTermine, checkliste, fallDaten, fallSchluessel, mapsLink, type Termin, type Warnung } from './planungLogic';
 import { maxPersonen, personName, tagWien } from '../shared/einteilung';
 import type { EinteilungRecht } from './api';
+import { auswahlFuer, bedarf as bedarfVon, hatRolle, rolleVergeben, zeremonieFehler, zeremonieMax, type Bedarf } from '../shared/rollen';
 
 const FELDER: [string, string][] = [
   ['sterbedatum', 'Sterbedatum'],
@@ -25,6 +26,7 @@ function Auswahl({
   einteilung,
   start,
   max,
+  bedarf,
   konflikt,
   hinweis,
   onSpeichern,
@@ -33,6 +35,7 @@ function Auswahl({
   einteilung: EinteilungRecht;
   start: string[];
   max: number;
+  bedarf: Bedarf;
   konflikt: (email: string) => Termin | undefined;
   hinweis?: string;
   onSpeichern: (emails: string[]) => Promise<void>;
@@ -41,6 +44,12 @@ function Auswahl({
   const [wahl, setWahl] = useState<string[]>(start);
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
+  const alle = einteilung.personen;
+  const zeremonie = bedarf === 'zeremonie' && rolleVergeben(alle, 'arrangeur', 'arrangeurIA', 'traeger');
+  if (zeremonie)
+    return <ZeremonieAuswahl einteilung={einteilung} start={start} konflikt={konflikt} hinweis={hinweis} onSpeichern={onSpeichern} onAbbrechen={onAbbrechen} />;
+  const liste = auswahlFuer(bedarf, alle);
+  const ungefiltert = bedarf !== 'sonstig' && liste === alle;
   const umschalten = (email: string) => {
     if (wahl.includes(email)) setWahl(wahl.filter((x) => x !== email));
     else if (max === 1) setWahl([email]);
@@ -60,8 +69,9 @@ function Auswahl({
   }
   return (
     <>
+      {ungefiltert && <p className="klein">Die nötige Rolle ({bedarf === 'gespraech' ? 'Berater' : 'Träger / Arrangeur'}) ist noch niemandem zugewiesen (Hub → Apps & Rechte) – alle stehen zur Wahl.</p>}
       <div className="personal-liste">
-        {einteilung.personen.map((p) => {
+        {liste.map((p) => {
           const an = wahl.includes(p.email);
           const k = konflikt(p.email);
           return (
@@ -81,6 +91,120 @@ function Auswahl({
       <div className="aktionen">
         <button className="knopf primaer" disabled={laeuft} onClick={() => void speichern()}>
           {laeuft ? 'Speichert …' : `Speichern (${wahl.length}/${max})`}
+        </button>
+        <button className="knopf" disabled={laeuft} onClick={onAbbrechen}>
+          Abbrechen
+        </button>
+      </div>
+    </>
+  );
+}
+
+type PersonW = EinteilungRecht['personen'][number];
+
+/** Trauerfeier, Rosenkranz, Beisetzung: zuerst ein Arrangeur (oder i.A., ein Träger nur nach Bestätigung), dann Träger. */
+function ZeremonieAuswahl({
+  einteilung,
+  start,
+  konflikt,
+  hinweis,
+  onSpeichern,
+  onAbbrechen,
+}: {
+  einteilung: EinteilungRecht;
+  start: string[];
+  konflikt: (email: string) => Termin | undefined;
+  hinweis?: string;
+  onSpeichern: (emails: string[]) => Promise<void>;
+  onAbbrechen: () => void;
+}) {
+  const alle = einteilung.personen;
+  const nach = new Map(alle.map((p) => [p.email, p]));
+  const istArr = (e?: string) => hatRolle(e ? nach.get(e) : undefined, 'arrangeur', 'arrangeurIA');
+  const [arr, setArr] = useState<string | null>(start[0] ?? null);
+  const [traegerOk, setTraegerOk] = useState(!!start[0] && !istArr(start[0]));
+  const [rest, setRest] = useState<string[]>(start.slice(1));
+  const [traegerZeigen, setTraegerZeigen] = useState(traegerOk);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [laeuft, setLaeuft] = useState(false);
+
+  const arrangeure = alle
+    .filter((p) => hatRolle(p, 'arrangeur', 'arrangeurIA'))
+    .sort((a, b) => Number(hatRolle(b, 'arrangeur')) - Number(hatRolle(a, 'arrangeur')) || personName(a).localeCompare(personName(b)));
+  const traegerAlsArr = alle.filter((p) => hatRolle(p, 'traeger') && !hatRolle(p, 'arrangeur', 'arrangeurIA'));
+  const weitere = alle.filter((p) => p.email !== arr && hatRolle(p, 'traeger', 'arrangeurIA'));
+  const emails = arr ? [arr, ...rest.filter((e) => e !== arr)] : rest;
+  const max = zeremonieMax(arr ? emails : ['', ...rest], alle);
+
+  const arrWaehlen = (p: PersonW, alsTraeger: boolean) => {
+    if (arr === p.email) {
+      setArr(null);
+      setTraegerOk(false);
+      return;
+    }
+    if (alsTraeger && !confirm(`${personName(p)} ist kein Arrangeur, sondern Träger.\n\nTrotzdem als Arrangeur eintragen?`)) return;
+    setArr(p.email);
+    setTraegerOk(alsTraeger);
+    setRest((r) => r.filter((e) => e !== p.email));
+  };
+  const restUmschalten = (email: string) =>
+    setRest((r) => (r.includes(email) ? r.filter((e) => e !== email) : emails.length < max ? [...r, email] : r));
+
+  async function speichern() {
+    const f = emails.length && !arr ? 'Es braucht einen Arrangeur (oder Arrangeur i.A.)' : zeremonieFehler(emails, alle, traegerOk);
+    if (f) return setFehler(f);
+    setLaeuft(true);
+    setFehler(null);
+    try {
+      await onSpeichern(emails);
+      onAbbrechen();
+    } catch (e) {
+      setFehler((e as Error).message);
+    } finally {
+      setLaeuft(false);
+    }
+  }
+  const knopf = (p: PersonW, an: boolean, onClick: () => void, zusatz?: string, gesperrt = false) => {
+    const k = konflikt(p.email);
+    return (
+      <button key={p.email} className={`personal-wahl ${an ? 'an' : ''}`} disabled={gesperrt} onClick={onClick}>
+        <span>{an ? '✓' : '○'}</span>
+        <span>
+          {personName(p)}
+          {zusatz && <span className="klein"> · {zusatz}</span>}
+          {p.extern && <span className="klein"> · extern</span>}
+        </span>
+        {k && <span className="klein warnung-text">⚠️ zeitgleich: {k.verstorbener ?? k.titel}</span>}
+      </button>
+    );
+  };
+  return (
+    <>
+      <div className="klein personal-titel">🎩 Arrangeur</div>
+      <div className="personal-liste">
+        {arrangeure.map((p) => knopf(p, arr === p.email, () => arrWaehlen(p, false), hatRolle(p, 'arrangeur') ? undefined : 'i.A.'))}
+        {!arrangeure.length && <span className="klein">Niemand hat die Rolle Arrangeur.</span>}
+        {traegerZeigen
+          ? traegerAlsArr.map((p) => knopf(p, arr === p.email, () => arrWaehlen(p, true), 'Träger ⚠️'))
+          : traegerAlsArr.length > 0 && (
+              <button className="knopf klein" onClick={() => setTraegerZeigen(true)}>
+                Träger als Arrangeur …
+              </button>
+            )}
+      </div>
+      <div className="klein personal-titel">👥 Träger {arr ? `(${rest.length}/${max - 1})` : ''}</div>
+      <div className="personal-liste">
+        {weitere.map((p) => {
+          const an = rest.includes(p.email);
+          return knopf(p, an, () => restUmschalten(p.email), hatRolle(p, 'traeger') ? undefined : 'Arrangeur i.A. (zusätzlich)', !an && emails.length >= max);
+        })}
+      </div>
+      <p className="klein">Ein Arrangeur i.A. kann zusätzlich als 6. Person mit.</p>
+      {hinweis && <p className="klein">{hinweis}</p>}
+      {fehler && <div className="warnung">{fehler}</div>}
+      <div className="aktionen">
+        <button className="knopf primaer" disabled={laeuft} onClick={() => void speichern()}>
+          {laeuft ? 'Speichert …' : `Speichern (${emails.length}/${max})`}
         </button>
         <button className="knopf" disabled={laeuft} onClick={onAbbrechen}>
           Abbrechen
@@ -119,11 +243,13 @@ function PersonalBlock({
     return (email: string) => alle.find((t) => !ids.has(t.id) && t.start < bis && t.ende > von && t.personal?.some((p) => p.email === email));
   };
   const extern = (email: string) => einteilung?.personen.find((p) => p.email === email)?.extern;
-  const chips = (personen: Person[], konflikt: (email: string) => Termin | undefined, leer: string) => (
+  const rollenAktiv = !!einteilung && rolleVergeben(einteilung.personen, 'arrangeur', 'arrangeurIA', 'traeger');
+  const chips = (personen: Person[], konflikt: (email: string) => Termin | undefined, leer: string, zeremonie = false) => (
     <>
-      {personen.map((p) => (
+      {personen.map((p, i) => (
         <span key={p.email} className="personal-chip">
-          👤 {personName(p)}
+          {zeremonie && rollenAktiv && i === 0 ? '🎩' : '👤'} {personName(p)}
+          {zeremonie && rollenAktiv && i === 0 && <span className="klein"> (Arrangeur)</span>}
           {extern(p.email) && <span className="klein"> (extern)</span>}
           {konflikt(p.email) && <span title={`Zeitgleich: ${konflikt(p.email)!.titel}`}> ⚠️</span>}
         </span>
@@ -142,10 +268,10 @@ function PersonalBlock({
           Personal <span className="klein">{max === 1 ? '(1 Person)' : `(bis ${max} Personen)`}</span>
         </h3>
         {modus === 'termin' && einteilung ? (
-          <Auswahl einteilung={einteilung} start={aktuell.map((p) => p.email)} max={max} konflikt={konflikt} onSpeichern={(w) => onEinteilen(termin, w)} onAbbrechen={() => setModus(null)} />
+          <Auswahl einteilung={einteilung} start={aktuell.map((p) => p.email)} max={max} bedarf={bedarfVon(termin.kategorie)} konflikt={konflikt} onSpeichern={(w) => onEinteilen(termin, w)} onAbbrechen={() => setModus(null)} />
         ) : (
           <div className="personal-chips">
-            {chips(aktuell, konflikt, 'Noch niemand eingeteilt.')}
+            {chips(aktuell, konflikt, 'Noch niemand eingeteilt.', bedarfVon(termin.kategorie) === 'zeremonie')}
             {darf && (
               <button className="knopf" onClick={() => setModus('termin')}>
                 {aktuell.length ? 'Ändern' : 'Personal einteilen'}
@@ -161,11 +287,12 @@ function PersonalBlock({
   const ablaufP = termin.ablaufPersonal ?? [];
   const eigen = termin.personalQuelle === 'termin' ? (termin.personal ?? []) : null;
   const konfliktAblauf = konfliktIn(ablauf);
+  const ablaufBedarf: Bedarf = ablauf.some((t) => bedarfVon(t.kategorie) === 'zeremonie') ? 'zeremonie' : 'fahrt';
   const konfliktTermin = konfliktIn([termin]);
   return (
     <section className="modal-block">
       <h3>
-        Personal <span className="klein">(bis 5 Personen)</span>
+        Personal <span className="klein">{ablaufBedarf === 'zeremonie' && rollenAktiv ? '(Arrangeur + bis 4 Träger)' : '(bis 5 Personen)'}</span>
       </h3>
       <div className="personal-ablauf">
         <div className="klein">
@@ -177,6 +304,7 @@ function PersonalBlock({
             einteilung={einteilung}
             start={ablaufP.map((p) => p.email)}
             max={5}
+            bedarf={ablaufBedarf}
             konflikt={konfliktAblauf}
             hinweis="Abweichend eingeteilte Termine behalten ihr eigenes Personal."
             onSpeichern={(w) => onAblauf!(fall!, tag, w)}
@@ -184,7 +312,7 @@ function PersonalBlock({
           />
         ) : (
           <div className="personal-chips">
-            {chips(ablaufP, konfliktAblauf, 'Noch niemand eingeteilt.')}
+            {chips(ablaufP, konfliktAblauf, 'Noch niemand eingeteilt.', ablaufBedarf === 'zeremonie')}
             {darf && (
               <button className="knopf" onClick={() => setModus('ablauf')}>
                 {ablaufP.length ? 'Ändern' : 'Personal einteilen'}
@@ -202,6 +330,7 @@ function PersonalBlock({
             einteilung={einteilung}
             start={(eigen ?? ablaufP).map((p) => p.email)}
             max={maxPersonen(termin.kategorie)}
+            bedarf={bedarfVon(termin.kategorie)}
             konflikt={konfliktTermin}
             hinweis="Nur für diesen Termin. Ohne Auswahl gilt wieder das Personal des Ablaufs."
             onSpeichern={(w) => onEinteilen(termin, w)}
@@ -210,7 +339,7 @@ function PersonalBlock({
         ) : (
           (eigen || darf) && (
             <div className="personal-chips">
-              {eigen && chips(eigen, konfliktTermin, '')}
+              {eigen && chips(eigen, konfliktTermin, '', bedarfVon(termin.kategorie) === 'zeremonie')}
               {darf && (
                 <button className="knopf" onClick={() => setModus('termin')}>
                   {eigen ? 'Ändern' : 'Abweichend einteilen'}

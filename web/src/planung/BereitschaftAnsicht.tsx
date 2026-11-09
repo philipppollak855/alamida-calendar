@@ -11,7 +11,8 @@ import {
   datumText,
   dienste,
   einsaetzeIn,
-  jahresUebersicht,
+  besetzung,
+  uebersichtZeitraum,
   plusTage,
   zeitText,
   type Dienst,
@@ -96,9 +97,11 @@ function DienstKarte({ d, daten, onDaten, ab }: KartenProps) {
   const aktuell = d.von <= jetzt && jetzt < d.bis;
   const vorbei = d.bis <= jetzt;
   const ichDabei = liste.some((e) => e.email === daten.ich.email);
+  const darfIch = daten.darfEintragen !== false;
+  const b = besetzung(daten.eintraege, d, new Set(daten.dritter ?? []));
   const personen = useMemo(() => {
     const m = new Map(daten.personen.map((p) => [p.email, p]));
-    m.set(daten.ich.email, daten.ich);
+    if (daten.darfEintragen !== false) m.set(daten.ich.email, daten.ich);
     return [...m.values()].sort((a, b) => anzeigeName(a).localeCompare(anzeigeName(b)));
   }, [daten]);
 
@@ -127,7 +130,10 @@ function DienstKarte({ d, daten, onDaten, ab }: KartenProps) {
           <strong>{titel}</strong>
           {d.feiertage.length > 0 && <div className="dienst-feiertag">🎌 {d.feiertage.join(', ')}</div>}
         </div>
-        <span className={`dienst-status ${liste.length ? 'besetzt' : 'offen'}`}>{aktuell ? 'jetzt · ' : ''}{liste.length ? `${liste.length} eingeteilt` : 'offen'}</span>
+        <span className={`dienst-status ${b.vollstaendig ? 'besetzt' : liste.length ? 'teil' : 'offen'}`} title={`Vollständig ab ${b.noetig} Personen`}>
+          {aktuell ? 'jetzt · ' : ''}
+          {!liste.length ? 'offen' : b.vollstaendig ? `${b.personen} eingeteilt ✓` : `unvollständig ${b.personen}/${b.noetig}`}
+        </span>
       </header>
       {liste.length > 0 && (
         <ul className="dienst-liste">
@@ -146,14 +152,15 @@ function DienstKarte({ d, daten, onDaten, ab }: KartenProps) {
       )}
       {!vorbei && !offen && (
         <div className="dienst-aktionen">
-          {!ichDabei && (
+          {!ichDabei && darfIch && (
             <button className="knopf primaer" disabled={laeuft} onClick={() => void tun(() => bereitschaftEintragen({ von: d.von, bis: d.bis }, ab))}>
               Mich eintragen
             </button>
           )}
-          <button className="knopf" onClick={() => { setOffen(true); setGanz(!ichDabei); setEmail(ichDabei && daten.darfPlanen ? '' : daten.ich.email); }}>
+          {(daten.darfPlanen || darfIch) && <button className="knopf" onClick={() => { setOffen(true); setGanz(!ichDabei); setEmail((ichDabei || !darfIch) && daten.darfPlanen ? '' : daten.ich.email); }}>
             {daten.darfPlanen ? '+ Einteilen …' : ichDabei ? '+ Weitere Zeit …' : 'Nur bestimmte Zeit …'}
-          </button>
+          </button>}
+          {!darfIch && !daten.darfPlanen && <span className="klein">Eintragen nur mit der Rolle „Bereitschaft“ (Hub).</span>}
         </div>
       )}
       {offen && (
@@ -253,6 +260,7 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
   const [ansicht, setAnsicht] = useState<View>(Views.MONTH);
   const schmal = useSchmal();
   const kurz = schmal && ansicht === Views.MONTH;
+  const dritter = useMemo(() => new Set(daten.dritter ?? []), [daten.dritter]);
   const { liste, eintraege, tage } = useMemo(() => {
     const liste = dienste(plusTage(startOfMonth(datum), -14), plusTage(endOfMonth(datum), 14));
     const eintraege: KalEintrag[] = [];
@@ -262,6 +270,9 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
       for (let t = ausText(d.von); t < ausText(d.bis); t = plusTage(t, 1)) tage.set(datumText(t), d);
       const belegt = einsaetzeIn(daten.eintraege, d);
       if (!belegt.length && d.bis > jetzt) eintraege.push({ id: `offen-${d.id}`, titel: kurz ? '+' : '+ offen', start: ausText(d.von), ende: ausText(d.bis), ganz: true, dienst: d, farbe: 'var(--warn)', offen: true });
+      const b = besetzung(daten.eintraege, d, dritter);
+      if (belegt.length && !b.vollstaendig && d.bis > jetzt)
+        eintraege.push({ id: `teil-${d.id}`, titel: kurz ? `+${b.noetig - b.personen}` : `+ ${b.noetig - b.personen} fehlt`, start: ausText(d.von), ende: ausText(d.bis), ganz: true, dienst: d, farbe: 'var(--warn)', offen: true });
       for (const e of belegt)
         eintraege.push({
           id: `${d.id}-${e.id}`,
@@ -276,7 +287,7 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
         });
     }
     return { liste, eintraege, tage };
-  }, [daten, datum, kurz]);
+  }, [daten, datum, kurz, dritter]);
   const feiertagsTage = useMemo(() => new Set(liste.flatMap((d) => (d.art === 'feiertag' ? [d.von.slice(0, 10)] : []))), [liste]);
 
   return (
@@ -286,7 +297,7 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
         culture="de"
         events={eintraege}
         titleAccessor={(t: KalEintrag) => t.titel}
-        tooltipAccessor={(t: KalEintrag) => (t.offen ? 'Noch niemand eingeteilt – klicken zum Einteilen' : t.titel)}
+        tooltipAccessor={(t: KalEintrag) => (t.offen ? (t.id.startsWith('teil-') ? 'Noch nicht vollständig (mind. 2 Personen) – klicken zum Einteilen' : 'Noch niemand eingeteilt – klicken zum Einteilen') : t.titel)}
         className={kurz ? 'bs-kurz' : ''}
         startAccessor="start"
         endAccessor="ende"
@@ -345,18 +356,26 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
 function Uebersicht({ daten, jahr, setJahr, onWahl }: { daten: BereitschaftDaten; jahr: number; setJahr: (j: number) => void; onWahl: (d: Dienst) => void }) {
   const jetzt = zeitText(new Date());
   const heute = new Date();
+  const [monat, setMonat] = useState<number | null>(null);
+  const dritter = useMemo(() => new Set(daten.dritter ?? []), [daten.dritter]);
   const kommend = useMemo(() => dienste(heute, plusTage(heute, 56)).filter((d) => d.bis > jetzt), [jetzt.slice(0, 10)]); // eslint-disable-line react-hooks/exhaustive-deps
-  const offen = kommend.filter((d) => !einsaetzeIn(daten.eintraege, d).length);
-  const jahresDienste = useMemo(() => dienste(new Date(jahr, 0, 1), new Date(jahr, 11, 31)).filter((d) => d.von.startsWith(String(jahr))), [jahr]);
-  const besetzt = jahresDienste.filter((d) => einsaetzeIn(daten.eintraege, d).length).length;
+  const offen = kommend.filter((d) => !besetzung(daten.eintraege, d, dritter).vollstaendig);
+  const zrAb = monat === null ? new Date(jahr, 0, 1) : new Date(jahr, monat, 1);
+  const zrBis = monat === null ? new Date(jahr + 1, 0, 1) : new Date(jahr, monat + 1, 1);
+  const zrText = monat === null ? String(jahr) : format(zrAb, 'MMMM yyyy', { locale: de });
+  const jahresDienste = useMemo(
+    () => dienste(zrAb, plusTage(zrBis, -1)).filter((d) => d.von >= zeitText(zrAb) && d.von < zeitText(zrBis)),
+    [jahr, monat], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const besetzt = jahresDienste.filter((d) => besetzung(daten.eintraege, d, dritter).vollstaendig).length;
   const personen = useMemo(() => {
-    const stat = jahresUebersicht(daten.eintraege, jahr, jetzt);
+    const stat = uebersichtZeitraum(daten.eintraege, zrAb, zrBis, jetzt);
     const bekannt = new Set(stat.map((p) => p.email));
     const ohne = [...daten.personen, daten.ich]
       .filter((p) => !bekannt.has(p.email) && (bekannt.add(p.email), true))
       .map((p): PersonStatistik => ({ email: p.email, name: p.name, einsaetze: 0, ganzeWochenenden: 0, tage: 0, feiertage: 0 }));
     return [...stat, ...ohne];
-  }, [daten, jahr, jetzt]);
+  }, [daten, jahr, monat, jetzt]); // eslint-disable-line react-hooks/exhaustive-deps
   const max = Math.max(1, ...personen.map((p) => p.tage));
   const meinNaechster = daten.eintraege.filter((e) => e.email === daten.ich.email && e.bis > jetzt).sort((a, b) => a.von.localeCompare(b.von))[0];
 
@@ -369,7 +388,7 @@ function Uebersicht({ daten, jahr, setJahr, onWahl }: { daten: BereitschaftDaten
           <div className="kachel-sub">von {kommend.length} Diensten</div>
         </div>
         <div className="kachel glas">
-          <div className="kachel-label">Besetzt {jahr}</div>
+          <div className="kachel-label">Vollständig besetzt {zrText}</div>
           <div className="kachel-wert">{besetzt}<small> / {jahresDienste.length}</small></div>
           <div className="kachel-sub">Wochenenden & Feiertage</div>
         </div>
@@ -383,11 +402,33 @@ function Uebersicht({ daten, jahr, setJahr, onWahl }: { daten: BereitschaftDaten
       <div className="bs-spalten">
         <div className="glas bs-block">
           <div className="bs-block-kopf">
-            <h3>Verteilung {jahr}</h3>
+            <h3>Verteilung {zrText}</h3>
             <div className="tag-nav-knoepfe">
-              <button onClick={() => setJahr(jahr - 1)} aria-label="Vorheriges Jahr">‹</button>
-              <button className={jahr === heute.getFullYear() ? 'aktiv' : ''} onClick={() => setJahr(heute.getFullYear())}>{jahr}</button>
-              <button onClick={() => setJahr(jahr + 1)} aria-label="Nächstes Jahr">›</button>
+              <button
+                onClick={() => (monat === null ? setJahr(jahr - 1) : monat === 0 ? (setJahr(jahr - 1), setMonat(11)) : setMonat(monat - 1))}
+                aria-label={monat === null ? 'Vorheriges Jahr' : 'Vorheriger Monat'}
+              >
+                ‹
+              </button>
+              <button
+                className={jahr === heute.getFullYear() && (monat === null || monat === heute.getMonth()) ? 'aktiv' : ''}
+                onClick={() => {
+                  setJahr(heute.getFullYear());
+                  if (monat !== null) setMonat(heute.getMonth());
+                }}
+              >
+                {monat === null ? jahr : format(zrAb, 'MMM yy', { locale: de })}
+              </button>
+              <button
+                onClick={() => (monat === null ? setJahr(jahr + 1) : monat === 11 ? (setJahr(jahr + 1), setMonat(0)) : setMonat(monat + 1))}
+                aria-label={monat === null ? 'Nächstes Jahr' : 'Nächster Monat'}
+              >
+                ›
+              </button>
+            </div>
+            <div className="tag-nav-knoepfe" role="tablist" aria-label="Zeitraum">
+              <button className={monat !== null ? 'aktiv' : ''} onClick={() => setMonat(jahr === heute.getFullYear() ? heute.getMonth() : 0)}>Monat</button>
+              <button className={monat === null ? 'aktiv' : ''} onClick={() => setMonat(null)}>Jahr</button>
             </div>
           </div>
           <table className="bs-tabelle">
@@ -426,13 +467,20 @@ function Uebersicht({ daten, jahr, setJahr, onWahl }: { daten: BereitschaftDaten
 
         <div className="glas bs-block">
           <h3>Noch offen</h3>
+          <p className="klein">Vollständig ab 2 Personen, mit „braucht Dritten“ ab 3 · nächste 8 Wochen</p>
           {offen.length === 0 && <p className="leer gross">Alles besetzt ✓</p>}
           <ul className="bs-offen-liste">
             {offen.map((d) => (
               <li key={d.id}>
                 <button className="warnung" onClick={() => onWahl(d)}>
                   <strong>{d.art === 'wochenende' ? `Wochenende ${format(ausText(d.von), 'd.M.')}` : format(ausText(d.von), 'EEEE d.M.', { locale: de })}</strong>
-                  <span className="klein">{d.feiertage.length ? `🎌 ${d.feiertage.join(', ')}` : 'Fr – So'} · {daten.darfPlanen ? 'einteilen' : 'eintragen'} →</span>
+                  <span className="klein">
+                    {(() => {
+                      const b = besetzung(daten.eintraege, d, dritter);
+                      return b.personen ? `${b.personen}/${b.noetig} Personen` : 'niemand';
+                    })()}{' '}
+                    · {d.feiertage.length ? `🎌 ${d.feiertage.join(', ')}` : 'Fr – So'} · {daten.darfPlanen ? 'einteilen' : 'eintragen'} →
+                  </span>
                 </button>
               </li>
             ))}
@@ -472,7 +520,7 @@ export default function BereitschaftAnsicht({ aktiv }: { aktiv: boolean }) {
         <div>
           <h2>Bereitschaft</h2>
           <p className="klein">
-            Wochenenden (Fr–So) und Feiertage · höchstens {MAX_GLEICHZEITIG} Personen gleichzeitig ·{' '}
+            Wochenenden (Fr–So) und Feiertage · 2 bis {MAX_GLEICHZEITIG} Personen ·{' '}
             {daten.darfPlanen ? 'du darfst alle einteilen' : 'trag dich selbst ein oder aus'}
           </p>
         </div>

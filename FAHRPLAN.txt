@@ -73,16 +73,16 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] K10 Tagesplan: Abstand zwischen „Abwesend“ und Tageskarten
 - [x] K11 Tagesplan (auch mobil): Kremationen und Überführungen je gruppiert
 ### K-D Bereitschaft
-- [ ] K12 Übersicht: Verteilung als Monats- / Jahresansicht
-- [ ] K13 Bereitschaft erst mit mind. 2 (max. 3) Personen vollständig geplant
+- [x] K12 Übersicht: Verteilung als Monats- / Jahresansicht
+- [x] K13 Bereitschaft erst mit mind. 2 (max. 3) Personen vollständig geplant
 ### K-E Hub
 - [ ] K14 Start „Heute“: Infos + 4 App-Kacheln ohne Scrollen auf einem Bildschirm, v. a. mobil
 - [ ] K15 Rechteverwaltung moderner, intelligenter, aufgeräumter
 - [ ] K16 Kiosk: Anmeldung nur per PIN (erkennt die Person), Kamera für Hinzutreten / Weggehen (Logout)
 ### K-F Rollen und Personalauswahl
-- [ ] K17 Rollen je Mitarbeiter: Arrangeur, Arrangeur i.A., Träger, Bereitschaft, Telefon, Berater
-- [ ] K18 Personalauswahl nach Rolle: Feiern/Rosenkranz/Beisetzung mind. 1 Arrangeur (Vorzug) oder Arrangeur i.A. (darf 6. Person sein); Träger als Arrangeur nur nach Warnung + Bestätigung; Rest nur Träger
-- [ ] K19 Gespräche (Trauer, Vorsorge …) brauchen einen Berater; Telefonbereitschaft Rolle Telefon; Bereitschaft nur Rolle Bereitschaft; Einstellung „braucht dritte Person“ je Mitarbeiter
+- [x] K17 Rollen je Mitarbeiter: Arrangeur, Arrangeur i.A., Träger, Bereitschaft, Telefon, Berater
+- [x] K18 Personalauswahl nach Rolle: Feiern/Rosenkranz/Beisetzung mind. 1 Arrangeur (Vorzug) oder Arrangeur i.A. (darf 6. Person sein); Träger als Arrangeur nur nach Warnung + Bestätigung; Rest nur Träger
+- [ ] K19 Gespräche (Trauer, Vorsorge …) brauchen einen Berater; Telefonbereitschaft Rolle Telefon; Bereitschaft nur Rolle Bereitschaft; Einstellung „braucht dritte Person“ je Mitarbeiter (erledigt bis auf Telefon → kommt mit K20)
 ### K-G Telefondienst (Hub-App für Rolle Telefon)
 - [ ] K20 Mitschrift schnell: Sterbefall (Verstorbener, Sterbeort Adresse/KH/Pflegeheim + Notiz, Geburtsdatum, Hausarzt optional, Anrufer + Nummer, Notiz, Polizeieinsatz) oder Anliegen (Anrufer, Nummer, Anliegen, optional Sterbefall); immer Zeitstempel; optional Mitschnitt
 - [ ] K21 Sterbefall per Knopfdruck ans Bereitschaftsteam; Team schließt Abholung ab (Kühlraum eintragen, offene Daten nachtragen)

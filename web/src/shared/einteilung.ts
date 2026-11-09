@@ -1,4 +1,5 @@
 import { ALLE, type Konfiguration, type Rechte } from './rechte';
+import type { Rolle } from './rollen';
 
 /** Personalplanung: wer bei einem Termin eingeteilt ist (ein Blob je Termin, Schlüssel „kalenderId/eventId“,
  * bzw. je Fall und Tag „fall:<Fall>|<YYYY-MM-DD>“ für den ganzen Ablauf). */
@@ -6,6 +7,7 @@ export interface EinteilungPerson {
   email: string;
   name?: string;
   extern?: boolean;
+  rollen?: Rolle[];
 }
 
 export interface Einteilung {
@@ -27,9 +29,9 @@ export function darfEinteilen(r: Rechte, k: Konfiguration): boolean {
   return r.freigeschaltet && (g.includes(ALLE) || r.gruppen.some((x) => g.includes(x)));
 }
 
-export function einteilungFehler(kategorie: string, emails: string[], bekannt: Set<string>): string | null {
+export function einteilungFehler(kategorie: string, emails: string[], bekannt: Set<string>, maxErlaubt?: number): string | null {
   if (new Set(emails).size !== emails.length) return 'Eine Person ist doppelt eingeteilt';
-  const max = maxPersonen(kategorie);
+  const max = maxErlaubt ?? maxPersonen(kategorie);
   if (emails.length > max) return max === 1 ? 'Für ein Gespräch ist eine Person vorgesehen' : `Höchstens ${max} Personen je Termin`;
   const fremd = emails.find((e) => !bekannt.has(e));
   return fremd ? `Unbekannter Mitarbeiter: ${fremd}` : null;
