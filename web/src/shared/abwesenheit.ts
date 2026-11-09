@@ -58,6 +58,10 @@ export interface Abwesenheit {
   entschieden?: { von: string; am: number; grund?: string };
   /** Zuletzt durch die Verwaltung geändert. */
   geaendert?: { von: string; am: number };
+  /** Krank/Pflege „bis auf Weiteres“: läuft bis zur Gesundmeldung, `bis` wird bis heute mitgeführt. */
+  offen?: boolean;
+  /** Beantragte Verlängerung eines genehmigten Eintrags; der bisherige Zeitraum bleibt genehmigt. */
+  verlaengerung?: { bis: string; offen?: boolean; von: string; am: number };
   /** Für Mitarbeiter ohne Verwaltungsrecht: fremde Einträge nur als „abwesend“ (ohne Art und Notiz). */
   verdeckt?: boolean;
   name?: string;
@@ -270,6 +274,34 @@ export function abwesenheitFehler(a: Pick<Abwesenheit, 'art' | 'von' | 'bis' | '
 }
 
 export const ueberschneidet = (a: { von: string; bis: string }, b: { von: string; bis: string }) => a.von <= b.bis && b.von <= a.bis;
+
+/** Arten, die „bis auf Weiteres“ (bis zur Gesundmeldung) laufen können. */
+export const OFFEN_ARTEN: AbwArt[] = ['krank', 'pflege'];
+/** Wartet auf eine Entscheidung: offener Antrag oder beantragte Verlängerung. */
+export const wartet = (e: Pick<Abwesenheit, 'status' | 'verlaengerung'>) => e.status === 'beantragt' || !!e.verlaengerung;
+export const heuteWien = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Vienna' });
+
+/** Offene Einträge („bis auf Weiteres“) laufen bis heute. */
+export function laufendBis<T extends Pick<Abwesenheit, 'offen' | 'bis' | 'status'>>(e: T, heute: string): T {
+  return e.offen && e.status !== 'abgelehnt' && e.bis < heute ? { ...e, bis: heute } : e;
+}
+
+/** Verlängern, „bis auf Weiteres“ setzen oder gesund melden – ohne neuen Antrag. */
+export function verlaengernFehler(
+  e: Pick<Abwesenheit, 'email' | 'art' | 'von' | 'bis' | 'stunden' | 'status' | 'offen' | 'verdeckt'>,
+  neu: { bis: string; offen?: boolean },
+  verwalter: boolean,
+  ich: string,
+): string | null {
+  if (e.verdeckt || (!verwalter && e.email !== ich)) return 'Du darfst nur eigene Einträge verlängern';
+  if (e.status === 'abgelehnt') return 'Abgelehnte Einträge können nicht verlängert werden';
+  if (e.stunden != null) return 'Stundenweise Einträge können nicht verlängert werden';
+  if (neu.offen && !OFFEN_ARTEN.includes(e.art)) return '„Bis auf Weiteres“ gibt es nur bei Krankenstand und Pflegeurlaub';
+  const f = abwesenheitFehler({ art: e.art, von: e.von, bis: neu.bis });
+  if (f) return f;
+  if (!verwalter && e.art !== 'krank' && !e.offen && !neu.offen && neu.bis <= e.bis) return 'Das neue Ende muss nach dem bisherigen liegen';
+  return null;
+}
 
 /** Admins und Mitglieder der in der Rechteverwaltung gewählten Gruppen genehmigen und sehen alles. */
 export function darfVerwalten(r: Rechte, k: Konfiguration): boolean {

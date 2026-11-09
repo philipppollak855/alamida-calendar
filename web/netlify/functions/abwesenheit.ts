@@ -5,7 +5,12 @@ import {
   BELEG_MAX_ANZAHL,
   BELEG_MAX_BYTES,
   BELEG_TYPEN,
+  ARTEN,
+  OFFEN_ARTEN,
   abwesenheitFehler,
+  heuteWien,
+  laufendBis,
+  verlaengernFehler,
   belegDateiname,
   belegSignaturPasst,
   type Beleg,
@@ -36,6 +41,7 @@ const text = (v: unknown, max = 500) => (typeof v === 'string' ? v.trim().slice(
  * POST ?aktion=import (altes Programm); PUT ?aktion=personal (Stammdaten); DELETE ?id= zurückziehen/löschen;
  * ?aktion=beleg&id=…(&beleg=…): Bestätigung hochladen (POST, Datei als Body), abrufen (GET), entfernen (DELETE).
  * PUT ?aktion=aendern: Verwalter ändern Art, Zeitraum, Notiz und Status eines Eintrags.
+ * PUT ?aktion=verlaengern: eigenen Eintrag verlängern / „bis auf Weiteres“ / gesund melden (genehmigte Urlaube: Verlängerung wartet auf Genehmigung).
  * Krankmeldungen gelten sofort; Urlaub, Sonderurlaub & Co. sind immer offen, bis ein Berechtigter entscheidet
  * (Verwalter können beim Eintragen ausdrücklich „gleich genehmigen“ wählen).
  */
@@ -109,7 +115,13 @@ export default async (req: Request) => {
     if (!e) return json({ fehler: 'Eintrag nicht gefunden' }, 404);
     if (b.status !== 'genehmigt' && b.status !== 'abgelehnt') return json({ fehler: 'Ungültige Entscheidung' }, 400);
     const grund = text(b.grund, 300);
-    const neu: Abwesenheit = { ...e, status: b.status, entschieden: { von: ich, am: Date.now(), ...(grund ? { grund } : {}) } };
+    const entschieden = { von: ich, am: Date.now(), ...(grund ? { grund } : {}) };
+    const { verlaengerung: v, ...ohneV } = e;
+    const neu: Abwesenheit = v
+      ? b.status === 'genehmigt'
+        ? { ...ohneV, bis: v.bis, ...(v.offen ? { offen: true } : {}), entschieden }
+        : { ...ohneV, entschieden }
+      : { ...e, status: b.status, entschieden };
     await abwesenheitSpeichern(neu);
     liste = liste.map((x) => (x.id === e.id ? neu : x));
   } else if (req.method === 'POST' && aktion === 'import') {
@@ -140,6 +152,8 @@ export default async (req: Request) => {
       return json({ fehler: 'Unbekannter Mitarbeiter' }, 400);
     }
     const stunden = typeof b.stunden === 'number' ? b.stunden : undefined;
+    const offen = b.offen === true && stunden == null && OFFEN_ARTEN.includes(b.art as AbwArt);
+    if (offen) b.bis = b.von;
     const neu = { email, art: b.art as AbwArt, von: text(b.von, 10), bis: text(b.bis, 10), ...(stunden != null ? { stunden } : {}) };
     const fehler = abwesenheitFehler(neu);
     if (fehler) return json({ fehler }, 400);
@@ -152,12 +166,30 @@ export default async (req: Request) => {
       ...neu,
       status,
       ...(notiz ? { notiz } : {}),
+      ...(offen ? { offen: true } : {}),
       eingetragenVon: ich,
       erstellt: Date.now(),
       ...(status === 'genehmigt' ? { entschieden: { von: ich, am: Date.now() } } : {}),
     };
     await abwesenheitSpeichern(e);
-    liste = [...liste, e];
+    liste = [...liste, laufendBis(e, heuteWien())];
+  } else if (req.method === 'PUT' && aktion === 'verlaengern') {
+    const e = liste.find((x) => x.id === b.id);
+    if (!e) return json({ fehler: 'Eintrag nicht gefunden' }, 404);
+    const offen = b.offen === true;
+    const bis = text(b.bis, 10) || e.bis;
+    const fehler = verlaengernFehler(e, { bis, offen }, verwalter, ich);
+    if (fehler) return json({ fehler }, fehler.startsWith('Du darfst') ? 403 : 400);
+    if (liste.some((x) => x.id !== e.id && x.email === e.email && x.status !== 'abgelehnt' && x.stunden == null && ueberschneidet(x, { von: e.von, bis }))) {
+      return json({ fehler: 'Im neuen Zeitraum ist schon eine andere Abwesenheit eingetragen' }, 400);
+    }
+    const pruefen = !verwalter && ARTEN[e.art].genehmigung && e.status === 'genehmigt' && (bis > e.bis || (offen && !e.offen));
+    const { verlaengerung: _v, offen: _o, ...basis } = e;
+    const neu: Abwesenheit = pruefen
+      ? { ...e, verlaengerung: { bis, ...(offen ? { offen: true } : {}), von: ich, am: Date.now() } }
+      : { ...basis, bis, ...(offen ? { offen: true } : {}), geaendert: { von: ich, am: Date.now() } };
+    await abwesenheitSpeichern(neu);
+    liste = liste.map((x) => (x.id === e.id ? laufendBis(neu, heuteWien()) : x));
   } else if (req.method === 'PUT' && aktion === 'aendern') {
     const verboten = nur(verwalter);
     if (verboten) return verboten;

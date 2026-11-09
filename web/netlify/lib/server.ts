@@ -2,7 +2,7 @@ import { createHmac, createPublicKey, createSign, randomBytes, timingSafeEqual, 
 import { getStore } from '@netlify/blobs';
 import { STANDARD_KONFIG, konfigPruefen, rechteFuer, verzeichnisAnwenden, verzeichnisPruefen, type Konfiguration, type Rechte, type Verzeichnis } from '../../src/shared/rechte';
 import type { Einsatz } from '../../src/shared/bereitschaft';
-import { personalPruefen, type Abwesenheit, type Personal } from '../../src/shared/abwesenheit';
+import { heuteWien, laufendBis, personalPruefen, type Abwesenheit, type Personal } from '../../src/shared/abwesenheit';
 import type { AgentStatus } from './agent';
 import type { Einteilung } from '../../src/shared/einteilung';
 import { zeitkontoPruefen, type ZeitkontoDaten } from '../../src/shared/zeitkonto';
@@ -156,7 +156,11 @@ export async function abwesenheitenLaden(): Promise<Abwesenheit[]> {
   const s = store();
   const { blobs } = await s.list({ prefix: 'abwesenheit/eintrag/' });
   const l = await Promise.all(blobs.map((b) => s.get(b.key, { type: 'json' }) as Promise<Abwesenheit | null>));
-  return l.filter((e): e is Abwesenheit => !!e).sort((a, b) => a.von.localeCompare(b.von));
+  const heute = heuteWien();
+  return l
+    .filter((e): e is Abwesenheit => !!e)
+    .map((e) => laufendBis(e, heute))
+    .sort((a, b) => a.von.localeCompare(b.von));
 }
 
 export const abwesenheitSpeichern = (e: Abwesenheit) => store().setJSON(abwSchluessel(e.id), e);

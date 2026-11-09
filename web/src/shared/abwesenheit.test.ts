@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { altdatenLesen, belegDateiname, belegFehlt, belegSignaturPasst, darfVerwalten, internesKonto, istOhneEmail, stundenJeTag, umbenennungen, stundenVon, tageAnzeige, tageZuZeitraeumen, urlaubskonto, type Abwesenheit, type Personal } from './abwesenheit';
+import { altdatenLesen, belegDateiname, belegFehlt, belegSignaturPasst, darfVerwalten, internesKonto, istOhneEmail, stundenJeTag, umbenennungen, stundenVon, tageAnzeige, tageZuZeitraeumen, urlaubskonto, laufendBis, verlaengernFehler, wartet, type Abwesenheit, type Personal } from './abwesenheit';
 import type { Konfiguration, Rechte } from './rechte';
 
 const anna: Personal = { email: 'anna@x.at', name: 'Anna', eintritt: '2020-03-01', tage: [8, 8, 8, 8, 8, 0, 0] };
@@ -134,5 +134,28 @@ describe('Bestätigungen', () => {
     expect(belegSignaturPasst(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), 'image/jpeg')).toBe(true);
     expect(belegSignaturPasst(enc('RIFF0000WEBP'), 'image/webp')).toBe(true);
     expect(belegSignaturPasst(enc('%PDF-1.7'), 'text/html')).toBe(false);
+  });
+});
+
+describe('Verlängern ohne neuen Antrag', () => {
+  const krank: Abwesenheit = { id: 'k', email: 'a@x', art: 'krank', von: '2026-11-02', bis: '2026-11-02', status: 'gemeldet', offen: true };
+  const urlaub: Abwesenheit = { id: 'u', email: 'a@x', art: 'urlaub', von: '2026-11-10', bis: '2026-11-12', status: 'genehmigt' };
+  it('„bis auf Weiteres“ läuft bis heute', () => {
+    expect(laufendBis(krank, '2026-11-09').bis).toBe('2026-11-09');
+    expect(laufendBis({ ...krank, offen: false }, '2026-11-09').bis).toBe('2026-11-02');
+    expect(laufendBis({ ...krank, status: 'abgelehnt' }, '2026-11-09').bis).toBe('2026-11-02');
+  });
+  it('wer darf was', () => {
+    expect(verlaengernFehler(urlaub, { bis: '2026-11-14' }, false, 'a@x')).toBeNull();
+    expect(verlaengernFehler(urlaub, { bis: '2026-11-11' }, false, 'a@x')).toMatch(/nach dem bisherigen/);
+    expect(verlaengernFehler(urlaub, { bis: '2026-11-11' }, true, 'chef@x')).toBeNull();
+    expect(verlaengernFehler(urlaub, { bis: '2026-11-14' }, false, 'b@x')).toMatch(/eigene/);
+    expect(verlaengernFehler(urlaub, { bis: '2026-11-14', offen: true }, false, 'a@x')).toMatch(/Krankenstand/);
+    expect(verlaengernFehler(krank, { bis: '2026-11-05' }, false, 'a@x')).toBeNull();
+    expect(verlaengernFehler(krank, { bis: '2026-11-01' }, false, 'a@x')).toMatch(/Zeitraum/);
+  });
+  it('beantragte Verlängerung wartet', () => {
+    expect(wartet(urlaub)).toBe(false);
+    expect(wartet({ ...urlaub, verlaengerung: { bis: '2026-11-14', von: 'a@x', am: 1 } })).toBe(true);
   });
 });
