@@ -8,6 +8,7 @@ import {
   abwesenheitEntscheiden,
   abwesenheitLaden,
   abwesenheitLoeschen,
+  abwesenheitVerlaengern,
   altdatenImportieren,
   belegDatei,
   belegEntfernen,
@@ -33,7 +34,7 @@ import {
   type Beleg,
   BELEG_ARTEN,
   belegFehlt,
-  belegMoeglich, internesKonto, istOhneEmail, stundenJeTag, tageAnzeige } from '../shared/abwesenheit';
+  belegMoeglich, internesKonto, OFFEN_ARTEN, wartet, istOhneEmail, stundenJeTag, tageAnzeige } from '../shared/abwesenheit';
 import { ausText, datumText, plusTage } from '../shared/bereitschaft';
 import { useBereitschaft } from './BereitschaftAnsicht';
 import { belegVorbereiten, drucken, herunterladen } from './beleg';
@@ -71,7 +72,10 @@ const artInfo = (e: Abwesenheit) => (e.verdeckt ? { label: 'abwesend', symbol: '
 const STATUS: Record<Abwesenheit['status'], string> = { beantragt: 'offen', genehmigt: 'genehmigt', abgelehnt: 'abgelehnt', gemeldet: 'gemeldet' };
 const WARN_AB = 3;
 
-function zeitraumText(e: Pick<Abwesenheit, 'von' | 'bis' | 'stunden'>): string {
+const datumKurz = (t: string) => format(ausText(t), 'EEE d.M.yyyy', { locale: de });
+
+function zeitraumText(e: Pick<Abwesenheit, 'von' | 'bis' | 'stunden'> & { offen?: boolean }): string {
+  if (e.offen) return `seit ${datumKurz(e.von)} · bis auf Weiteres`;
   if (e.von === e.bis) return format(ausText(e.von), 'EEE d.M.yyyy', { locale: de }) + (e.stunden ? ` · ${e.stunden} h` : '');
   return `${format(ausText(e.von), 'EEE d.M.', { locale: de })} – ${format(ausText(e.bis), 'EEE d.M.yyyy', { locale: de })}`;
 }
@@ -146,21 +150,23 @@ function Formular({ d, onDaten, start, onFertig }: { d: AbwesenheitDaten; onDate
   const [genehmigen, setGenehmigen] = useState(false);
   const [stundenweise, setStundenweise] = useState(false);
   const [stunden, setStunden] = useState(4);
+  const [offenWahl, setOffenWahl] = useState(false);
   const [notiz, setNotiz] = useState('');
   const [datei, setDatei] = useState<File | null>(null);
   const [dateiFeld, setDateiFeld] = useState(0);
   const [laeuft, setLaeuft] = useState(false);
   const [meldung, setMeldung] = useState<{ ok: boolean; text: string } | null>(null);
   const p = d.personal.find((x) => x.email === email);
-  const bisWert = stundenweise ? von : bis;
-  const kosten = p && von && bisWert >= von ? stundenVon(p, { id: '', email, art, von, bis: bisWert, status: 'beantragt', ...(stundenweise ? { stunden } : {}) }) : null;
+  const offen = offenWahl && !stundenweise && OFFEN_ARTEN.includes(art);
+  const bisWert = stundenweise || offen ? von : bis;
+  const kosten = p && von && bisWert >= von && !offen ? stundenVon(p, { id: '', email, art, von, bis: bisWert, status: 'beantragt', ...(stundenweise ? { stunden } : {}) }) : null;
   const personen = [...new Map([[d.ich.email, d.ich.email], ...d.personen.map((x) => [x.email, x.email] as const)]).keys()];
 
   const senden = () => {
     setLaeuft(true);
     setMeldung(null);
     const sofortGenehmigt = d.darfVerwalten && genehmigen && ARTEN[art].genehmigung;
-    abwesenheitEintragen({ email, art, von, bis: bisWert, ...(stundenweise ? { stunden } : {}), ...(notiz.trim() ? { notiz: notiz.trim() } : {}), ...(sofortGenehmigt ? { genehmigen: true } : {}) })
+    abwesenheitEintragen({ email, art, von, bis: bisWert, ...(stundenweise ? { stunden } : {}), ...(offen ? { offen: true } : {}), ...(notiz.trim() ? { notiz: notiz.trim() } : {}), ...(sofortGenehmigt ? { genehmigen: true } : {}) })
       .then(async (x) => {
         onDaten(x);
         setNotiz('');
@@ -223,7 +229,7 @@ function Formular({ d, onDaten, start, onFertig }: { d: AbwesenheitDaten; onDate
           {stundenweise ? 'Tag' : 'Von'}
           <input className="feld" type="date" value={von} onChange={(e) => { setVon(e.target.value); if (e.target.value > bis) setBis(e.target.value); }} />
         </label>
-        {!stundenweise && (
+        {!stundenweise && !offen && (
           <label className="ab-feld">
             Bis
             <input className="feld" type="date" value={bis} min={von} onChange={(e) => setBis(e.target.value)} />
@@ -239,6 +245,12 @@ function Formular({ d, onDaten, start, onFertig }: { d: AbwesenheitDaten; onDate
       <label className="pille-wahl">
         <input type="checkbox" checked={stundenweise} onChange={() => setStundenweise(!stundenweise)} /> Stundenweise (einzelner Tag)
       </label>
+      {OFFEN_ARTEN.includes(art) && !stundenweise && (
+        <label className="pille-wahl" title="Der Eintrag läuft weiter, bis du „Gesund gemeldet“ bzw. „Beenden“ drückst">
+          <input type="checkbox" checked={offenWahl} onChange={() => setOffenWahl(!offenWahl)} /> bis auf Weiteres ({art === 'krank' ? 'bis zur Gesundmeldung' : 'Ende noch offen'})
+        </label>
+      )}
+      {offen && <p className="klein">Läuft ab {datumKurz(von)}, bis du unter „Meine Einträge“ {art === 'krank' ? '„Gesund gemeldet“' : '„Beenden“'} drückst.</p>}
       <textarea className="feld" rows={2} placeholder={art === 'krank' ? 'Notiz (optional, z. B. voraussichtliche Dauer)' : 'Notiz (optional)'} value={notiz} onChange={(e) => setNotiz(e.target.value)} />
       {BELEG_ARTEN.includes(art) && (
         <label className="ab-feld">
@@ -270,6 +282,7 @@ function Formular({ d, onDaten, start, onFertig }: { d: AbwesenheitDaten; onDate
 function EintragListe({ d, eintraege, onDaten, mitName }: { d: AbwesenheitDaten; eintraege: Abwesenheit[]; onDaten: (x: AbwesenheitDaten) => void; mitName?: boolean }) {
   const [fehler, setFehler] = useState<string | null>(null);
   const [bearbeiten, setBearbeiten] = useState<Abwesenheit | null>(null);
+  const [verlaengern, setVerlaengern] = useState<Abwesenheit | null>(null);
   if (!eintraege.length) return <p className="leer">Keine Einträge</p>;
   const entscheiden = (e: Abwesenheit, status: 'genehmigt' | 'abgelehnt') => {
     const grund = status === 'abgelehnt' ? prompt('Begründung (optional):') ?? undefined : undefined;
@@ -279,8 +292,10 @@ function EintragListe({ d, eintraege, onDaten, mitName }: { d: AbwesenheitDaten;
     <div className="ab-liste">
       {fehler && <div className="banner fehler">{fehler}</div>}
       {bearbeiten && <EintragBearbeiten d={d} e={bearbeiten} onDaten={onDaten} onSchliessen={() => setBearbeiten(null)} />}
+      {verlaengern && <VerlaengernDialog d={d} e={verlaengern} onDaten={onDaten} onSchliessen={() => setVerlaengern(null)} />}
       {eintraege.map((e) => {
         const darf = d.darfVerwalten || (e.email === d.ich.email && e.status === 'beantragt');
+        const kannVerl = !e.verdeckt && e.stunden == null && e.status !== 'abgelehnt' && !e.verlaengerung && (d.darfVerwalten || e.email === d.ich.email);
         return (
           <div key={e.id} className={`ab-eintrag glas status-${e.status}`} style={{ borderLeftColor: artInfo(e).farbe }}>
             <div>
@@ -291,11 +306,17 @@ function EintragListe({ d, eintraege, onDaten, mitName }: { d: AbwesenheitDaten;
               <div className="klein">{zeitraumText(e)}</div>
               {e.notiz && <div className="klein">„{e.notiz}“</div>}
               {e.entschieden?.grund && <div className="klein">Begründung: {e.entschieden.grund}</div>}
+              {e.verlaengerung && <div className="klein ab-verl">⏳ Verlängerung {e.verlaengerung.offen ? 'bis auf Weiteres' : `bis ${datumKurz(e.verlaengerung.bis)}`} beantragt</div>}
               <BelegLeiste d={d} e={e} onDaten={onDaten} />
             </div>
             <div className="ab-eintrag-rechts">
               <span className={`ab-status ${e.status}`}>{STATUS[e.status]}</span>
-              {d.darfVerwalten && !e.verdeckt && e.status === 'beantragt' && (
+              {kannVerl && (
+                <button className="knopf klein" onClick={() => setVerlaengern(e)}>
+                  {e.offen ? (e.art === 'krank' ? '✓ Gesund gemeldet' : '■ Beenden') : '⟶ Verlängern'}
+                </button>
+              )}
+              {d.darfVerwalten && !e.verdeckt && wartet(e) && (
                 <span className="ab-schnell">
                   <button className="knopf primaer klein" title="Genehmigen" onClick={() => entscheiden(e, 'genehmigt')}>✓</button>
                   <button className="knopf klein" title="Ablehnen" onClick={() => entscheiden(e, 'abgelehnt')}>✕</button>
@@ -319,6 +340,68 @@ function EintragListe({ d, eintraege, onDaten, mitName }: { d: AbwesenheitDaten;
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** Verlängern, „bis auf Weiteres“ oder gesund melden – ohne neuen Antrag. */
+function VerlaengernDialog({ d, e, onDaten, onSchliessen }: { d: AbwesenheitDaten; e: Abwesenheit; onDaten: (x: AbwesenheitDaten) => void; onSchliessen: () => void }) {
+  const ende = !!e.offen;
+  const morgen = datumText(plusTage(ausText(e.bis), 1));
+  const [bis, setBis] = useState(ende ? (heute() < e.von ? e.von : heute()) : morgen);
+  const [offen, setOffen] = useState(false);
+  const [laeuft, setLaeuft] = useState(false);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const mitGenehmigung = !d.darfVerwalten && ARTEN[e.art].genehmigung && e.status === 'genehmigt';
+  const min = ende || d.darfVerwalten || e.art === 'krank' ? e.von : morgen;
+  const speichern = () => {
+    setLaeuft(true);
+    setFehler(null);
+    abwesenheitVerlaengern(e.id, offen ? { offen: true } : { bis })
+      .then((x) => {
+        onDaten(x);
+        onSchliessen();
+      })
+      .catch((x: Error) => setFehler(x.message))
+      .finally(() => setLaeuft(false));
+  };
+  return (
+    <div className="modal-hintergrund" onClick={onSchliessen}>
+      <div className="modal ab-modal" role="dialog" aria-modal="true" onClick={(x) => x.stopPropagation()}>
+        <div className="modal-kopf" style={{ background: ARTEN[e.art].farbe }}>
+          <div>
+            <div className="modal-kategorie">{ende ? (e.art === 'krank' ? 'Gesund melden' : 'Beenden') : 'Verlängern'}</div>
+            <h2>{e.name || nameVon(d, e.email)}</h2>
+            <div className="modal-nr">
+              {ARTEN[e.art].symbol} {ARTEN[e.art].label} · {zeitraumText(e)}
+            </div>
+          </div>
+          <button className="modal-zu" onClick={onSchliessen} aria-label="Schließen">✕</button>
+        </div>
+        <div className="modal-inhalt ab-formular">
+          {!offen && (
+            <label className="ab-feld">
+              {ende ? (e.art === 'krank' ? 'Letzter Krankheitstag' : 'Letzter Tag') : 'Neues Ende (letzter Tag)'}
+              <input className="feld" type="date" value={bis} min={min} onChange={(x) => setBis(x.target.value)} />
+            </label>
+          )}
+          {!ende && OFFEN_ARTEN.includes(e.art) && (
+            <label className="pille-wahl">
+              <input type="checkbox" checked={offen} onChange={() => setOffen(!offen)} /> bis auf Weiteres ({e.art === 'krank' ? 'bis zur Gesundmeldung' : 'Ende noch offen'})
+            </label>
+          )}
+          {mitGenehmigung && <p className="klein">Die Verlängerung muss genehmigt werden. Der bisherige Zeitraum bleibt genehmigt.</p>}
+          {fehler && <div className="banner fehler">{fehler}</div>}
+          <div className="aktionen">
+            <button className="knopf primaer" disabled={laeuft || (!offen && (!bis || bis < min))} onClick={speichern}>
+              {laeuft ? 'Speichert …' : ende ? 'Speichern' : mitGenehmigung ? 'Verlängerung beantragen' : 'Verlängern'}
+            </button>
+            <button className="knopf" disabled={laeuft} onClick={onSchliessen}>
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -448,8 +531,8 @@ function AlleEintraege({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwes
     .filter((e) => !status || e.status === status)
     .filter((e) => !jahr || e.von.slice(0, 4) === jahr || e.bis.slice(0, 4) === jahr)
     .filter((e) => !s || `${e.name ?? ''} ${nameVon(d, e.email)} ${e.notiz ?? ''}`.toLowerCase().includes(s))
-    .sort((a, b) => (a.status === 'beantragt' ? 0 : 1) - (b.status === 'beantragt' ? 0 : 1) || b.von.localeCompare(a.von));
-  const offen = d.eintraege.filter((e) => e.status === 'beantragt').length;
+    .sort((a, b) => (wartet(a) ? 0 : 1) - (wartet(b) ? 0 : 1) || b.von.localeCompare(a.von));
+  const offen = d.eintraege.filter(wartet).length;
   return (
     <section className="glas admin-block">
       <div className="ab-filter">
@@ -723,7 +806,7 @@ function Dashboard({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhe
   const [fehler, setFehler] = useState<string | null>(null);
   const t = heute();
   const in7 = datumText(plusTage(new Date(), 7));
-  const offen = d.eintraege.filter((e) => e.status === 'beantragt');
+  const offen = d.eintraege.filter(wartet);
   const heuteAbw = abwesendAm(d.eintraege, t);
   const woche = d.eintraege.filter((e) => zaehlt(e) && e.bis > t && e.von <= in7);
   const konflikte = (bs.daten?.eintraege ?? [])
@@ -763,9 +846,11 @@ function Dashboard({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhe
                 <div>
                   <b>
                     {ARTEN[e.art].symbol} {e.name || nameVon(d, e.email)} · {ARTEN[e.art].label}
+                    {e.verlaengerung ? ' · Verlängerung' : ''}
                   </b>
                   <div className="klein">
-                    {zeitraumText(e)}
+                    {e.verlaengerung && `bisher ${zeitraumText(e)} → ${e.verlaengerung.offen ? 'bis auf Weiteres' : `neu bis ${datumKurz(e.verlaengerung.bis)}`} · `}
+                    {!e.verlaengerung && zeitraumText(e)}
                     {p ? ` · ${e.art === 'urlaub' || e.art === 'pflege' ? tage(stundenVon(p, e), stundenJeTag(p)) : std(stundenVon(p, e))}` : ''}
                     {k && e.art === 'urlaub' ? ` · Rest ${tage(k.rest, k.stundenProTag)}` : ''}
                   </div>
@@ -1148,7 +1233,7 @@ export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
           {modi.map(([x, label]) => (
             <button key={x} role="tab" aria-selected={m === x} className={m === x ? 'aktiv' : ''} onClick={() => setModus(x)}>
               {label}
-              {x === 'dashboard' && daten.eintraege.some((e) => e.status === 'beantragt') ? ' •' : ''}
+              {x === 'dashboard' && daten.eintraege.some(wartet) ? ' •' : ''}
               {x === 'belege' && daten.eintraege.some(belegFehlt) ? ' •' : ''}
             </button>
           ))}

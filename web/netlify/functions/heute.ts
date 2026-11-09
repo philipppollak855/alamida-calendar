@@ -1,5 +1,5 @@
 import type { Config } from '@netlify/functions';
-import { darfVerwalten } from '../../src/shared/abwesenheit';
+import { darfVerwalten, wartet } from '../../src/shared/abwesenheit';
 import { abwesendHeute, bereitschaftHeute, heuteText, termineHeute, type HeuteHinweis } from '../../src/shared/heute';
 import { darfKalender, darfSehen } from '../../src/shared/rechte';
 import { KATEGORIEN, kategorieAus, type GoogleEvent } from '../../src/planung/planungLogic';
@@ -55,7 +55,7 @@ export default async (req: Request) => {
 
   const hinweise: HeuteHinweis[] = [];
   if (verwalter) {
-    const offen = abwesenheiten.filter((x) => x.status === 'beantragt').length;
+    const offen = abwesenheiten.filter(wartet).length;
     if (offen) hinweise.push({ text: `${offen} offene${offen === 1 ? 'r' : ''} Urlaubsantr${offen === 1 ? 'ag' : 'äge'}`, ziel: `${origin}/abwesenheit` });
   }
 
