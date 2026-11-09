@@ -88,9 +88,9 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] K21 Sterbefall per Knopfdruck ans Bereitschaftsteam; Team schließt Abholung ab (Kühlraum eintragen, offene Daten nachtragen)
 - [x] K22 Archiv, Suche und Export der Mitschriften / Aufzeichnungen
 - [x] K23 Telefonbereitschaft planen (Rolle Telefon, genau 1 Person): Muster (Wochentage, Uhrzeit, Rhythmus) + freie Einträge, die das Muster überschreiben; „Telefon jetzt“ im Telefondienst und Hub-Heute.
-- [x] K23 Krank / Pflegeurlaub / Urlaub ohne neuen Antrag verlängern: „bis auf Weiteres“ bis zur Gesundmeldung oder manuell (Urlaub: Verlängerung wartet auf Genehmigung)
-- [x] K24 Monatsberichte im Archiv (fester Stand je Monat, automatisch beim Herunterladen/Drucken)
-- [x] K25 Kalender-App ohne fremde Unter-Apps (Bereitschaft, Urlaub / Krank eigene Hub-Apps; Rechte → Kalender-Einstellungen)
+- [x] K26 Krank / Pflegeurlaub / Urlaub ohne neuen Antrag verlängern: „bis auf Weiteres“ bis zur Gesundmeldung oder manuell (Urlaub: Verlängerung wartet auf Genehmigung)
+- [x] K27 Monatsberichte im Archiv (fester Stand je Monat, automatisch beim Herunterladen/Drucken)
+- [x] K28 Kalender-App ohne fremde Unter-Apps (Bereitschaft, Urlaub / Krank eigene Hub-Apps; Rechte → Kalender-Einstellungen)
 
 ## Nicht mehr
 - Urnenwald-PRs #41–#139: nicht weiter bearbeiten (Anweisung Nutzer)
