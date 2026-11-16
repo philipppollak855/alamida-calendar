@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ausGoogleEvent, titelOhneKategorie, checkliste, countdown, fahrten, mapsLink, nachGruppe, orte, sterbefaelle, suche, termineAmTag, warnungen, type GoogleEvent } from './planungLogic';
+import { ausGoogleEvent, titelOhneKategorie, bestattungsart, checkliste, countdown, fahrten, mapsLink, nachGruppe, orte, sterbefaelle, suche, termineAmTag, warnungen, type GoogleEvent } from './planungLogic';
 
 const ev = (id: string, kat: string, start: string, end: string, fall = '260087 | Anton Schellmann'): GoogleEvent => ({
   id,
@@ -92,6 +92,16 @@ describe('planungLogic', () => {
     const c = checkliste([t(e)]);
     expect(c.map((p) => p.label)).toEqual(['Abholung', 'Trauergespräch', 'Trauerfeier', 'Kremation', 'Urnenbeisetzung']);
     expect(c.filter((p) => p.erledigt).map((p) => p.label)).toEqual(['Urnenbeisetzung']);
+  });
+
+  it('Kremationstermin macht aus Erdbestattung eine Feuerbestattung', () => {
+    const b = ev('a', 'Beisetzung', '2026-05-28', '2026-05-29');
+    b.extendedProperties!.private!.bestattungsart = 'Erdbestattung';
+    const k = ev('b', 'Kremation', '2026-05-26T09:00:00+02:00', '2026-05-26T10:00:00+02:00');
+    expect(bestattungsart([t(b)])).toBe('Erdbestattung');
+    expect(bestattungsart([t(b), t(k)])).toBe('Feuerbestattung');
+    expect(checkliste([t(b), t(k)]).map((p) => p.label)).toContain('Urnenbeisetzung');
+    expect(bestattungsart([t(k)])).toBe('Feuerbestattung');
   });
 
   it('gruppiert Orte und zeigt Countdown', () => {

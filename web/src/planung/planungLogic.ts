@@ -442,6 +442,14 @@ export function fallDaten(termine: Termin[]): Record<string, string> {
   return r;
 }
 
+/** Bestattungsart eines Falls: Ein Kremationstermin (oder Feuer/Urne im Text) bedeutet Feuerbestattung, auch wenn in Alamida noch Erdbestattung steht. */
+export function bestattungsart(termine: Termin[]): string | undefined {
+  const roh = termine.find((t) => t.details.bestattungsart)?.details.bestattungsart?.trim();
+  const feuer = termine.some((t) => t.kategorie === 'Kremation') || /feuer|krem|urne/i.test(roh ?? '');
+  if (feuer) return roh && /feuer|krem|urne/i.test(roh) ? roh : 'Feuerbestattung';
+  return roh || undefined;
+}
+
 export interface CheckPunkt {
   label: string;
   erledigt: boolean;
@@ -450,8 +458,7 @@ export interface CheckPunkt {
 /** Was fuer einen Sterbefall typischerweise geplant sein muss. */
 export function checkliste(termine: Termin[]): CheckPunkt[] {
   const hat = (k: Kategorie) => termine.some((t) => t.kategorie === k);
-  const art = (fallDaten(termine).bestattungsart ?? '').toLowerCase();
-  const feuer = /feuer|krem|urne/.test(art) || hat('Kremation');
+  const feuer = /feuer|krem|urne/i.test(bestattungsart(termine) ?? '');
   const punkte: CheckPunkt[] = [
     { label: 'Abholung', erledigt: hat('Abholung') },
     { label: 'Trauergespräch', erledigt: hat('Trauergespraech') },
