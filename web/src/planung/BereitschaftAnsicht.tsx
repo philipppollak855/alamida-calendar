@@ -296,7 +296,9 @@ function ZusatzModal({ tag, ab, onDaten, onFertig, onSchliessen }: { tag: Date; 
   const [anlass, setAnlass] = useState('');
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
-  const datum = datumText(tag);
+  const [datum, setDatum] = useState(datumText(tag));
+  const heute = datumText(new Date());
+  const gewaehlt = new Date(`${datum}T12:00`);
   return (
     <div className="modal-hintergrund" onClick={onSchliessen}>
       <div className="modal bs-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
@@ -310,7 +312,7 @@ function ZusatzModal({ tag, ab, onDaten, onFertig, onSchliessen }: { tag: Date; 
             try {
               const neu = await zusatztagAnsetzen({ datum, ...(anlass.trim() ? { anlass: anlass.trim() } : {}) }, ab);
               onDaten(neu);
-              const d = dienste(tag, tag, neu.zusatz).find((x) => x.id === `zt-${datum}`);
+              const d = dienste(gewaehlt, gewaehlt, neu.zusatz).find((x) => x.id === `zt-${datum}`);
               if (d) onFertig(d);
               else onSchliessen();
             } catch (e) {
@@ -321,8 +323,12 @@ function ZusatzModal({ tag, ab, onDaten, onFertig, onSchliessen }: { tag: Date; 
           }}
         >
           <h3>Bereitschaft ansetzen</h3>
-          <p className="klein">{format(tag, 'EEEE, d. MMMM yyyy', { locale: de })} wird ein zusätzlicher Bereitschaftstag (0–24 Uhr).</p>
-          <input className="feld" autoFocus maxLength={80} placeholder="Anlass (optional), z. B. Zwickeltag" value={anlass} onChange={(e) => setAnlass(e.target.value)} />
+          <label className="ab-feld">
+            Tag
+            <input className="feld" type="date" required min={heute} value={datum} onChange={(e) => e.target.value && setDatum(e.target.value)} />
+          </label>
+          <p className="klein">{isNaN(gewaehlt.getTime()) ? '' : format(gewaehlt, 'EEEE, d. MMMM yyyy', { locale: de })} wird ein zusätzlicher Bereitschaftstag (0–24 Uhr). Wochenenden und Feiertage sind schon Bereitschaft.</p>
+          <input className="feld" autoFocus maxLength={80} placeholder="Anlass (optional), z. B. Firmenfeier, Zwickeltag" value={anlass} onChange={(e) => setAnlass(e.target.value)} />
           <div className="dienst-aktionen">
             <button className="knopf primaer" type="submit" disabled={laeuft}>Ansetzen</button>
             <button className="knopf" type="button" onClick={onSchliessen}>Abbrechen</button>
@@ -449,9 +455,16 @@ function PlanungKalender({ daten, datum, setDatum, onWahl, onDaten, ab }: { date
 
   return (
     <section className="ansicht kalender-ansicht glas bs-kalender" {...wischen}>
-      <label className="pille-wahl bs-abw-wahl">
-        <input type="checkbox" checked={mitAbw} onChange={() => setMitAbw(!mitAbw)} /> 🌴 Urlaube und Fehltage einblenden
-      </label>
+      <div className="bs-kalender-kopf">
+        <label className="pille-wahl bs-abw-wahl">
+          <input type="checkbox" checked={mitAbw} onChange={() => setMitAbw(!mitAbw)} /> 🌴 Urlaube und Fehltage einblenden
+        </label>
+        {daten.darfPlanen && (
+          <button className="knopf primaer" onClick={() => setNeuerTag(new Date())}>
+            ＋ Bereitschaft an einem Tag ansetzen
+          </button>
+        )}
+      </div>
       {mitAbw && abwFehler && <div className="banner fehler">{abwFehler}</div>}
       <Calendar
         localizer={localizer}
@@ -469,6 +482,7 @@ function PlanungKalender({ daten, datum, setDatum, onWahl, onDaten, ab }: { date
         onNavigate={setDatum}
         views={[Views.MONTH, Views.WEEK, Views.AGENDA]}
         selectable
+        longPressThreshold={20}
         popup
         onSelectEvent={(t: KalEintrag) => t.dienst && onWahl(t.dienst)}
         onSelectSlot={({ start }: { start: Date }) => {

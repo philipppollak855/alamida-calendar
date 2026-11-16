@@ -846,6 +846,9 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .tel-kuehl-chips .pille.aktiv { background: var(--akzent); border-color: var(--akzent); color: var(--akzent-text, #fff); }
 .knopf.warn-knopf { border-color: var(--warn); color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
 
+.bs-kalender-kopf { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem; }
+.bs-kalender-kopf .bs-abw-wahl { margin-bottom: 0; }
+
 /* Telefondienst: Sterbepapiere */
 .tel-papiere { list-style: none; margin: 0 0 0.5rem; padding: 0; display: grid; gap: 0.35rem; }
 .tel-papiere li { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
