@@ -517,6 +517,13 @@ function Karte({ m, oeffnen }: { m: Mitschrift; oeffnen: () => void }) {
   );
 }
 
+type Reiter = 'fall' | 'nav' | 'akte';
+const REITER: { id: Reiter; text: string }[] = [
+  { id: 'fall', text: '✝ Einsatz' },
+  { id: 'nav', text: '🧭 Navigation' },
+  { id: 'akte', text: '✓ Abschluss' },
+];
+
 function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: TelefonDaten; setDaten: (d: TelefonDaten) => void; schliessen: () => void }) {
   const [bearbeiten, setBearbeiten] = useState<Entwurf | null>(null);
   const [abholung, setAbholung] = useState<{ kuehlraum: string; notiz: string; verstorbener: string; geburtsdatum: string; ort: string; hausarzt: string } | null>(null);
@@ -524,7 +531,12 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
   const [neueAufnahme, setNeueAufnahme] = useState<Blob | null>(null);
   const [fehlt, setFehlt] = useState<string[] | null>(null);
   const [kuehlListe, setKuehlListe] = useState<string | null>(null);
-  const [reiter, setReiter] = useState<'fall' | 'akte'>('fall');
+  const [reiter, setReiter] = useState<Reiter>(() => (m.abholung ? 'akte' : 'fall'));
+  const wisch = useRef<{ x: number; y: number } | null>(null);
+  const [karteAn, setKarteAn] = useState(false);
+  useEffect(() => {
+    if (reiter === 'nav') setKarteAn(true);
+  }, [reiter]);
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   useEffect(() => () => void (audio && URL.revokeObjectURL(audio)), [audio]);
@@ -589,6 +601,24 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
         </button>
       </form>
     ) : null;
+  const naechster =
+    m.art !== 'sterbefall' ? null : m.abholung ? '✓ Einsatz abgeschlossen' : m.status === 'offen' ? 'An die Bereitschaft übergeben' : 'Verstorbene abholen, dann „Abholung abschließen“';
+  const navZiel = m.ort?.trim() ?? '';
+  const weiter = (r: Reiter, text: string) => (
+    <button type="button" className="knopf tel-weiter" onClick={() => setReiter(r)}>
+      {text} ›
+    </button>
+  );
+  const wischStart = (e: React.TouchEvent) => (wisch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY });
+  const wischEnde = (e: React.TouchEvent) => {
+    const w = wisch.current;
+    wisch.current = null;
+    if (!w || !cockpit || (e.target as HTMLElement).closest('input, textarea, select, iframe, audio')) return;
+    const dx = e.changedTouches[0].clientX - w.x;
+    if (Math.abs(dx) < 70 || Math.abs(e.changedTouches[0].clientY - w.y) > 50) return;
+    const i = REITER.findIndex((r) => r.id === reiter) + (dx < 0 ? 1 : -1);
+    if (REITER[i]) setReiter(REITER[i].id);
+  };
   const zeile = (label: string, wert?: React.ReactNode) =>
     wert ? (
       <div className="tel-zeile">
@@ -639,16 +669,16 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
               </div>
             )}
             <div className="tel-reiter" role="tablist">
-              <button role="tab" aria-selected={reiter === 'fall'} className={reiter === 'fall' ? 'aktiv' : ''} onClick={() => setReiter('fall')}>
-                ✝ Fall
-              </button>
-              <button role="tab" aria-selected={reiter === 'akte'} className={reiter === 'akte' ? 'aktiv' : ''} onClick={() => setReiter('akte')}>
-                📄 Papiere{m.papiere?.length ? ` (${m.papiere.length})` : ''} · 🎙
-              </button>
+              {REITER.map((r) => (
+                <button key={r.id} role="tab" aria-selected={reiter === r.id} className={reiter === r.id ? 'aktiv' : ''} onClick={() => setReiter(r.id)}>
+                  {r.text}
+                  {r.id === 'akte' && m.papiere?.length ? ` (${m.papiere.length})` : ''}
+                </button>
+              ))}
             </div>
           </div>
         )}
-        <div className="modal-inhalt">
+        <div className="modal-inhalt" onTouchStart={wischStart} onTouchEnd={wischEnde}>
           {bearbeiten ? (
             <div className="ab-formular">
               <Felder e={bearbeiten} setE={setBearbeiten} daten={daten} />
@@ -685,11 +715,48 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
               {m.abholung && zeile('Abgeholt', `${zeitText(m.abholung.am)} · ${m.abholung.kuehlraum ? `Kühlraum ${m.abholung.kuehlraum}` : '⚠ ohne Kühlraum'}${m.abholung.notiz ? ` · ${m.abholung.notiz}` : ''}`)}
               {m.geaendert && zeile('Geändert', zeitText(m.geaendert.am))}
               {verknuepft.length > 0 && zeile('Anliegen dazu', verknuepft.map((x) => `💬 ${titel(x)} (${zeitText(x.zeit)})`).join('\n'))}
+              {cockpit && weiter('nav', '🧭 Weiter zur Navigation')}
             </div>
           )}
 
-          <div className="modal-block tel-b-akte">
-            <h4>Mitschnitt</h4>
+          {cockpit && (
+            <div className="modal-block tel-b-nav">
+              {navZiel ? (
+                <>
+                  <div className="tel-nav-ziel">
+                    <span className="klein">Ziel</span>
+                    <b>
+                      {ort?.symbol} {navZiel}
+                    </b>
+                    {m.ortNotiz && <span className="klein">{m.ortNotiz}</span>}
+                  </div>
+                  {karteAn ? (
+                    <iframe className="tel-navkarte" title={`Karte: ${navZiel}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" src={`https://maps.google.com/maps?q=${encodeURIComponent(navZiel)}&z=15&output=embed`} />
+                  ) : (
+                    <button type="button" className="knopf tel-navkarte tel-karte-laden" onClick={() => setKarteAn(true)}>
+                      🗺 Karte anzeigen
+                    </button>
+                  )}
+                  <div className="tel-nav-knoepfe">
+                    <a className="knopf primaer" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(navZiel)}&travelmode=driving`} target="_blank" rel="noreferrer">
+                      🧭 Navigation starten
+                    </a>
+                    {m.nummer && (
+                      <a className="knopf" href={`tel:${m.nummer.replace(/[^\d+]/g, '')}`}>
+                        📞 {m.anrufer || 'Anrufer'}
+                      </a>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="klein">Kein Sterbeort eingetragen – über „✎ Bearbeiten“ nachtragen.</p>
+              )}
+              {weiter('akte', '✓ Weiter zum Abschluss')}
+            </div>
+          )}
+
+          <div className="modal-block tel-b-mitschnitt">
+            <h4>🎙 Mitschnitt</h4>
             {m.aufnahme ? (
               <div className="tel-aufnahme">
                 {audio ? (
@@ -779,7 +846,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
           )}
 
           {abholung && (
-            <div className="modal-block ab-formular tel-b-fall tel-b-abholung">
+            <div className="modal-block ab-formular tel-b-abholung">
               <h4>Abholung abschließen</h4>
               <label className="ab-feld">
                 Eingekühlt in (Kühlraum)
@@ -873,6 +940,12 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
           )}
 
           {fehler && <div className="banner fehler tel-b-voll">{fehler}</div>}
+          {cockpit && !abholung && naechster && (
+            <div className={`tel-naechster ${m.abholung ? 'fertig' : ''}`}>
+              <span className="klein">Nächster Schritt</span>
+              <b>{naechster}</b>
+            </div>
+          )}
           {!bearbeiten && !abholung && (
             <div className="ab-modal-knoepfe tel-aktionen">
               {m.art === 'sterbefall' && m.status === 'offen' && daten.darfTelefon && (
@@ -881,7 +954,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
                 </button>
               )}
               {m.art === 'sterbefall' && istOffen(m) && daten.darfAbholen && (
-                <button className={`knopf ${m.status === 'uebergeben' ? 'primaer' : ''}`} onClick={() => { setReiter('fall'); setAbholung({ kuehlraum: '', notiz: '', verstorbener: '', geburtsdatum: '', ort: '', hausarzt: '' }); }}>
+                <button className={`knopf ${m.status === 'uebergeben' ? 'primaer' : ''}`} onClick={() => { setReiter('akte'); setAbholung({ kuehlraum: '', notiz: '', verstorbener: '', geburtsdatum: '', ort: '', hausarzt: '' }); }}>
                   ❄ Abholung abschließen
                 </button>
               )}
