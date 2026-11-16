@@ -28,7 +28,7 @@ import {
 } from './api';
 import { belegVorbereiten, herunterladen } from './beleg';
 import { BELEG_TYPEN } from '../shared/abwesenheit';
-import { PAPIER_MAX_ANZAHL } from '../shared/telefon';
+import { PAPIER_MAX_ANZAHL, ortVorschlaege } from '../shared/telefon';
 
 type Modus = 'neu' | 'offen' | 'archiv';
 
@@ -203,7 +203,7 @@ function useSchmal(px = 760) {
 
 function Felder({ e, setE, daten, neu, bloecke }: { e: Entwurf; setE: (e: Entwurf) => void; daten: TelefonDaten; neu?: boolean; bloecke?: Block[] }) {
   const f = <K extends keyof Entwurf>(k: K, v: Entwurf[K]) => setE({ ...e, [k]: v });
-  const orte = useMemo(() => [...new Set(daten.mitschriften.flatMap((m) => (m.ort ? [m.ort] : [])))].slice(0, 50), [daten.mitschriften]);
+  const orte = useMemo(() => ortVorschlaege(daten.mitschriften, e.ortArt, e.ort, 30), [daten.mitschriften, e.ortArt, e.ort]);
   // Fallauswahl: Sterbefälle aus Telefondienst und Kalender, aktive zuerst; freie Beschreibung möglich.
   const telFaelle = useMemo(() => daten.mitschriften.filter((m) => m.art === 'sterbefall'), [daten.mitschriften]);
   const faelle = useMemo(() => {
@@ -262,10 +262,21 @@ function Felder({ e, setE, daten, neu, bloecke }: { e: Entwurf; setE: (e: Entwur
             <input className="feld" list="tel-orte" value={e.ort} autoComplete="off" onChange={(x) => f('ort', x.target.value)} />
             <datalist id="tel-orte">
               {orte.map((o) => (
-                <option key={o} value={o} />
+                <option key={o.ort} value={o.ort}>
+                  {o.anzahl ? `${o.anzahl}×` : ''}
+                </option>
               ))}
             </datalist>
           </label>
+          {orte.length > 0 && (
+            <div className="tel-kuehl-chips tel-ort-chips" role="group" aria-label="Orte-Schnellauswahl">
+              {orte.slice(0, 6).map((o) => (
+                <button key={o.ort} type="button" className="pille" onClick={() => setE({ ...e, ort: o.ort, ortArt: e.ortArt === 'zuhause' || e.ortArt === 'sonstig' ? o.art : e.ortArt })}>
+                  {ORT_ARTEN.find((a) => a.id === o.art)?.symbol} {o.ort}
+                </button>
+              ))}
+            </div>
+          )}
           <label className="ab-feld">
             {e.ortArt === 'zuhause' ? 'Hinweis (Stock, Tür …)' : 'Station / Zimmer / Hinweis'}
             <input className="feld" value={e.ortNotiz} autoComplete="off" onChange={(x) => f('ortNotiz', x.target.value)} />

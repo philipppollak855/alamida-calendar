@@ -120,18 +120,18 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 ## Block M (Nachricht 16.11.)
 ### M-A Stabilität und Fehler
 - [x] M1 Einzelne Abholungs-/Überführungstermine gehen verloren -> Agent löscht Fahrten nur noch nach 90 s, nie am selben Tag und nie, wenn gar keine Überführungszeile lesbar war
-- [ ] M2 Vorsorgen werden nicht richtig erkannt/synchronisiert
+- [ ] M2 Vorsorgen werden nicht richtig erkannt/synchronisiert (Agent erkennt seit 16.11. V26431 per Texterkennung und überträgt 1 Termin – Kalendereintrag vom Büro bestätigen lassen)
 - [x] M3 Telefondienst: „Anliegen gehört zu Sterbefall“ -> Eingabefeld mit Vorschlägen aus allen Kalender-Sterbefällen (gut 1 Jahr, aktive zuerst) und Telefondienst-Fällen, freie Beschreibung möglich (fallName)
 - [x] M4 Kontrast im dunklen Design (z. B. Art-Knöpfe bei Urlaub / Krank)
 - [x] M5 Überlauf Kachel Pflegefreistellung mobil
 - [x] M6 Kopf-Navigation (Reiter) mobil wischbar
 ### M-B Telefondienst / Einsatzcockpit
-- [ ] M7 Krankenhaus/Pflegeheim: lernende Auswahl mit Autovervollständigung (auch bekannte Orte)
+- [x] M7 Krankenhaus/Pflegeheim: lernende Auswahl mit Autovervollständigung (auch bekannte Orte)
 - [x] M8 Bereitschaft: Klick auf übergebene Daten öffnet Fallakte; Daten nachbearbeiten
 - [x] M9 Kühlraum: Freieingabe + Schnellauswahl angelegter Kühlräume
 - [x] M10 Sterbepapiere hoch-/herunterladen (mehrere) fürs Büro
 - [x] M11 Abschließen fragt fehlenden Hausarzt/Kühlraum ab, überspringbar mit Warnung
-- [ ] M12 Geführtes, aufgeräumtes Einsatzcockpit ohne Scrollen, gut lesbar
+- [x] M12 Geführtes, aufgeräumtes Einsatzcockpit ohne Scrollen, gut lesbar
 ### M-C Bereitschaft
 - [x] M13 Bereitschaft an beliebigen Tagen per Klick im Kalender ansetzen
 - [x] M14 Popup „+ weitere“: Datum lesbar, Namen ausgeschrieben; im Tagesfeld Kürzel aller (auch bei 3 Personen)
@@ -143,7 +143,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] M19 Abholungen und Gespräche im Tagesplan gruppieren (wie Kremationen), vor allem mobil
 - [ ] M20 Hauptmaske Termin = gleiche Maske wie Einzeltermin für Personalplanung
 ### M-E Design
-- [ ] M21 Mindestens 20 Farbstimmungen (luxuriös, natürlich, technisch, professionell, kreativ, verspielt, bequem …), pro Nutzer gespeichert
+- [x] M21 Mindestens 20 Farbstimmungen (luxuriös, natürlich, technisch, professionell, kreativ, verspielt, bequem …), pro Nutzer gespeichert
 
 ## Nicht mehr
 - Urnenwald-PRs #41–#139: nicht weiter bearbeiten (Anweisung Nutzer)
