@@ -65,7 +65,7 @@ const rauschen = (o: { typ?: 'fractalNoise' | 'turbulence'; bf: string; okt: num
 /** Relief (Licht von links oben): Schatten werden sichtbar, flache Stellen bleiben frei. */
 const relief = (bf: string, okt: number, hoehe: number, c: Rgb, s: number, seed = 2) => rauschen({ bf, okt, seed, c, licht: hoehe, a: -1.8 * s, b: 1.55 * s });
 
-/** Texturschichten für Seite und Karten (Karten etwas zurückhaltender). */
+/** Texturschichten für Seite und Karten (Karten gedämpft und mit Lesbarkeits-Schleier). */
 export function textur(e: TexturEingabe): { seite: string; flaeche: string } {
   const dunkel = e.basis === 'dunkel';
   const tinte: Rgb = dunkel ? [1, 1, 1] : [0, 0, 0];
@@ -201,5 +201,7 @@ export function textur(e: TexturEingabe): { seite: string; flaeche: string } {
         return `linear-gradient(135deg, ${css(tinte, 0.1 * s)}, transparent 35%), linear-gradient(315deg, ${css(ak, 0.06 * s)}, transparent 40%)`;
     }
   };
-  return { seite: schicht(k), flaeche: schicht(0.5 * k) };
+  // Karten/Seitenleiste: Textur gedämpft, darüber ein Schleier in Grundhelligkeit für lesbaren Text.
+  const schleier = dunkel ? 'rgba(0, 0, 0, 0.24)' : 'rgba(255, 255, 255, 0.38)';
+  return { seite: schicht(k), flaeche: `linear-gradient(${schleier}, ${schleier}), ${schicht(0.38 * k)}` };
 }

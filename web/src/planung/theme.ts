@@ -103,7 +103,6 @@ export function stimmungCss(s: StimmungDaten | null): string {
   const farben = { ...s.farben };
   if (s.oberflaeche) {
     const t = textur({ art: s.oberflaeche, basis: s.basis, akzent: farben['--akzent'] ?? '', akzent2: farben['--akzent-2'] ?? '' });
-    farben['--bg-verlauf'] = farben['--bg-verlauf'] ? `${t.seite}, ${farben['--bg-verlauf']}` : t.seite;
     farben['--flaeche-textur'] = t.flaeche;
   }
   const vars = Object.entries(farben)
