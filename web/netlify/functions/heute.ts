@@ -1,12 +1,12 @@
 import type { Config } from '@netlify/functions';
 import { darfVerwalten, wartet } from '../../src/shared/abwesenheit';
 import { abwesendHeute, bereitschaftHeute, heuteText, termineHeute, type HeuteHinweis } from '../../src/shared/heute';
-import { darfKalender, darfSehen } from '../../src/shared/rechte';
+import { darfKalender, darfSehen, sichtFuer } from '../../src/shared/rechte';
 import { KATEGORIEN, kategorieAus, type GoogleEvent } from '../../src/planung/planungLogic';
 import { alleKalender } from '../lib/kalender';
-import { darfAbholen, darfTelefon, titel } from '../../src/shared/telefon';
-import { belegung } from '../../src/shared/telefonplan';
-import { ausText, plusTage } from '../../src/shared/bereitschaft';
+import { darfAbholen, darfTelefon, fallFuerMich, titel } from '../../src/shared/telefon';
+import { belegung, darfTelefonplan } from '../../src/shared/telefonplan';
+import { ausText, darfPlanen, plusTage } from '../../src/shared/bereitschaft';
 import { abwesenheitenLaden, angemeldetOderHub, bereitschaftLaden, einteilungenLaden, env, googleGet, json, mitschriftenLaden, personalLaden, telMusterLaden, telPlanLaden } from '../lib/server';
 
 /** Tagesübersicht für das Dashboard im Hub: heutige Termine, Bereitschaft, Abwesenheiten – gefiltert nach den Rechten der Person. */
@@ -20,6 +20,7 @@ export default async (req: Request) => {
   const heute = heuteText();
   const jetzt = Date.now();
   const verwalter = darfVerwalten(a.rechte, a.konfig);
+  const sicht = sichtFuer(a.rechte, a.konfig);
 
   const kalender = (await alleKalender(a.konfig, env('CALENDAR_IDS'))).filter((k) => darfKalender(a.rechte, k.id));
   const [ergebnisse, einsaetze, abwesenheiten, personal, einteilungen] = await Promise.all([
@@ -51,7 +52,7 @@ export default async (req: Request) => {
     ich,
     origin,
     new Map(einteilungen.map((e) => [e.termin, e.personen])),
-  ).map((t) => {
+  ).filter((t) => sicht.termine !== 'eigene' || t.meins).map((t) => {
     const symbol = KATEGORIEN[t.kategorie as keyof typeof KATEGORIEN]?.symbol;
     // Agent-Titel beginnen schon mit dem Symbol („🚐 Abholung …“) – im Dashboard nicht doppelt zeigen.
     return { ...t, symbol, titel: symbol && t.titel.startsWith(symbol) ? t.titel.slice(symbol.length).trim() : t.titel };
@@ -64,11 +65,12 @@ export default async (req: Request) => {
   }
 
   const personen = a.konfig.benutzer.map((b) => ({ email: b.email.toLowerCase(), rollen: b.rollen }));
+  const telefon = darfTelefon(a.rechte, personen);
   if (darfAbholen(a.rechte, personen)) {
     const tel = await mitschriftenLaden().catch(() => []);
-    for (const m of tel.filter((x) => x.status === 'uebergeben').slice(0, 5))
+    for (const m of tel.filter((x) => x.status === 'uebergeben' && fallFuerMich(x, ich, telefon)).slice(0, 5))
       hinweise.push({ text: `🚐 Abholung offen: ${titel(m)}${m.ort ? ` – ${m.ort}` : ''}`, ziel: `${origin}/telefon?id=${encodeURIComponent(m.id)}` });
-    if (darfTelefon(a.rechte, personen)) {
+    if (telefon) {
       const offen = tel.filter((x) => x.status === 'offen').length;
       if (offen) hinweise.push({ text: `📞 ${offen} offene Telefonnotiz${offen === 1 ? '' : 'en'}`, ziel: `${origin}/telefon` });
     }
@@ -76,8 +78,8 @@ export default async (req: Request) => {
 
   return json({
     datum: heute,
-    eintraege: [...termine, ...bereitschaftHeute(einsaetze, heute, ich, origin, namen),
-      ...belegung(telPlan, telMuster, ausText(heute), plusTage(ausText(heute), 1)).map((s) => ({
+    eintraege: [...termine, ...bereitschaftHeute(sicht.bereitschaft === 'eigene' && !darfPlanen(a.rechte, a.konfig) ? einsaetze.filter((e) => e.email === ich) : einsaetze, heute, ich, origin, namen),
+      ...(darfTelefonplan(a.rechte, a.konfig, personen) ? belegung(telPlan, telMuster, ausText(heute), plusTage(ausText(heute), 1)).map((s) => ({
         art: 'bereitschaft' as const,
         id: `tel-${s.id}`,
         titel: `Telefon: ${s.name || namen.get(s.email) || s.email}`,
@@ -86,7 +88,7 @@ export default async (req: Request) => {
         symbol: '📞',
         meins: s.email === ich,
         ziel: `${origin}/bereitschaft`,
-      })), ...abwesendHeute(abwesenheiten, heute, ich, verwalter, origin, namen)],
+      })) : []), ...abwesendHeute(abwesenheiten, heute, ich, verwalter, origin, namen)],
     hinweise,
     fehler: ergebnisse.flatMap((r, i) => (r.status === 'rejected' ? [`${kalender[i].name}: ${(r.reason as Error).message}`] : [])),
   });

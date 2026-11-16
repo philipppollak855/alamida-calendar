@@ -2,6 +2,8 @@ import type { Config } from '@netlify/functions';
 import { randomBytes } from 'node:crypto';
 import { darfPlanen, datumText, einsatzFehler, plusTage, type Einsatz } from '../../src/shared/bereitschaft';
 import { hatRolle, mitRolle, rolleVergeben } from '../../src/shared/rollen';
+import { sichtFuer } from '../../src/shared/rechte';
+import { darfTelefonplan } from '../../src/shared/telefonplan';
 import { angemeldet, bereitschaftLaden, einsatzLoeschen, einsatzSpeichern, json } from '../lib/server';
 
 /** Bereitschaft: GET Liste, POST eintragen, DELETE ?id= austragen. Jeder trägt sich selbst ein, Planer/Admins alle. */
@@ -48,8 +50,12 @@ export default async (req: Request) => {
     liste = liste.filter((x) => x.id !== id);
   }
 
+  // Im Hub einstellbar: nur eigene Einträge sehen (Planer sehen immer alles).
+  const nurEigene = !planer && sichtFuer(a.rechte, a.konfig).bereitschaft === 'eigene';
   return json({
-    eintraege: liste.map(({ eingetragenVon, erstellt: _e, ...rest }) => (planer ? { ...rest, eingetragenVon } : rest)),
+    ...(nurEigene ? { nurEigene: true } : {}),
+    darfTelefonplan: darfTelefonplan(a.rechte, a.konfig, rollen),
+    eintraege: liste.filter((e) => !nurEigene || e.email === ich).map(({ eingetragenVon, erstellt: _e, ...rest }) => (planer ? { ...rest, eingetragenVon } : rest)),
     darfPlanen: planer,
     ich: { email: ich, name: a.sitzung.name },
     personen: planer ? mitRolle(a.konfig.benutzer, 'bereitschaft').map((x) => ({ email: x.email, name: x.name })) : [],

@@ -1,10 +1,35 @@
 /** Rechteverwaltung: wer sieht welche Kalender und Kategorien. Wird vom Server (Netlify Functions) und der Admin-Ansicht genutzt. */
 import { rollenPruefen, type Rolle } from './rollen';
 
+/** Was eine Person in den Unter-Apps sieht (im Hub je Mitarbeiter eingestellt; fehlt = alles). */
+export interface Sicht {
+  termine?: 'eigene';
+  bereitschaft?: 'eigene';
+  telefonNurBereitschaft?: true;
+}
+
+function sichtPruefen(x: unknown): Sicht | undefined {
+  if (!x || typeof x !== 'object') return undefined;
+  const o = x as Record<string, unknown>;
+  const s: Sicht = {
+    ...(o.termine === 'eigene' ? { termine: 'eigene' as const } : {}),
+    ...(o.bereitschaft === 'eigene' ? { bereitschaft: 'eigene' as const } : {}),
+    ...(o.telefonNurBereitschaft === true ? { telefonNurBereitschaft: true as const } : {}),
+  };
+  return Object.keys(s).length ? s : undefined;
+}
+
 const zusatz = (b: Record<string, unknown>) => {
   const rollen = rollenPruefen(b.rollen);
-  return { ...(rollen.length ? { rollen } : {}), ...(b.dritterNoetig === true ? { dritterNoetig: true } : {}) };
+  const sicht = sichtPruefen(b.sicht);
+  return { ...(rollen.length ? { rollen } : {}), ...(b.dritterNoetig === true ? { dritterNoetig: true } : {}), ...(sicht ? { sicht } : {}) };
 };
+
+/** Sicht-Einstellung einer Person; Admins sehen immer alles. */
+export function sichtFuer(r: { email: string; admin: boolean }, k: { benutzer: Benutzer[] }): Sicht {
+  if (r.admin) return {};
+  return k.benutzer.find((b) => b.email.toLowerCase() === r.email.toLowerCase())?.sicht ?? {};
+}
 
 export const ALLE = '*';
 
@@ -40,6 +65,7 @@ export interface Benutzer {
   rollen?: Rolle[];
   /** Bereitschaft: mit dieser Person braucht es eine dritte. */
   dritterNoetig?: boolean;
+  sicht?: Sicht;
 }
 
 export interface KalenderEintrag {

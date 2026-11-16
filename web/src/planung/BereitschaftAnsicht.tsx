@@ -131,10 +131,10 @@ function DienstKarte({ d, daten, onDaten, ab }: KartenProps) {
           <strong>{titel}</strong>
           {d.feiertage.length > 0 && <div className="dienst-feiertag">🎌 {d.feiertage.join(', ')}</div>}
         </div>
-        <span className={`dienst-status ${b.vollstaendig ? 'besetzt' : liste.length ? 'teil' : 'offen'}`} title={`Vollständig ab ${b.noetig} Personen`}>
+        {!daten.nurEigene && <span className={`dienst-status ${b.vollstaendig ? 'besetzt' : liste.length ? 'teil' : 'offen'}`} title={`Vollständig ab ${b.noetig} Personen`}>
           {aktuell ? 'jetzt · ' : ''}
           {!liste.length ? 'offen' : b.vollstaendig ? `${b.personen} eingeteilt ✓` : `unvollständig ${b.personen}/${b.noetig}`}
-        </span>
+        </span>}
       </header>
       {liste.length > 0 && (
         <ul className="dienst-liste">
@@ -207,7 +207,6 @@ function DienstKarte({ d, daten, onDaten, ab }: KartenProps) {
 }
 
 type Modus = 'planung' | 'liste' | 'uebersicht' | 'telefon';
-const LS_MODUS = 'alamida.bereitschaftModus';
 const FARBEN = ['#d4b06a', '#60a5fa', '#34d399', '#f472b6', '#a78bfa', '#f97316', '#22d3ee', '#facc15'];
 const farbeFuer = (email: string) => FARBEN[[...email].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % FARBEN.length];
 const ganzerTag = (e: { von: string; bis: string }) => e.von.endsWith('T00:00') && e.bis.endsWith('T00:00');
@@ -270,9 +269,9 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
     for (const d of liste) {
       for (let t = ausText(d.von); t < ausText(d.bis); t = plusTage(t, 1)) tage.set(datumText(t), d);
       const belegt = einsaetzeIn(daten.eintraege, d);
-      if (!belegt.length && d.bis > jetzt) eintraege.push({ id: `offen-${d.id}`, titel: kurz ? '+' : '+ offen', start: ausText(d.von), ende: ausText(d.bis), ganz: true, dienst: d, farbe: 'var(--warn)', offen: true });
+      if (!belegt.length && d.bis > jetzt && !daten.nurEigene) eintraege.push({ id: `offen-${d.id}`, titel: kurz ? '+' : '+ offen', start: ausText(d.von), ende: ausText(d.bis), ganz: true, dienst: d, farbe: 'var(--warn)', offen: true });
       const b = besetzung(daten.eintraege, d, dritter);
-      if (belegt.length && !b.vollstaendig && d.bis > jetzt)
+      if (belegt.length && !b.vollstaendig && d.bis > jetzt && !daten.nurEigene)
         eintraege.push({ id: `teil-${d.id}`, titel: kurz ? `+${b.noetig - b.personen}` : `+ ${b.noetig - b.personen} fehlt`, start: ausText(d.von), ende: ausText(d.bis), ganz: true, dienst: d, farbe: 'var(--warn)', offen: true });
       for (const e of belegt)
         eintraege.push({
@@ -493,11 +492,8 @@ function Uebersicht({ daten, jahr, setJahr, onWahl }: { daten: BereitschaftDaten
 }
 
 export default function BereitschaftAnsicht({ aktiv }: { aktiv: boolean }) {
-  const [modus, setModusRoh] = useState<Modus>(() => (localStorage.getItem(LS_MODUS) as Modus | null) ?? (window.innerWidth < 760 ? 'liste' : 'planung'));
-  const setModus = (m: Modus) => {
-    setModusRoh(m);
-    localStorage.setItem(LS_MODUS, m);
-  };
+  // Beim Öffnen immer zuerst die Übersicht.
+  const [modus, setModus] = useState<Modus>('uebersicht');
   const [datum, setDatum] = useState(() => new Date());
   const [jahr, setJahr] = useState(() => new Date().getFullYear());
   const ab = minText(datumText(plusTage(startOfMonth(datum), -14)), `${jahr}-01-01`);
@@ -510,6 +506,11 @@ export default function BereitschaftAnsicht({ aktiv }: { aktiv: boolean }) {
     return dienste(heute, plusTage(heute, wochen * 7));
   }, [wochen]);
   const schliessen = useCallback(() => setGewaehlt(null), []);
+  useEffect(() => {
+    if (!daten) return;
+    if (daten.nurEigene && modus === 'uebersicht') setModus('planung');
+    if (modus === 'telefon' && daten.darfTelefonplan === false) setModus(daten.nurEigene ? 'planung' : 'uebersicht');
+  }, [daten, modus]);
 
   if (!aktiv) return <p className="leer">Für die Bereitschaft bitte anmelden – oder du hast noch keine Freigabe.</p>;
   if (!daten && modus !== 'telefon') return <p className="leer">{fehler ?? 'Lädt …'}</p>;
@@ -528,10 +529,10 @@ export default function BereitschaftAnsicht({ aktiv }: { aktiv: boolean }) {
         </div>
         <div className="tag-nav-knoepfe bs-umschalter" role="tablist">
           {([
+            ...(daten?.nurEigene ? [] : [['uebersicht', '◔ Übersicht']]),
             ['planung', '▦ Planung'],
             ['liste', '☰ Liste'],
-            ['uebersicht', '◔ Übersicht'],
-            ['telefon', '📞 Telefon'],
+            ...(daten?.darfTelefonplan === false ? [] : [['telefon', '📞 Telefon']]),
           ] as [Modus, string][]).map(([m, label]) => (
             <button key={m} role="tab" aria-selected={modus === m} className={modus === m ? 'aktiv' : ''} onClick={() => setModus(m)}>
               {label}

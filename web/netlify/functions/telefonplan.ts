@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions';
 import { randomBytes } from 'node:crypto';
 import { darfPlanen, datumText, plusTage } from '../../src/shared/bereitschaft';
 import { hatRolle, mitRolle, rolleVergeben } from '../../src/shared/rollen';
-import { musterAus, telEintragFehler, telefonJetzt, type TelEinsatz } from '../../src/shared/telefonplan';
+import { darfTelefonplan, musterAus, telEintragFehler, telefonJetzt, type TelEinsatz } from '../../src/shared/telefonplan';
 import { ortszeit } from '../../src/shared/heute';
 import { angemeldet, json, telMusterLaden, telMusterSpeichern, telPlanLaden, telPlanLoeschen, telPlanSpeichern } from '../lib/server';
 
@@ -19,6 +19,7 @@ export default async (req: Request) => {
   const planer = darfPlanen(a.rechte, a.konfig);
   const ich = a.sitzung.email.toLowerCase();
   const rollen = a.konfig.benutzer.map((b) => ({ email: b.email.toLowerCase(), rollen: b.rollen }));
+  if (!darfTelefonplan(a.rechte, a.konfig, rollen)) return json({ fehler: 'Die Telefonbereitschaft sehen nur Planer und Mitarbeiter mit Rolle Telefon' }, 403);
   const darfEintragen = !rolleVergeben(rollen, 'telefon') || hatRolle(rollen.find((x) => x.email === ich), 'telefon');
   const url = new URL(req.url);
   const aktion = url.searchParams.get('aktion') ?? '';

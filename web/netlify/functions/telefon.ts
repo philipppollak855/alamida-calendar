@@ -1,6 +1,7 @@
 import type { Config } from '@netlify/functions';
 import { randomBytes } from 'node:crypto';
 import { ortszeit } from '../../src/shared/heute';
+import { sichtFuer } from '../../src/shared/rechte';
 import {
   AUFNAHME_MAX_BYTES,
   AUFNAHME_TYPEN,
@@ -8,6 +9,7 @@ import {
   darfAbholen,
   darfTelefon,
   eingabePruefen,
+  fallFuerMich,
   istOffen,
   nachtragen,
   type Mitschrift,
@@ -47,8 +49,15 @@ export default async (req: Request) => {
   const id = url.searchParams.get('id') ?? '';
   const ich = a.sitzung.email.toLowerCase();
   const nameVon = (email: string) => a.konfig.benutzer.find((b) => b.email.toLowerCase() === email)?.name;
-  const sichtbar = (m: Mitschrift) => telefon || (m.art === 'sterbefall' && m.status !== 'offen');
+  const sichtbar = (m: Mitschrift) => fallFuerMich(m, ich, telefon);
   const verboten = () => json({ fehler: 'Dafür fehlt dir das Recht' }, 403);
+
+  // Im Hub einstellbar: Telefondienst nur während der eigenen (Telefon-)Bereitschaft.
+  if (sichtFuer(a.rechte, a.konfig).telefonNurBereitschaft) {
+    const [jetzt, tel] = await Promise.all([bereitschaftJetzt(), telefonJetztLaden().catch(() => null)]);
+    if (!jetzt.some((p) => p.email === ich) && tel?.email !== ich)
+      return json({ fehler: 'Der Telefondienst ist für dich nur während deiner Bereitschaft oder Telefonbereitschaft sichtbar.', nurBereitschaft: true }, 403);
+  }
 
   let liste = await mitschriftenLaden();
   const m = id ? liste.find((x) => x.id === id) : undefined;

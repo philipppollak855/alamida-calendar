@@ -67,6 +67,17 @@ export function sterbefallAus(ev: Pick<Ereignis, 'description' | 'extendedProper
   return { sterbefallId: p.sterbefallId || m?.[1]?.trim() || undefined, verstorbener: p.verstorbener || m?.[2]?.trim() || undefined };
 }
 
+/** Bin ich bei diesem Termin eingeteilt (eigene Einteilung, Ablauf des Falls an dem Tag oder als Teilnehmer)? */
+export function terminMeins(kalenderId: string, e: Ereignis, kategorie: string, ich: string, eingeteilt: Map<string, EinteilungPerson[]>): boolean {
+  if (e.attendees?.some((a) => a.email?.toLowerCase() === ich)) return true;
+  const ganztaegig = !e.start?.dateTime;
+  const start = new Date(e.start?.dateTime ?? `${e.start?.date ?? ''}T12:00:00`);
+  if (Number.isNaN(start.getTime())) return false;
+  const sf = sterbefallAus(e);
+  const fall = sf.sterbefallId ?? (sf.verstorbener ? `name:${sf.verstorbener.toLowerCase()}` : undefined);
+  return (wirksamesPersonal({ id: `${kalenderId}/${e.id}`, kategorie, ganztaegig, start }, fall, eingeteilt).personal ?? []).some((p) => p.email === ich);
+}
+
 /** Termine, die heute (Wiener Zeit) stattfinden – auch ganztägige und über Mitternacht laufende. */
 export function termineHeute(
   events: { kalenderId: string; event: Ereignis; kategorie: string }[],
