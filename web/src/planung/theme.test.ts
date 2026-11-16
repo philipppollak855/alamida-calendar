@@ -18,6 +18,14 @@ describe('Farbstimmung aus dem Hub', () => {
     expect(s?.farben).toEqual(farben);
     expect(stimmungCss(s)).toContain('font-family: var(--schrift-titel)');
   });
+  it('erzeugt die Textur aus dem Namen (Hub überträgt kein SVG)', () => {
+    const s = stimmungPruefen({ basis: 'dunkel', oberflaeche: 'marmor', farben: { '--akzent': '#e0b45c', '--bg-verlauf': 'radial-gradient(1200px 600px at 10% -10%, #e0b45c26, transparent 60%)' } });
+    expect(s?.oberflaeche).toBe('marmor');
+    const css = stimmungCss(s);
+    expect(css).toMatch(/--bg-verlauf: url\("data:image\/svg\+xml,[^"]+"\), radial-gradient/);
+    expect(css).toMatch(/--flaeche-textur: url\("data:image\/svg\+xml,/);
+    expect(stimmungPruefen({ basis: 'dunkel', oberflaeche: 'url(x)', farben: { '--akzent': '#fff' } })?.oberflaeche).toBeUndefined();
+  });
   it('lehnt Unbrauchbares ab', () => {
     expect(stimmungPruefen(null)).toBeNull();
     expect(stimmungPruefen({ basis: 'bunt', farben: { '--akzent': '#fff' } })).toBeNull();
