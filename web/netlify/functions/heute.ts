@@ -67,10 +67,10 @@ export default async (req: Request) => {
   const personen = a.konfig.benutzer.map((b) => ({ email: b.email.toLowerCase(), rollen: b.rollen }));
   const telefon = darfTelefon(a.rechte, personen);
   // „Telefondienst nur während Bereitschaft“: außerhalb des eigenen Dienstes auch keine Fälle auf der Startseite.
-  const jetzt = ortszeit(new Date());
+  const jetztText = ortszeit(new Date());
   const imDienst =
     !sicht.telefonNurBereitschaft ||
-    einsaetze.some((e) => e.email === ich && e.von <= jetzt && e.bis > jetzt) ||
+    einsaetze.some((e) => e.email === ich && e.von <= jetztText && e.bis > jetztText) ||
     (await telefonJetztLaden().catch(() => null))?.email === ich;
   if (darfAbholen(a.rechte, personen) && imDienst) {
     const tel = await mitschriftenLaden().catch(() => []);
