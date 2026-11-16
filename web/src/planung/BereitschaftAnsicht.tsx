@@ -274,21 +274,37 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
       const belegt = einsaetzeIn(daten.eintraege, d);
       if (!belegt.length && d.bis > jetzt && !daten.nurEigene) eintraege.push({ id: `offen-${d.id}`, titel: kurz ? '+' : '+ offen', start: ausText(d.von), ende: ausText(d.bis), ganz: true, dienst: d, farbe: 'var(--warn)', offen: true });
       const b = besetzung(daten.eintraege, d, dritter);
-      // Handy-Monat: ein Eintrag je Dienst mit allen Kürzeln, damit auch bei 3 Personen alle sichtbar sind (kein „+2 weitere“).
+      // Handy-Monat: ein Eintrag je Tag mit allen Kürzeln (auch bei 3 Personen, kein „+2 weitere“); gleiche Folgetage zusammengefasst.
       if (kurz && belegt.length) {
         const fehlt = !b.vollstaendig && d.bis > jetzt && !daten.nurEigene ? b.noetig - b.personen : 0;
-        const meins = belegt.some((e) => e.email === daten.ich.email);
-        eintraege.push({
-          id: `alle-${d.id}`,
-          titel: [...belegt.map((e) => `${e.email === daten.ich.email ? '★' : ''}${kuerzel(e)}${ganzerTag(e) ? '' : '◔'}`), ...(fehlt ? [`+${fehlt}`] : [])].join(' '),
-          lang: belegt.map((e) => `${anzeigeName(e)}${ganzerTag(e) ? '' : ` ${e.von.slice(11)}–${e.bis.slice(11)}`}`).join(', ') + (fehlt ? ` · ${fehlt} fehlt` : ''),
-          start: ausText(d.von),
-          ende: ausText(d.bis),
-          ganz: true,
-          dienst: d,
-          farbe: meins ? farbeFuer(daten.ich.email) : 'var(--akzent)',
-          offen: fehlt > 0,
-        });
+        let vorher: KalEintrag | null = null;
+        for (let t = ausText(d.von); t < ausText(d.bis); t = plusTage(t, 1)) {
+          const tagVon = minText(`${datumText(t)}T00:00`, d.von) === d.von ? `${datumText(t)}T00:00` : d.von;
+          const tagBis = minText(`${datumText(plusTage(t, 1))}T00:00`, d.bis);
+          const da = belegt.filter((e) => e.von < tagBis && e.bis > tagVon);
+          if (!da.length && !fehlt) {
+            vorher = null;
+            continue;
+          }
+          const ganz = (e: { von: string; bis: string }) => e.von <= tagVon && e.bis >= tagBis;
+          const titel = [...da.map((e) => `${e.email === daten.ich.email ? '★' : ''}${kuerzel(e)}${ganz(e) ? '' : '◔'}`), ...(fehlt ? [`+${fehlt}`] : [])].join(' ');
+          if (vorher && vorher.titel === titel) {
+            vorher.ende = plusTage(t, 1);
+            continue;
+          }
+          vorher = {
+            id: `tag-${d.id}-${datumText(t)}`,
+            titel,
+            lang: da.map((e) => `${anzeigeName(e)}${ganz(e) ? '' : ` ${e.von.slice(11)}–${e.bis.slice(11)}`}`).join(', ') + (fehlt ? ` · ${fehlt} fehlt` : ''),
+            start: t,
+            ende: plusTage(t, 1),
+            ganz: true,
+            dienst: d,
+            farbe: da.some((e) => e.email === daten.ich.email) ? farbeFuer(daten.ich.email) : 'var(--akzent)',
+            offen: fehlt > 0,
+          };
+          eintraege.push(vorher);
+        }
         continue;
       }
       if (belegt.length && !b.vollstaendig && d.bis > jetzt && !daten.nurEigene)
