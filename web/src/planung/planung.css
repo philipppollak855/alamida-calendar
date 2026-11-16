@@ -66,7 +66,7 @@ body:has(.planung.theme-hell) { background: #f6f3ec; }
 @keyframes drehen { to { transform: rotate(360deg); } }
 
 /* Seitenleiste */
-.seitenleiste { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 1.5rem; padding: 1.4rem 1rem; border-right: 1px solid var(--rand); background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent); }
+.seitenleiste { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 1.5rem; padding: 1.4rem 1rem; border-right: 1px solid var(--rand); background: var(--flaeche-textur, linear-gradient(transparent, transparent)), linear-gradient(180deg, rgba(255,255,255,0.02), transparent); }
 .marke { display: flex; align-items: center; gap: 0.75rem; padding: 0 0.4rem; }
 .marke-logo { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-family: 'Instrument Sans', serif; font-weight: 700; font-size: 1.3rem; color: var(--akzent-text); background: linear-gradient(135deg, var(--akzent-2), var(--akzent)); box-shadow: 0 8px 22px -8px var(--akzent); }
 .marke-name { font-family: 'Instrument Sans', sans-serif; font-weight: 700; font-size: 1.05rem; }
