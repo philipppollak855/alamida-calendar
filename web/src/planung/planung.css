@@ -355,7 +355,7 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .m-tagtitel h2, .m-liste h2 { margin: 0; font-size: 1.15rem; }
 .m-liste { display: grid; gap: 0.6rem; min-height: 50vh; align-content: start; }
 .m-leer { text-align: center; color: var(--text-3); padding: 3rem 0; font-size: 1rem; }
-.planung .m-termin { width: 100%; display: flex; align-items: stretch; gap: 0.8rem; text-align: left; padding: 0.85rem 0.9rem; border-radius: 18px; border: 1px solid var(--rand); background: linear-gradient(90deg, color-mix(in srgb, var(--kat) 16%, transparent), transparent 60%), var(--flaeche); position: relative; overflow: hidden; min-height: 76px; transition: transform 0.1s; }
+.planung .m-termin { width: 100%; display: flex; align-items: stretch; gap: 0.8rem; text-align: left; padding: 0.85rem 0.9rem; border-radius: 18px; border: 1px solid var(--rand); background: linear-gradient(90deg, color-mix(in srgb, var(--kat) 16%, transparent), transparent 60%), var(--flaeche-textur, linear-gradient(transparent, transparent)), var(--flaeche); position: relative; overflow: hidden; min-height: 76px; transition: transform 0.1s; }
 .planung .m-termin:active { transform: scale(0.98); }
 .planung .m-termin::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--kat); }
 .planung .m-termin.vorbei { opacity: 0.5; }
@@ -369,7 +369,7 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .m-name { font-weight: 600; font-size: 1.02rem; }
 .m-ort { font-size: 0.82rem; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .m-pfeil { align-self: center; color: var(--text-3); font-size: 1.4rem; }
-.planung .m-fall { width: 100%; display: flex; align-items: center; gap: 0.8rem; text-align: left; padding: 0.9rem; border-radius: 18px; border: 1px solid var(--rand); background: var(--flaeche); }
+.planung .m-fall { width: 100%; display: flex; align-items: center; gap: 0.8rem; text-align: left; padding: 0.9rem; border-radius: 18px; border: 1px solid var(--rand); background: var(--flaeche-textur, linear-gradient(transparent, transparent)), var(--flaeche); }
 .m-suche { width: 100%; font: inherit; font-size: 1.05rem; padding: 0.9rem 1rem; border-radius: 16px; border: 1px solid var(--rand-stark); background: var(--flaeche-fest); color: var(--text); outline: none; }
 .m-suche:focus { border-color: var(--akzent); }
 .m-karte { padding: 0.9rem; }
