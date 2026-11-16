@@ -127,9 +127,9 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] M6 Kopf-Navigation (Reiter) mobil wischbar
 ### M-B Telefondienst / Einsatzcockpit
 - [ ] M7 Krankenhaus/Pflegeheim: lernende Auswahl mit Autovervollständigung (auch bekannte Orte)
-- [ ] M8 Bereitschaft: Klick auf übergebene Daten öffnet Fallakte; Daten nachbearbeiten
+- [x] M8 Bereitschaft: Klick auf übergebene Daten öffnet Fallakte; Daten nachbearbeiten
 - [x] M9 Kühlraum: Freieingabe + Schnellauswahl angelegter Kühlräume
-- [ ] M10 Sterbepapiere hoch-/herunterladen (mehrere) fürs Büro
+- [x] M10 Sterbepapiere hoch-/herunterladen (mehrere) fürs Büro
 - [x] M11 Abschließen fragt fehlenden Hausarzt/Kühlraum ab, überspringbar mit Warnung
 - [ ] M12 Geführtes, aufgeräumtes Einsatzcockpit ohne Scrollen, gut lesbar
 ### M-C Bereitschaft

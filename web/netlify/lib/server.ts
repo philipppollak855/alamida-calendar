@@ -229,6 +229,11 @@ export async function mitschriftenLaden(): Promise<Mitschrift[]> {
   const l = await Promise.all(blobs.map((b) => s.get(b.key, { type: 'json' }) as Promise<Mitschrift | null>));
   return l.filter((m): m is Mitschrift => !!m?.id).sort((a, b) => b.zeit - a.zeit);
 }
+export const mitschriftLaden = (id: string) => store().get(telSchluessel(id), { type: 'json' }) as Promise<Mitschrift | null>;
+const papierSchluessel = (id: string) => `telefon/papier/${id}`;
+export const papierSpeichern = (id: string, daten: ArrayBuffer, typ: string) => store().set(papierSchluessel(id), daten, { metadata: { typ } });
+export const papierLaden = (id: string) => store().get(papierSchluessel(id), { type: 'arrayBuffer' });
+export const papierLoeschen = (id: string) => store().delete(papierSchluessel(id));
 export const mitschriftSpeichern = (m: Mitschrift) => store().setJSON(telSchluessel(m.id), m);
 export const mitschriftLoeschen = (id: string) => store().delete(telSchluessel(id));
 /** Angelegte Kühlräume für die Schnellauswahl beim Abschließen einer Abholung. */

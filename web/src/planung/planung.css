@@ -845,3 +845,9 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .tel-kuehl-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .tel-kuehl-chips .pille.aktiv { background: var(--akzent); border-color: var(--akzent); color: var(--akzent-text, #fff); }
 .knopf.warn-knopf { border-color: var(--warn); color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+
+/* Telefondienst: Sterbepapiere */
+.tel-papiere { list-style: none; margin: 0 0 0.5rem; padding: 0; display: grid; gap: 0.35rem; }
+.tel-papiere li { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.tel-papiere li > .knopf:first-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+label.knopf.deaktiviert { opacity: 0.5; pointer-events: none; }
