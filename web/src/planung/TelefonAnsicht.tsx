@@ -700,7 +700,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
               {!m.hausarzt && (
                 <label className="ab-feld">
                   Hausarzt
-                  <input className="feld" value={abholung.hausarzt} onChange={(e) => setAbholung({ ...abholung, hausarzt: e.target.value })} />
+                  <input className="feld" value={abholung.hausarzt} onChange={(e) => { setAbholung({ ...abholung, hausarzt: e.target.value }); setFehlt(null); }} />
                 </label>
               )}
               <textarea className="feld" rows={2} placeholder="Notiz zur Abholung (optional)" value={abholung.notiz} onChange={(e) => setAbholung({ ...abholung, notiz: e.target.value })} />
