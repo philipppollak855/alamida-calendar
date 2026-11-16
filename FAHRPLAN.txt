@@ -119,7 +119,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 
 ## Block M (Nachricht 16.11.)
 ### M-A Stabilität und Fehler
-- [ ] M1 Einzelne Abholungs-/Überführungstermine gehen verloren: Ursache finden, stabiler machen
+- [x] M1 Einzelne Abholungs-/Überführungstermine gehen verloren -> Agent löscht Fahrten nur noch nach 90 s, nie am selben Tag und nie, wenn gar keine Überführungszeile lesbar war
 - [ ] M2 Vorsorgen werden nicht richtig erkannt/synchronisiert
 - [x] M3 Telefondienst: „Anliegen gehört zu Sterbefall“ -> Eingabefeld mit Vorschlägen aus allen Kalender-Sterbefällen (gut 1 Jahr, aktive zuerst) und Telefondienst-Fällen, freie Beschreibung möglich (fallName)
 - [ ] M4 Kontrast im dunklen Design (z. B. Art-Knöpfe bei Urlaub / Krank)
