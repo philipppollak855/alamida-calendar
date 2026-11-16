@@ -42,6 +42,10 @@ export interface TexturEingabe {
   basis: 'hell' | 'dunkel';
   akzent: string;
   akzent2: string;
+  /** Eigene Texturfarbe (Design-Baukasten), sonst Akzent bzw. Hell/Dunkel. */
+  farbe?: string;
+  /** Stärke 0–2 (1 = normal). */
+  staerke?: number;
 }
 
 type Rgb = [number, number, number];
@@ -75,14 +79,15 @@ const rauschen = (o: { typ?: 'fractalNoise' | 'turbulence'; bf: string; okt: num
 const relief = (bf: string, okt: number, hoehe: number, c: Rgb, s: number, seed = 2) => rauschen({ bf, okt, seed, c, licht: hoehe, a: -1.8 * s, b: 1.55 * s });
 
 /** Texturschichten für Seite und Karten (Karten gedämpft und mit Lesbarkeits-Schleier). */
-export function textur(e: TexturEingabe): { seite: string; flaeche: string } {
+export function textur(e: TexturEingabe): { seite: string; flaeche: string; mobil: string } {
   const dunkel = e.basis === 'dunkel';
-  const tinte: Rgb = dunkel ? [1, 1, 1] : [0, 0, 0];
+  const eigen = e.farbe ? rgb(e.farbe, [0.5, 0.5, 0.5]) : null;
+  const tinte: Rgb = eigen ?? (dunkel ? [1, 1, 1] : [0, 0, 0]);
   const schatten: Rgb = [0, 0, 0];
   const weiss: Rgb = [1, 1, 1];
-  const ak = rgb(e.akzent, tinte);
-  const ak2 = rgb(e.akzent2, tinte);
-  const k = dunkel ? 1 : 0.8;
+  const ak = eigen ?? rgb(e.akzent, tinte);
+  const ak2 = eigen ?? rgb(e.akzent2, tinte);
+  const k = (dunkel ? 1 : 0.8) * Math.min(2, Math.max(0, e.staerke ?? 1));
   const schicht = (s: number): string => {
     lfd = 0;
     switch (e.art) {
@@ -253,5 +258,11 @@ export function textur(e: TexturEingabe): { seite: string; flaeche: string } {
   };
   // Karten/Seitenleiste: Textur gedämpft, darüber ein Schleier in Grundhelligkeit für lesbaren Text.
   const schleier = dunkel ? 'rgba(0, 0, 0, 0.24)' : 'rgba(255, 255, 255, 0.38)';
-  return { seite: schicht(k), flaeche: `linear-gradient(${schleier}, ${schleier}), ${schicht(0.38 * k)}` };
+  // Handy: kleine Karten zeigen nur einen Ausschnitt der Kachel, daher kräftiger und mit leichterem Schleier.
+  const schleierMobil = dunkel ? 'rgba(0, 0, 0, 0.14)' : 'rgba(255, 255, 255, 0.24)';
+  return {
+    seite: schicht(k),
+    flaeche: `linear-gradient(${schleier}, ${schleier}), ${schicht(0.38 * k)}`,
+    mobil: `linear-gradient(${schleierMobil}, ${schleierMobil}), ${schicht(0.7 * k)}`,
+  };
 }

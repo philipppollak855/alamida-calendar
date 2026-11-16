@@ -79,16 +79,24 @@ const STIMMUNG_VARS = new Set([
   '--rand-stark',
   '--schatten',
   '--schrift-titel',
+  '--knopf-hintergrund',
+  '--knopf-text',
+  '--knopf-rand',
+  '--knopf-radius',
+  '--knopf-schatten',
 ]);
 interface StimmungDaten {
   basis: Theme;
   farben: Record<string, string>;
   /** Textur-Name; die Textur selbst (SVG) wird hier erzeugt, nicht übertragen. */
   oberflaeche?: Textur;
+  /** Eigene Designs (Baukasten): Texturfarbe und -stärke. */
+  texturFarbe?: string;
+  staerke?: number;
 }
 
 export function stimmungPruefen(x: unknown): StimmungDaten | null {
-  const o = x as { basis?: unknown; farben?: unknown; oberflaeche?: unknown } | null;
+  const o = x as { basis?: unknown; farben?: unknown; oberflaeche?: unknown; texturFarbe?: unknown; staerke?: unknown } | null;
   if (!o || !gueltig(o.basis) || !o.farben || typeof o.farben !== 'object') return null;
   const farben: Record<string, string> = {};
   for (const [k, v] of Object.entries(o.farben as Record<string, unknown>))
@@ -96,23 +104,34 @@ export function stimmungPruefen(x: unknown): StimmungDaten | null {
   // Haupthintergrund bleibt ohne Muster, auch bei älteren (zwischengespeicherten) Hub-Ständen.
   if (/repeating-|url\(/.test(farben['--bg-verlauf'] ?? '')) delete farben['--bg-verlauf'];
   if (!Object.keys(farben).length) return null;
-  return istTextur(o.oberflaeche) ? { basis: o.basis, farben, oberflaeche: o.oberflaeche } : { basis: o.basis, farben };
+  if (!istTextur(o.oberflaeche)) return { basis: o.basis, farben };
+  const s: StimmungDaten = { basis: o.basis, farben, oberflaeche: o.oberflaeche };
+  if (typeof o.texturFarbe === 'string' && /^#[0-9a-f]{6}$/i.test(o.texturFarbe)) s.texturFarbe = o.texturFarbe;
+  if (typeof o.staerke === 'number' && isFinite(o.staerke)) s.staerke = Math.min(2, Math.max(0, o.staerke));
+  return s;
 }
 
 export function stimmungCss(s: StimmungDaten | null): string {
   if (!s) return '';
   const w = `html .planung.planung.theme-${s.basis}`;
   const farben = { ...s.farben };
+  let mobil = '';
   if (s.oberflaeche) {
-    const t = textur({ art: s.oberflaeche, basis: s.basis, akzent: farben['--akzent'] ?? '', akzent2: farben['--akzent-2'] ?? '' });
+    const t = textur({ art: s.oberflaeche, basis: s.basis, akzent: farben['--akzent'] ?? '', akzent2: farben['--akzent-2'] ?? '', farbe: s.texturFarbe, staerke: s.staerke });
     farben['--flaeche-textur'] = t.flaeche;
+    mobil = t.mobil;
   }
   const vars = Object.entries(farben)
     .map(([k, v]) => `${k}: ${v};`)
     .join(' ');
   return [
     `${w} { ${vars} }`,
-    `${w} .knopf.primaer { background: linear-gradient(135deg, var(--akzent-2), var(--akzent)); }`,
+    `${w} .knopf.primaer { background: var(--knopf-hintergrund, linear-gradient(135deg, var(--akzent-2), var(--akzent))); }`,
+    ...(farben['--knopf-radius'] ? [`${w} .knopf { border-radius: var(--knopf-radius); }`] : []),
+    ...(farben['--knopf-text'] ? [`${w} .knopf.primaer { color: var(--knopf-text); border: var(--knopf-rand); }`] : []),
+    ...(farben['--knopf-schatten'] ? [`${w} .knopf.primaer { box-shadow: var(--knopf-schatten); }`] : []),
+    // Handy: kräftigere Textur auf Karten und Seitenleiste.
+    ...(mobil ? [`@media (max-width: 760px) { ${w} { --flaeche-textur: ${mobil}; } }`] : []),
     ...(s.farben['--schrift-titel']
       ? [`${w} :is(h1, h2, h3, .kachel-wert, .kachel-titel, .marke-name, .wb-datum, .m-uhr, .rbc-toolbar-label) { font-family: var(--schrift-titel); }`]
       : []),
