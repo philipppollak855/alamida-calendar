@@ -1002,9 +1002,9 @@ function PersonalAkte({ d, p, onDaten, schliessen }: { d: AbwesenheitDaten; p: P
   const monate = useMemo(() => {
     if (!zk || !ok) return [];
     const l: BerichtZeile[] = [];
-    const bis = [z.bis.slice(0, 7), heute().slice(0, 7)].sort()[0];
-    for (let m = [z.von.slice(0, 7), (p.eintritt || '2000-01').slice(0, 7)].sort()[1]; m <= bis && l.length < 240; m = monatPlus(m, 1)) l.push(berichtZeile(p, d.eintraege, zk, m));
-    return l.reverse();
+    const von = [z.von.slice(0, 7), (p.eintritt || '2000-01').slice(0, 7)].sort()[1];
+    for (let m = [z.bis.slice(0, 7), heute().slice(0, 7)].sort()[0]; m >= von && l.length < 240; m = monatPlus(m, -1)) l.push(berichtZeile(p, d.eintraege, zk, m));
+    return l;
   }, [zk, ok, z, p, d.eintraege]);
   const summe = (k: 'neu' | 'ausbezahlt' | 'kr' | 'ur' | 'so') => zahlText(monate.reduce((a, m) => a + m[k], 0));
   const proTag = stundenJeTag(p);
