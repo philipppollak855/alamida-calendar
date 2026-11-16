@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aufnahmeSignaturPasst, csv, darfAbholen, darfTelefon, eingabePruefen, nachtragen, suchen, teilText, type Mitschrift } from './telefon';
+import { aufnahmeSignaturPasst, ortPasst, ortVorschlaege, csv, darfAbholen, darfTelefon, eingabePruefen, nachtragen, suchen, teilText, type Mitschrift } from './telefon';
 import type { Rechte } from './rechte';
 
 const r = (email: string, admin = false): Rechte => ({ email, admin, freigeschaltet: true, gruppen: [], kategorien: [], kalender: [] });
@@ -42,5 +42,37 @@ describe('Telefondienst', () => {
     expect(aufnahmeSignaturPasst(new Uint8Array([0x1a, 0x45, 0xdf, 0xa3]), 'audio/webm')).toBe(true);
     expect(aufnahmeSignaturPasst(new TextEncoder().encode('OggS....'), 'audio/ogg')).toBe(true);
     expect(aufnahmeSignaturPasst(new TextEncoder().encode('%PDF-'), 'audio/mpeg')).toBe(false);
+  });
+});
+
+describe('Sterbeort-Vorschläge', () => {
+  const jetzt = Date.parse('2026-11-16T10:00:00Z');
+  const m = (id: string, ortArt: Mitschrift['ortArt'], ort: string, tageAlt = 1): Mitschrift => ({ ...basis, id, ortArt, ort, zeit: jetzt - tageAlt * 86_400_000 });
+  const liste = [
+    m('1', 'pflegeheim', 'Haus Ternitz'),
+    m('2', 'pflegeheim', 'haus ternitz', 3),
+    m('3', 'pflegeheim', 'SeneCura Grimmenstein', 2),
+    m('4', 'krankenhaus', 'LK Neunkirchen'),
+    m('5', 'zuhause', 'Hauptstraße 5, Ternitz'),
+  ];
+  it('lernt: häufige Orte der Art zuerst, Schreibweise vom letzten Fall, Startliste dahinter', () => {
+    const p = ortVorschlaege(liste, 'pflegeheim', '', 8, jetzt);
+    expect(p.map((x) => x.ort)).toEqual(['Haus Ternitz', 'SeneCura Grimmenstein']);
+    expect(p[0].anzahl).toBe(2);
+    expect(ortVorschlaege(liste, 'krankenhaus', '', 8, jetzt)[0].ort).toBe('LK Neunkirchen');
+    expect(ortVorschlaege(liste, 'krankenhaus', '', 8, jetzt).map((x) => x.ort)).toContain('Landesklinikum Neunkirchen');
+  });
+  it('Eingabe findet Wortanfänge über alle Arten, Adressen nur mit Eingabe', () => {
+    expect(ortVorschlaege(liste, 'zuhause', '', 8, jetzt)).toEqual([]);
+    const t = ortVorschlaege(liste, 'pflegeheim', 'tern', 8, jetzt).map((x) => x.ort);
+    expect(t[0]).toBe('Haus Ternitz');
+    expect(t).toContain('Hauptstraße 5, Ternitz');
+    expect(ortVorschlaege(liste, 'sonstig', 'neun', 8, jetzt).map((x) => x.art)).toContain('krankenhaus');
+  });
+  it('ortPasst ignoriert Groß-/Kleinschreibung, Umlaute und ß', () => {
+    expect(ortPasst('Hauptstraße 5', 'strasse')).toBe(true);
+    expect(ortPasst('Universitätsklinikum Wiener Neustadt', 'uni wr')).toBe(false);
+    expect(ortPasst('Universitätsklinikum Wiener Neustadt', 'univ wien')).toBe(true);
+    expect(ortPasst('LK Neunkirchen', 'lk neun')).toBe(true);
   });
 });

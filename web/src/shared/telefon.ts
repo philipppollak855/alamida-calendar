@@ -256,3 +256,74 @@ export function csv(liste: Mitschrift[]): string {
   );
   return '\ufeff' + [kopf.join(';'), ...zeilen].join('\r\n');
 }
+
+/* ── Sterbeorte: lernende Vorschläge aus bisherigen Fällen ── */
+
+export interface OrtVorschlag {
+  ort: string;
+  /** Art, mit der dieser Ort am häufigsten erfasst wurde. */
+  art: OrtArt;
+  anzahl: number;
+}
+
+const ORT_START: Partial<Record<OrtArt, string[]>> = {
+  krankenhaus: ['Landesklinikum Neunkirchen', 'Universitätsklinikum Wiener Neustadt', 'Landesklinikum Hochegg', 'Landesklinikum Baden'],
+};
+
+const ortNorm = (s: string) =>
+  s
+    .toLocaleLowerCase('de')
+    .replace(/ß/g, 'ss')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/** Jedes eingegebene Wort muss Anfang eines Worts im Ort sein (oder darin vorkommen) – „lk neun“ findet „LK Neunkirchen“. */
+export function ortPasst(ort: string, eingabe: string): boolean {
+  const woerter = ortNorm(eingabe).split(/[\s,./()-]+/).filter(Boolean);
+  if (!woerter.length) return true;
+  const n = ortNorm(ort);
+  const teile = n.split(/[\s,./()-]+/);
+  return woerter.every((w) => teile.some((t) => t.startsWith(w)) || (w.length >= 3 && n.includes(w)));
+}
+
+/**
+ * Vorschläge für den Sterbeort: häufig und zuletzt genutzte Orte der gewählten Art zuerst,
+ * Orte anderer Arten nur bei passender Eingabe. Adressen (Zuhause) erst ab Eingabe.
+ */
+export function ortVorschlaege(liste: readonly Mitschrift[], art: OrtArt, eingabe = '', max = 8, jetzt = Date.now()): OrtVorschlag[] {
+  const karte = new Map<string, { ort: string; zeit: number; anzahl: number; arten: Map<OrtArt, number> }>();
+  const merken = (ort: string, a: OrtArt, zeit: number, gewicht: number) => {
+    const k = ortNorm(ort);
+    if (!k) return;
+    const x = karte.get(k) ?? { ort: ort.trim(), zeit: 0, anzahl: 0, arten: new Map<OrtArt, number>() };
+    if (zeit >= x.zeit && gewicht > 0) {
+      x.ort = ort.trim();
+      x.zeit = zeit;
+    }
+    x.anzahl += gewicht;
+    x.arten.set(a, (x.arten.get(a) ?? 0) + gewicht);
+    karte.set(k, x);
+  };
+  for (const [a, orte] of Object.entries(ORT_START) as [OrtArt, string[]][]) for (const o of orte) merken(o, a, 0, 0);
+  for (const m of liste) if (m.art === 'sterbefall' && m.ort?.trim()) merken(m.ort, m.ortArt ?? 'zuhause', m.zeit, 1);
+
+  const mitEingabe = eingabe.trim().length > 0;
+  const tag = 86_400_000;
+  return [...karte.values()]
+    .map((x) => {
+      const haupt = [...x.arten.entries()].sort((p, q) => q[1] - p[1])[0][0];
+      const eigene = x.arten.get(art) ?? 0;
+      const gleicheArt = x.arten.has(art);
+      const frisch = x.zeit > 0 ? Math.max(0, 1 - (jetzt - x.zeit) / (180 * tag)) : 0;
+      return { v: { ort: x.ort, art: haupt, anzahl: x.anzahl }, gleicheArt, punkte: (gleicheArt ? 1000 : 0) + eigene * 10 + x.anzahl + frisch * 5 };
+    })
+    .filter(({ v, gleicheArt }) => {
+      if (mitEingabe) return ortPasst(v.ort, eingabe) && ortNorm(v.ort) !== ortNorm(eingabe);
+      return gleicheArt && art !== 'zuhause';
+    })
+    .sort((p, q) => q.punkte - p.punkte || p.v.ort.localeCompare(q.v.ort, 'de'))
+    .slice(0, max)
+    .map((x) => x.v);
+}
