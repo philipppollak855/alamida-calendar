@@ -848,7 +848,6 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 
 .bs-kalender-kopf { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem; }
 .bs-kalender-kopf .bs-abw-wahl { margin-bottom: 0; }
-||||||| 043cb30
 
 /* Telefondienst: Sterbepapiere */
 .tel-papiere { list-style: none; margin: 0 0 0.5rem; padding: 0; display: grid; gap: 0.35rem; }
