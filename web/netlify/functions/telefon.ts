@@ -170,8 +170,8 @@ export default async (req: Request) => {
     } else if (req.method === 'DELETE') {
       if (!info) return json({ fehler: 'Datei nicht gefunden' }, 404);
       if (!a.rechte.admin && info.von !== ich) return json({ fehler: 'Löschen dürfen nur Admins oder wer die Datei hochgeladen hat' }, 403);
-      await papierInfoLoeschen(m.id, info.id);
       await papierLoeschen(info.id);
+      await papierInfoLoeschen(m.id, info.id);
       liste = liste.map((x) => (x.id === m.id ? { ...x, papiere: (x.papiere ?? []).filter((p) => p.id !== info.id) } : x));
     }
   } else if (aktion === 'aufnahme' && m) {
