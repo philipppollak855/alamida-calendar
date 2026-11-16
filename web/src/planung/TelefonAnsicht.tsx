@@ -569,6 +569,24 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
     ...(m.abholung?.kuehlraum ? [`❄ ${m.abholung.kuehlraum}`] : []),
     ...(m.polizei ? ['🚓 Polizei'] : []),
   ];
+  const nachtragen = (feld: 'hausarzt' | 'geburtsdatum', wert: string) => {
+    const v = wert.trim();
+    if (v && v !== (m[feld] ?? '')) void tun(() => mitschriftAendern(m.id, senden({ ...ausMitschrift(m), [feld]: v })));
+  };
+  const fehltFeld = (label: string, feld: 'hausarzt' | 'geburtsdatum', typ: 'text' | 'date') =>
+    m.art === 'sterbefall' && !m[feld] ? (
+      <label className="tel-zeile tel-nachtrag">
+        <span className="klein">⚠ {label}</span>
+        <input
+          type={typ}
+          className="feld"
+          placeholder="gleich hier nachtragen"
+          disabled={laeuft}
+          onBlur={(e) => nachtragen(feld, e.currentTarget.value)}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        />
+      </label>
+    ) : null;
   const zeile = (label: string, wert?: React.ReactNode) =>
     wert ? (
       <div className="tel-zeile">
@@ -646,8 +664,10 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
               {m.art === 'sterbefall' ? (
                 <>
                   {zeile('Geboren', m.geburtsdatum?.split('-').reverse().join('.'))}
+                  {fehltFeld('Geburtsdatum fehlt', 'geburtsdatum', 'date')}
                   {zeile('Verstorben in', [ort ? `${ort.symbol} ${ort.label}` : '', m.ort, m.ortNotiz].filter(Boolean).join(' – '))}
                   {zeile('Hausarzt', m.hausarzt)}
+                  {fehltFeld('Hausarzt fehlt', 'hausarzt', 'text')}
                   {m.polizei && zeile('Polizei', '🚓 Polizeieinsatz')}
                 </>
               ) : (
