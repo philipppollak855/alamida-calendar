@@ -26,6 +26,8 @@ import {
   env,
   googleGet,
   json,
+  kuehlraeumeLaden,
+  kuehlraeumeSpeichern,
   store,
   mitschriftenLaden,
   mitschriftLoeschen,
@@ -168,9 +170,15 @@ export default async (req: Request) => {
     if (m.art !== 'sterbefall' || !istOffen(m)) return json({ fehler: 'Diese Abholung ist schon abgeschlossen' }, 400);
     const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const kuehlraum = text(b.kuehlraum, 80);
-    if (!kuehlraum) return json({ fehler: 'Bitte den Kühlraum eintragen' }, 400);
+    // Ohne Kühlraum nur nach ausdrücklicher Bestätigung („trotzdem abschließen“).
+    if (!kuehlraum && b.ueberspringen !== true) return json({ fehler: 'Bitte den Kühlraum eintragen' }, 400);
     const notiz = text(b.notiz, 1000);
     await speichern({ ...nachtragen(m, b), status: 'abgeschlossen', abholung: { am: Date.now(), von: ich, kuehlraum, ...(notiz ? { notiz } : {}) } });
+  } else if (req.method === 'POST' && aktion === 'kuehlraeume') {
+    if (!a.rechte.admin) return verboten();
+    const b = (await req.json().catch(() => null)) as { liste?: unknown } | null;
+    if (!b || !Array.isArray(b.liste)) return json({ fehler: 'Ungültige Liste' }, 400);
+    await kuehlraeumeSpeichern([...new Set(b.liste.map((x) => text(x, 80)).filter(Boolean))].slice(0, 30));
   } else if (req.method === 'POST' && m && aktion === 'erledigt') {
     if (!telefon) return verboten();
     if (m.art !== 'anliegen') return json({ fehler: 'Nur Anliegen können erledigt werden' }, 400);
@@ -192,7 +200,8 @@ export default async (req: Request) => {
       admin: a!.rechte.admin,
       bereitschaft: await bereitschaftJetzt(),
       faelle: telefon ? await faelleLaden(a!.konfig).catch(() => []) : [],
-      kuehlraeume: [...new Set(liste.flatMap((x) => (x.abholung ? [x.abholung.kuehlraum] : [])))].slice(0, 12),
+      kuehlraeume: [...new Set(liste.flatMap((x) => (x.abholung?.kuehlraum ? [x.abholung.kuehlraum] : [])))].slice(0, 12),
+      kuehlraeumeFest: await kuehlraeumeLaden().catch(() => []),
       ich: { email: ich, name: a!.sitzung.name },
       telefonJetzt: await telefonJetztLaden().catch(() => null),
       ...(neu ? { neu } : {}),
