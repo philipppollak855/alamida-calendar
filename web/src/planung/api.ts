@@ -3,7 +3,7 @@ import type { Einsatz, Zusatztag } from '../shared/bereitschaft';
 import type { EinteilungPerson } from '../shared/einteilung';
 import type { NeuerTermin } from '../shared/neuerTermin';
 import type { AbwArt, Abwesenheit, Personal } from '../shared/abwesenheit';
-import type { BerichtArchiv, MonatsEintrag, ZeitkontoDaten, ZeitkontoEinstellungen } from '../shared/zeitkonto';
+import type { BerichtArchiv, MonatsEintrag, MonatsEntwurf, ZeitkontoDaten, ZeitkontoEinstellungen } from '../shared/zeitkonto';
 import type { Mitschrift } from '../shared/telefon';
 import type { Kernzeiten, TelEinsatz, TelMuster, TelSegment } from '../shared/telefonplan';
 import { ausGoogleEvent, personalZuordnen, type GoogleEvent, type Termin } from './planungLogic';
@@ -300,6 +300,30 @@ export const terminLoeschen = (id: string) => holen<{ ok: boolean }>(`/api/termi
 /* Zeitkonten (Überstunden, Auszahlung, Fehltage je Monat) für die Buchhaltung. */
 export const zeitkontoLaden = () => mitCache('zeitkonto', () => holen<ZeitkontoDaten>('/api/zeitkonto'));
 export const zeitkontoSpeichern = (eintraege: MonatsEintrag[]) => holen<ZeitkontoDaten>('/api/zeitkonto', jsonInit('PUT', { eintraege }));
+export const zeitkontoEntwurf = (entwuerfe: MonatsEntwurf[]) => holen<ZeitkontoDaten>('/api/zeitkonto', jsonInit('PUT', { entwuerfe }));
+const BRIEFPAPIER = '/api/zeitkonto?aktion=briefpapier';
+let briefpapierCache: Promise<Blob | null> | null = null;
+/** Briefpapier für den PDF-Hintergrund (null, wenn keines hinterlegt). */
+export function briefpapierDatei(): Promise<Blob | null> {
+  if (!briefpapierCache) {
+    const headers = new Headers();
+    const hub = hubSitzung();
+    if (hub) headers.set('authorization', `Bearer ${hub}`);
+    briefpapierCache = fetch(BRIEFPAPIER, { credentials: 'same-origin', headers })
+      .then((r) => (r.ok ? r.blob() : null))
+      .catch(() => null);
+    void briefpapierCache.then((b) => b || (briefpapierCache = null));
+  }
+  return briefpapierCache;
+}
+export const briefpapierHochladen = (datei: Blob) => {
+  briefpapierCache = null;
+  return holen<{ briefpapier: boolean }>(BRIEFPAPIER, { method: 'PUT', headers: { 'content-type': datei.type || 'application/octet-stream' }, body: datei });
+};
+export const briefpapierEntfernen = () => {
+  briefpapierCache = null;
+  return holen<{ briefpapier: boolean }>(BRIEFPAPIER, { method: 'DELETE' });
+};
 export const zeitkontoEinstellungen = (einstellungen: ZeitkontoEinstellungen) => holen<ZeitkontoDaten>('/api/zeitkonto', jsonInit('PUT', { einstellungen }));
 export const berichtArchivLaden = () => holen<{ archiv: BerichtArchiv[] }>('/api/zeitkonto?aktion=archiv').then((r) => r.archiv);
 export const berichtArchivieren = (monat: string) =>

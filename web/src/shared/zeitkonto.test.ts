@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Abwesenheit, Personal } from './abwesenheit';
-import { altEintraegeLesen, berichtCsv, berichtGleich, berichtHinweis, kalenderTage, monatPlus, monatsbericht, uebertrag, zeitkontoPruefen, type ZeitkontoDaten } from './zeitkonto';
+import { altEintraegeLesen, berichtCsv, berichtNachtrag, entwurfPruefen, nachtragCsv, nachtragText, nachtragWerte, berichtGleich, berichtHinweis, kalenderTage, monatPlus, monatsbericht, uebertrag, zeitkontoPruefen, type ZeitkontoDaten } from './zeitkonto';
 
 const p = (email: string, name: string, gruppe?: string, x: Partial<Personal> = {}): Personal => ({ email, name, gruppe, eintritt: '2024-01-01', tage: [8, 8, 8, 8, 8, 0, 0], ...x });
 const abw = (email: string, art: Abwesenheit['art'], von: string, bis: string, x: Partial<Abwesenheit> = {}): Abwesenheit => ({ id: von + art, email, art, von, bis, status: art === 'krank' ? 'gemeldet' : 'genehmigt', ...x });
@@ -74,4 +74,45 @@ describe('Berichtsarchiv', () => {
     expect(berichtGleich({ einstellungen: e, gruppen: g }, { einstellungen: { ...e }, gruppen: [{ gruppe: 'Standard', zeilen: [] }] })).toBe(true);
     expect(berichtGleich({ einstellungen: e, gruppen: g }, { einstellungen: { ...e, verschiebungAbw: 0 }, gruppen: g })).toBe(false);
   });
+
+  it('Entwurf prüfen: nur gültige Werte, Grenzen, leere Werte erlaubt', () => {
+    expect(entwurfPruefen({ email: 'A@x.at ', monat: '2026-10', werte: { ue: 3.333, kr: 99, ur: 'x', so: NaN, foo: 1 } })).toEqual({ email: 'a@x.at', monat: '2026-10', werte: { ue: 3.33, kr: 62 } });
+    expect(entwurfPruefen({ email: 'a@x.at', monat: '2026-10' })).toEqual({ email: 'a@x.at', monat: '2026-10', werte: {} });
+    expect(entwurfPruefen({ email: 'x', monat: '2026-10' })).toBeNull();
+    expect(entwurfPruefen({ email: 'a@x.at', monat: '2026-13' })).toBeNull();
+  });
+
+  it('Entwürfe zählen nicht im Bericht', () => {
+    const d: ZeitkontoDaten = { eintraege: [], einstellungen: { verschiebungUe: 0, verschiebungAbw: 0 }, entwuerfe: [{ email: 'a@x.at', monat: '2026-10', werte: { ue: 5 } }] };
+    expect(monatsbericht([p('a@x.at', 'Anna')], [], d, '2026-10')).toEqual([]);
+  });
+
+  it('Nachtrag: nachträglicher Krankenstand, neu abgeschlossene und entfallene Mitarbeiter', () => {
+    const d: ZeitkontoDaten = {
+      eintraege: [
+        { email: 'a@x.at', monat: '2026-10', ue: 2, ueAusb: 0, kr: 0, ur: 0, so: 0 },
+        { email: 'b@x.at', monat: '2026-10', ue: 1, ueAusb: 0, kr: 0, ur: 0, so: 0 },
+      ],
+      einstellungen: { verschiebungUe: 0, verschiebungAbw: 0 },
+    };
+    const leute = [p('a@x.at', 'Anna'), p('b@x.at', 'Bert'), p('c@x.at', 'Cora')];
+    const versendet = monatsbericht(leute, [], d, '2026-10');
+    expect(berichtNachtrag(versendet, versendet)).toEqual([]);
+    const spaeter = monatsbericht(leute, [abw('a@x.at', 'krank', '2026-10-28', '2026-10-30')], { ...d, eintraege: [d.eintraege[0], { email: 'c@x.at', monat: '2026-10', ue: 4, ueAusb: 0, kr: 0, ur: 0, so: 0 }] }, '2026-10');
+    const n = berichtNachtrag(versendet, spaeter);
+    expect(n.map((z) => [z.name, z.felder])).toEqual([
+      ['Anna', ['kr']],
+      ['Cora', ['uebertrag', 'neu', 'ausbezahlt', 'saldo', 'kr', 'ur', 'so']],
+      ['Bert', ['uebertrag', 'neu', 'ausbezahlt', 'saldo', 'kr', 'ur', 'so']],
+    ]);
+    expect(nachtragText(n[0])).toBe('Kr. 0 → 3');
+    expect(nachtragText(n[1])).toBe('neu im Bericht');
+    expect(nachtragText(n[2])).toBe('entfällt');
+    expect(nachtragWerte(n[0])).toEqual(['Anna', '10', '0', '2', '0', '2', '0 → 3', '0', '0']);
+    expect(nachtragWerte(n[2])[0]).toBe('Bert (entfällt)');
+    const csv = nachtragCsv(n).split('\r\n');
+    expect(csv[1]).toBe('Standard;Anna;10/2026;Kr. 0 → 3;0;2;0;2;3;0;0');
+    expect(csv[3]).toBe('Standard;Bert;10/2026;entfällt;;;;;;;');
+  });
 });
+
