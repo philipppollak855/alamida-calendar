@@ -424,6 +424,8 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .planung .rbc-day-bg.bs-dienst-tag { background: color-mix(in srgb, var(--akzent) 10%, transparent); }
 .planung .rbc-day-bg.bs-feiertag { background: color-mix(in srgb, var(--rot) 9%, transparent); }
 .planung .rbc-event.bs-offen { background: transparent; border: 1px dashed color-mix(in srgb, var(--warn) 70%, transparent); color: var(--warn); }
+.planung .rbc-event.bs-abw { background: color-mix(in srgb, var(--kat) 16%, transparent); border: 1px solid color-mix(in srgb, var(--kat) 55%, transparent); color: var(--text); cursor: default; font-size: 0.78em; }
+.bs-abw-wahl { justify-self: start; margin-bottom: 0.4rem; }
 .bs-kalender .rbc-day-bg { cursor: pointer; }
 .bs-legende { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; margin-top: 0.7rem; color: var(--text-2); }
 .bs-legende span { display: inline-flex; align-items: center; gap: 0.35rem; }

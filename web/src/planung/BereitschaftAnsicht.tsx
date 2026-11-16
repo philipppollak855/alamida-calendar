@@ -6,7 +6,8 @@ import { endOfMonth, format, getDay, parse, startOfMonth, startOfWeek } from 'da
 import { de } from 'date-fns/locale';
 import { geblaettert, useWischen } from './wischen';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { bereitschaftAustragen, bereitschaftEintragen, bereitschaftLaden, zusatztagAnsetzen, zusatztagEntfernen, type BereitschaftDaten } from './api';
+import { abwesenheitLaden, bereitschaftAustragen, bereitschaftEintragen, bereitschaftLaden, zusatztagAnsetzen, zusatztagEntfernen, type BereitschaftDaten } from './api';
+import { ARTEN, type Abwesenheit } from '../shared/abwesenheit';
 import {
   MAX_GLEICHZEITIG,
   ausText,
@@ -56,6 +57,7 @@ export function bereitschaftAm(eintraege: Einsatz[], tag: Date): Einsatz[] {
   return einsaetzeIn(eintraege, { von: `${datumText(tag)}T00:00`, bis: `${datumText(plusTage(tag, 1))}T00:00` });
 }
 
+const deDatum = (t: string) => t.split('-').reverse().join('.');
 const anzeigeName = (e: { email: string; name?: string }) => e.name || e.email.split('@')[0];
 
 function zeitraum(von: string, bis: string): string {
@@ -253,9 +255,11 @@ interface KalEintrag {
   start: Date;
   ende: Date;
   ganz: boolean;
-  dienst: Dienst;
+  dienst?: Dienst;
   farbe: string;
   offen?: boolean;
+  /** Eingeblendete Abwesenheit (nur zur Info, nicht anklickbar). */
+  abw?: boolean;
   /** Ausgeschriebene Namen (Tooltip), wenn der Titel nur Kürzel zeigt. */
   lang?: string;
 }
@@ -321,6 +325,16 @@ function ZusatzModal({ tag, ab, onDaten, onFertig, onSchliessen }: { tag: Date; 
 function PlanungKalender({ daten, datum, setDatum, onWahl, onDaten, ab }: { daten: BereitschaftDaten; datum: Date; setDatum: (d: Date) => void; onWahl: (d: Dienst) => void; onDaten: (d: BereitschaftDaten) => void; ab?: string }) {
   const [ansicht, setAnsicht] = useState<View>(Views.MONTH);
   const [neuerTag, setNeuerTag] = useState<Date | null>(null);
+  const [mitAbw, setMitAbw] = useState(() => localStorage.getItem('bs-abwesenheiten') === '1');
+  const [abw, setAbw] = useState<(Abwesenheit & { name?: string; verdeckt?: boolean })[] | null>(null);
+  const [abwFehler, setAbwFehler] = useState<string | null>(null);
+  useEffect(() => {
+    localStorage.setItem('bs-abwesenheiten', mitAbw ? '1' : '0');
+    if (!mitAbw || abw) return;
+    abwesenheitLaden()
+      .then((d) => setAbw(d.eintraege))
+      .catch((err: Error) => setAbwFehler(`Abwesenheiten nicht geladen: ${err.message}`));
+  }, [mitAbw, abw]);
   const schmal = useSchmal();
   const kurz = schmal && ansicht === Views.MONTH;
   const dritter = useMemo(() => new Set(daten.dritter ?? []), [daten.dritter]);
@@ -397,13 +411,36 @@ function PlanungKalender({ daten, datum, setDatum, onWahl, onDaten, ab }: { date
           farbe: farbeFuer(e.email),
         });
     }
+    if (mitAbw && abw) {
+      const vonT = datumText(plusTage(startOfMonth(datum), -14));
+      const bisT = datumText(plusTage(endOfMonth(datum), 14));
+      for (const a of abw) {
+        if (a.status === 'abgelehnt' || a.bis < vonT || a.von > bisT) continue;
+        const art = a.verdeckt ? { symbol: '⛔', label: 'abwesend', farbe: '#7f8c8d' } : ARTEN[a.art];
+        const wer = a.email === daten.ich.email ? 'ich' : anzeigeName(a);
+        eintraege.push({
+          id: `abw-${a.id}`,
+          titel: `${art.symbol} ${kurz ? kuerzel(a) : wer}${a.status === 'beantragt' ? ' ?' : ''}`,
+          lang: `${wer}: ${art.label}${a.status === 'beantragt' ? ' (beantragt)' : ''} ${a.von === a.bis ? deDatum(a.von) : `${deDatum(a.von)} – ${deDatum(a.bis)}`}`,
+          start: ausText(`${a.von}T00:00`),
+          ende: plusTage(ausText(`${a.bis}T00:00`), 1),
+          ganz: true,
+          farbe: art.farbe,
+          abw: true,
+        });
+      }
+    }
     return { liste, eintraege, tage };
-  }, [daten, datum, kurz, dritter]);
+  }, [daten, datum, kurz, dritter, mitAbw, abw]);
   const feiertagsTage = useMemo(() => new Set(liste.flatMap((d) => (d.art === 'feiertag' ? [d.von.slice(0, 10)] : []))), [liste]);
   const wischen = useWischen((r) => setDatum(geblaettert(datum, ansicht, r)));
 
   return (
     <section className="ansicht kalender-ansicht glas bs-kalender" {...wischen}>
+      <label className="pille-wahl bs-abw-wahl">
+        <input type="checkbox" checked={mitAbw} onChange={() => setMitAbw(!mitAbw)} /> 🌴 Urlaube und Fehltage einblenden
+      </label>
+      {mitAbw && abwFehler && <div className="banner fehler">{abwFehler}</div>}
       <Calendar
         localizer={localizer}
         culture="de"
@@ -421,7 +458,7 @@ function PlanungKalender({ daten, datum, setDatum, onWahl, onDaten, ab }: { date
         views={[Views.MONTH, Views.WEEK, Views.AGENDA]}
         selectable
         popup
-        onSelectEvent={(t: KalEintrag) => onWahl(t.dienst)}
+        onSelectEvent={(t: KalEintrag) => t.dienst && onWahl(t.dienst)}
         onSelectSlot={({ start }: { start: Date }) => {
           const d = tage.get(datumText(start));
           if (d) onWahl(d);
@@ -431,7 +468,7 @@ function PlanungKalender({ daten, datum, setDatum, onWahl, onDaten, ab }: { date
           const t = datumText(tag);
           return { className: feiertagsTage.has(t) ? 'bs-feiertag' : tage.has(t) ? 'bs-dienst-tag' : '' };
         }}
-        eventPropGetter={(t: KalEintrag) => ({ className: t.offen ? 'bs-offen' : '', style: { ['--kat' as string]: t.farbe } as React.CSSProperties })}
+        eventPropGetter={(t: KalEintrag) => ({ className: t.offen ? 'bs-offen' : t.abw ? 'bs-abw' : '', style: { ['--kat' as string]: t.farbe } as React.CSSProperties })}
         formats={{
           dayRangeHeaderFormat: ({ start, end }: { start: Date; end: Date }) =>
             `${format(start, 'd. MMM', { locale: de })} – ${format(end, 'd. MMM yyyy', { locale: de })}`,
@@ -461,6 +498,7 @@ function PlanungKalender({ daten, datum, setDatum, onWahl, onDaten, ab }: { date
         <span><i className="bs-punkt bs-p-feiertag" /> Feiertag</span>
         <span><i className="bs-punkt bs-p-offen" /> noch offen / unbesetzte Zeit</span>
         {kurz && <span>Kürzel = Initialen · ◔ = Teilzeit</span>}
+        {mitAbw && <span>🌴 Urlaub · 🤒 Krank · 🤝 Pflege · ⏱ ZA · ? = beantragt</span>}
         <span>★ ich · Klick auf einen Tag oder Eintrag zum {daten.darfPlanen ? 'Einteilen' : 'Eintragen'}</span>
         {daten.darfPlanen && <span>Klick auf einen anderen Tag: zusätzliche Bereitschaft ansetzen</span>}
       </div>
