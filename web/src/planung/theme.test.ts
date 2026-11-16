@@ -24,7 +24,7 @@ describe('Farbstimmung aus dem Hub', () => {
     const css = stimmungCss(s);
     expect(css).toContain('--bg-verlauf: radial-gradient');
     expect(css).not.toContain('--bg-verlauf: url(');
-    expect(css).toMatch(/--flaeche-textur: url\("data:image\/svg\+xml,/);
+    expect(css).toMatch(/--flaeche-textur: linear-gradient\(rgba\(0, 0, 0, 0\.24\)[^)]*\)\), url\("data:image\/svg\+xml,/);
     expect(stimmungPruefen({ basis: 'dunkel', oberflaeche: 'url(x)', farben: { '--akzent': '#fff' } })?.oberflaeche).toBeUndefined();
   });
   it('lehnt Unbrauchbares ab', () => {
