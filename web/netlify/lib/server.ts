@@ -99,6 +99,14 @@ export async function konfigLaden(): Promise<Konfiguration> {
 }
 
 export const HUB_URL = () => env('HUB_URL') || 'https://bestattung-stranz-hub.netlify.app';
+/** Neue Übergabe an die Bereitschaft: Hub verschickt die Push-Nachricht sofort (Hintergrund-Funktion, antwortet gleich mit 202). */
+export async function hubPushAusloesen(): Promise<void> {
+  const schluessel = env('HUB_VERZEICHNIS_SCHLUESSEL');
+  if (!schluessel) return;
+  await fetch(`${HUB_URL()}/.netlify/functions/push-jetzt-background`, { method: 'POST', headers: { authorization: `Bearer ${schluessel}` }, signal: AbortSignal.timeout(4000) }).catch((e: Error) =>
+    console.warn(`Hub-Push: ${e.message}`),
+  );
+}
 let verzeichnisCache: { v: Verzeichnis; bis: number } | null = null;
 
 /**
