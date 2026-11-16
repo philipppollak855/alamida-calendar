@@ -17,7 +17,7 @@ import {
   aufnahmeEntfernen,
   aufnahmeHochladen,
   mitschriftAendern,
-  mitschriftAktion,
+  kuehlraeumeFestlegen, mitschriftAktion,
   mitschriftAnlegen,
   mitschriftEntfernen,
   telefonLaden,
@@ -506,10 +506,13 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
   const [abholung, setAbholung] = useState<{ kuehlraum: string; notiz: string; verstorbener: string; geburtsdatum: string; ort: string; hausarzt: string } | null>(null);
   const [audio, setAudio] = useState<string | null>(null);
   const [neueAufnahme, setNeueAufnahme] = useState<Blob | null>(null);
+  const [fehlt, setFehlt] = useState<string[] | null>(null);
+  const [kuehlListe, setKuehlListe] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   useEffect(() => () => void (audio && URL.revokeObjectURL(audio)), [audio]);
 
+  const kuehlWahl = [...new Set([...(daten.kuehlraeumeFest ?? []), ...daten.kuehlraeume])].slice(0, 20);
   const tun = async (f: () => Promise<TelefonDaten>, danach?: () => void) => {
     setLaeuft(true);
     setFehler(null);
@@ -594,7 +597,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
               {zeile('Nummer', m.nummer && <a href={`tel:${m.nummer.replace(/[^\d+]/g, '')}`}>📞 {m.nummer}</a>)}
               {zeile('Notiz', m.notiz && <span className="tel-umbruch">{m.notiz}</span>)}
               {m.uebergabe && zeile('Übergeben', `${zeitText(m.uebergabe.am)}${m.uebergabe.an.length ? ` an ${personText(m.uebergabe.an)}` : ''}`)}
-              {m.abholung && zeile('Abgeholt', `${zeitText(m.abholung.am)} · Kühlraum ${m.abholung.kuehlraum}${m.abholung.notiz ? ` · ${m.abholung.notiz}` : ''}`)}
+              {m.abholung && zeile('Abgeholt', `${zeitText(m.abholung.am)} · ${m.abholung.kuehlraum ? `Kühlraum ${m.abholung.kuehlraum}` : '⚠ ohne Kühlraum'}${m.abholung.notiz ? ` · ${m.abholung.notiz}` : ''}`)}
               {m.geaendert && zeile('Geändert', zeitText(m.geaendert.am))}
               {verknuepft.length > 0 && zeile('Anliegen dazu', verknuepft.map((x) => `💬 ${titel(x)} (${zeitText(x.zeit)})`).join('\n'))}
             </div>
@@ -642,13 +645,40 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
               <h4>Abholung abschließen</h4>
               <label className="ab-feld">
                 Eingekühlt in (Kühlraum)
-                <input className="feld" list="tel-kuehlraeume" value={abholung.kuehlraum} autoFocus onChange={(e) => setAbholung({ ...abholung, kuehlraum: e.target.value })} />
+                <input className="feld" list="tel-kuehlraeume" value={abholung.kuehlraum} autoFocus placeholder="Kühlraum wählen oder eintippen" onChange={(e) => { setAbholung({ ...abholung, kuehlraum: e.target.value }); setFehlt(null); }} />
                 <datalist id="tel-kuehlraeume">
-                  {daten.kuehlraeume.map((k) => (
+                  {kuehlWahl.map((k) => (
                     <option key={k} value={k} />
                   ))}
                 </datalist>
               </label>
+              {kuehlWahl.length > 0 && (
+                <div className="tel-kuehl-chips" role="group" aria-label="Kühlraum-Schnellauswahl">
+                  {kuehlWahl.map((k) => (
+                    <button key={k} type="button" className={`pille ${abholung.kuehlraum === k ? 'aktiv' : ''}`} onClick={() => { setAbholung({ ...abholung, kuehlraum: k }); setFehlt(null); }}>
+                      ❄ {k}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {daten.admin && (kuehlListe === null ? (
+                <button type="button" className="knopf klein-knopf" onClick={() => setKuehlListe((daten.kuehlraeumeFest ?? []).join('\n'))}>
+                  ✎ Kühlräume anlegen
+                </button>
+              ) : (
+                <div className="ab-feld">
+                  <span className="klein">Angelegte Kühlräume, einer je Zeile</span>
+                  <textarea className="feld" rows={4} value={kuehlListe} onChange={(e) => setKuehlListe(e.target.value)} />
+                  <div className="ab-modal-knoepfe">
+                    <button type="button" className="knopf" disabled={laeuft} onClick={() => void tun(() => kuehlraeumeFestlegen(kuehlListe.split('\n').map((x) => x.trim()).filter(Boolean)), () => setKuehlListe(null))}>
+                      Liste speichern
+                    </button>
+                    <button type="button" className="knopf" onClick={() => setKuehlListe(null)}>
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              ))}
               {!m.verstorbener && (
                 <label className="ab-feld">
                   Verstorbene Person
@@ -674,11 +704,30 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
                 </label>
               )}
               <textarea className="feld" rows={2} placeholder="Notiz zur Abholung (optional)" value={abholung.notiz} onChange={(e) => setAbholung({ ...abholung, notiz: e.target.value })} />
+              {fehlt && (
+                <div className="banner warnung">
+                  ⚠ Noch nicht eingetragen: <b>{fehlt.join(' und ')}</b>. Bitte nachtragen – oder bewusst ohne abschließen.
+                </div>
+              )}
               <div className="ab-modal-knoepfe">
-                <button className="knopf primaer" disabled={laeuft || !abholung.kuehlraum.trim()} onClick={() => void tun(() => mitschriftAktion(m.id, 'abholung', abholung), () => setAbholung(null))}>
-                  ✓ Abholung abgeschlossen
-                </button>
-                <button className="knopf" onClick={() => setAbholung(null)}>
+                {fehlt ? (
+                  <button className="knopf warn-knopf" disabled={laeuft} onClick={() => void tun(() => mitschriftAktion(m.id, 'abholung', { ...abholung, ueberspringen: true }), () => { setAbholung(null); setFehlt(null); })}>
+                    ⚠ Trotzdem abschließen
+                  </button>
+                ) : (
+                  <button
+                    className="knopf primaer"
+                    disabled={laeuft}
+                    onClick={() => {
+                      const offen = [...(abholung.kuehlraum.trim() ? [] : ['Kühlraum']), ...(m.hausarzt || abholung.hausarzt.trim() ? [] : ['Hausarzt'])];
+                      if (offen.length) setFehlt(offen);
+                      else void tun(() => mitschriftAktion(m.id, 'abholung', abholung), () => setAbholung(null));
+                    }}
+                  >
+                    ✓ Abholung abgeschlossen
+                  </button>
+                )}
+                <button className="knopf" onClick={() => { setAbholung(null); setFehlt(null); }}>
                   Abbrechen
                 </button>
               </div>
