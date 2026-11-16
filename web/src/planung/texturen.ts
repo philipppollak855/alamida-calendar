@@ -24,6 +24,15 @@ export const TEXTUREN = [
   'gotik',
   'lava',
   'wasser',
+  'beton',
+  'karbon',
+  'kork',
+  'terrazzo',
+  'patina',
+  'frost',
+  'blaupause',
+  'aquarell',
+  'perlmutt',
 ] as const;
 export type Textur = (typeof TEXTUREN)[number];
 export const istTextur = (x: unknown): x is Textur => typeof x === 'string' && (TEXTUREN as readonly string[]).includes(x);
@@ -70,6 +79,7 @@ export function textur(e: TexturEingabe): { seite: string; flaeche: string } {
   const dunkel = e.basis === 'dunkel';
   const tinte: Rgb = dunkel ? [1, 1, 1] : [0, 0, 0];
   const schatten: Rgb = [0, 0, 0];
+  const weiss: Rgb = [1, 1, 1];
   const ak = rgb(e.akzent, tinte);
   const ak2 = rgb(e.akzent2, tinte);
   const k = dunkel ? 1 : 0.8;
@@ -195,6 +205,46 @@ export function textur(e: TexturEingabe): { seite: string; flaeche: string } {
             16,
             `<circle cx='4' cy='4' r='2.4' fill='${css(ak2, 0.2 * s)}'/><circle cx='12' cy='12' r='2.4' fill='${css(ak2, 0.2 * s)}'/>`,
           ) + `, linear-gradient(135deg, ${css(ak, 0.06 * s)}, transparent 50%)`
+        );
+      case 'beton':
+        return svg(
+          300,
+          rauschen({ bf: '0.02', okt: 4, c: tinte, a: 0.6 * s, b: -0.2 * s }) +
+            rauschen({ bf: '0.6', okt: 2, seed: 9, c: schatten, a: 2.2 * s, b: -1.5 * s }) +
+            rauschen({ bf: '0.25', okt: 1, seed: 4, c: schatten, a: 6 * s, b: -4.6 * s }),
+        );
+      case 'karbon':
+        return (
+          `repeating-linear-gradient(45deg, ${css(tinte, 0.07 * s)} 0 3px, transparent 3px 6px), repeating-linear-gradient(-45deg, ${css(schatten, 0.25 * s)} 0 3px, transparent 3px 6px), ` +
+          `linear-gradient(180deg, ${css(tinte, 0.06 * s)}, transparent 60%)`
+        );
+      case 'kork':
+        return svg(220, rauschen({ bf: '0.35', okt: 3, seed: 7, c: ak, a: 3 * s, b: -1.7 * s }) + rauschen({ bf: '0.8', okt: 2, seed: 3, c: schatten, a: 3.5 * s, b: -2.4 * s }));
+      case 'terrazzo':
+        return svg(
+          260,
+          rauschen({ bf: '0.05', okt: 2, seed: 12, c: ak, a: 9 * s, b: -6.3 * s }) +
+            rauschen({ bf: '0.07', okt: 2, seed: 21, c: ak2, a: 9 * s, b: -6.6 * s }) +
+            rauschen({ bf: '0.09', okt: 1, seed: 5, c: schatten, a: 8 * s, b: -6.4 * s }),
+        );
+      case 'patina':
+        return svg(400, rauschen({ typ: 'turbulence', bf: '0.012', okt: 4, seed: 6, c: ak, a: 1.6 * s, b: -0.5 * s }) + relief('0.08', 3, 1.5, schatten, 0.6 * s, 9));
+      case 'frost':
+        return (
+          `linear-gradient(160deg, ${css(weiss, 0.14 * s)}, transparent 50%), ` +
+          svg(360, rauschen({ typ: 'turbulence', bf: '0.03 0.01', okt: 3, seed: 14, c: weiss, a: -4 * s, b: 1 * s }))
+        );
+      case 'blaupause':
+        return (
+          `repeating-linear-gradient(0deg, ${css(ak, 0.2 * s)} 0 1px, transparent 1px 60px), repeating-linear-gradient(90deg, ${css(ak, 0.2 * s)} 0 1px, transparent 1px 60px), ` +
+          `repeating-linear-gradient(0deg, ${css(ak, 0.07 * s)} 0 1px, transparent 1px 12px), repeating-linear-gradient(90deg, ${css(ak, 0.07 * s)} 0 1px, transparent 1px 12px)`
+        );
+      case 'aquarell':
+        return svg(600, rauschen({ bf: '0.004', okt: 4, seed: 8, c: ak, a: 1.2 * s, b: -0.45 * s }) + rauschen({ bf: '0.006', okt: 3, seed: 17, c: ak2, a: 1.2 * s, b: -0.5 * s }));
+      case 'perlmutt':
+        return (
+          `linear-gradient(120deg, ${css(ak, 0.1 * s)}, transparent 30%, ${css(ak2, 0.1 * s)} 55%, transparent 80%), ` +
+          svg(400, rauschen({ typ: 'turbulence', bf: '0.006 0.02', okt: 3, seed: 5, c: weiss, a: -3 * s, b: 0.6 * s }))
         );
       case 'glas':
       default:
