@@ -114,7 +114,7 @@ export default async (req: Request) => {
       return json({ fehler: 'Der Telefondienst ist für dich nur während deiner Bereitschaft oder Telefonbereitschaft sichtbar.', nurBereitschaft: true }, 403);
   }
 
-  const [roh, papiere] = await Promise.all([mitschriftenLaden(), papiereLaden().catch(() => new Map<string, Papier[]>())]);
+  const [roh, papiere] = await Promise.all([mitschriftenLaden(), papiereLaden()]);
   let liste: Mitschrift[] = roh.map((x) => {
     const { papiere: _alt, ...rein } = x;
     return papiere.has(x.id) ? { ...rein, papiere: papiere.get(x.id) } : rein;
