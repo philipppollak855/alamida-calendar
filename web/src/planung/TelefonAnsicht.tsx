@@ -885,18 +885,18 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
                   )}
                   {standort === 'fehlt' && <p className="klein tel-nav-info">Standort nicht verfügbar – Standortfreigabe erlauben und erneut tippen.</p>}
                   <div className="tel-nav-knoepfe">
-                    <button type="button" className="knopf primaer" disabled={standort === 'sucht'} onClick={() => { setKarteAn(true); routeHolen(); }}>
-                      {standort === 'sucht' ? '📍 Standort wird gesucht …' : typeof standort === 'object' && standort ? '📍 Route aktualisieren' : '🧭 Route von hier'}
+                    <a className="knopf primaer tel-nav-start" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(navZiel)}&travelmode=driving&dir_action=navigate`} target="_blank" rel="noreferrer">
+                      🧭 Navigation starten
+                    </a>
+                    <button type="button" className="knopf" disabled={standort === 'sucht'} onClick={() => { setKarteAn(true); routeHolen(); }} title="Route in der Karte von hier anzeigen" aria-label="Route aktualisieren">
+                      {standort === 'sucht' ? '…' : '📍'}
                     </button>
                     {m.nummer && (
-                      <a className="knopf" href={`tel:${m.nummer.replace(/[^\d+]/g, '')}`}>
-                        📞 {m.anrufer || 'Anrufer'}
+                      <a className="knopf" href={`tel:${m.nummer.replace(/[^\d+]/g, '')}`} title={m.anrufer || 'Anrufer'} aria-label="Anrufer anrufen">
+                        📞
                       </a>
                     )}
                   </div>
-                  <a className="klein tel-nav-extern" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(navZiel)}&travelmode=driving`} target="_blank" rel="noreferrer">
-                    Sprachnavigation in Google Maps ↗
-                  </a>
                 </>
               ) : (
                 <p className="klein">Kein Sterbeort eingetragen – über „✎ Bearbeiten“ nachtragen.</p>

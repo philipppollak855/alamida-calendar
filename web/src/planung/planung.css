@@ -1066,4 +1066,5 @@ label.knopf.deaktiviert { opacity: 0.5; pointer-events: none; }
   .tel-assistent .tel-schritt-fuss .tel-zurueck, .tel-assistent .tel-schritt-fuss .tel-gleich { flex: 0 0 3.4rem; }
   .tel-assistent .banner { flex: none; margin: 0; }
 }
-
+.tel-nav-knoepfe .knopf:not(.tel-nav-start) { flex: 0 0 3.6rem; }
+.tel-nav-knoepfe .tel-nav-start { flex: 1 1 auto; }
