@@ -9,6 +9,7 @@ import {
   AUFNAHME_TYPEN,
   aufnahmeSignaturPasst,
   PAPIER_MAX_ANZAHL,
+  type Papier,
   darfAbholen,
   darfTelefon,
   eingabePruefen,
@@ -22,7 +23,9 @@ import {
 import {
   angemeldet,
   aufnahmeLaden,
-  mitschriftLaden,
+  papiereLaden,
+  papierInfoLoeschen,
+  papierInfoSpeichern,
   papierLaden,
   papierLoeschen,
   papierSpeichern,
@@ -111,11 +114,16 @@ export default async (req: Request) => {
       return json({ fehler: 'Der Telefondienst ist für dich nur während deiner Bereitschaft oder Telefonbereitschaft sichtbar.', nurBereitschaft: true }, 403);
   }
 
-  let liste = await mitschriftenLaden();
+  const [roh, papiere] = await Promise.all([mitschriftenLaden(), papiereLaden().catch(() => new Map<string, Papier[]>())]);
+  let liste: Mitschrift[] = roh.map((x) => {
+    const { papiere: _alt, ...rein } = x;
+    return papiere.has(x.id) ? { ...rein, papiere: papiere.get(x.id) } : rein;
+  });
   const m = id ? liste.find((x) => x.id === id) : undefined;
   if (id && (!m || !sichtbar(m))) return json({ fehler: 'Mitschrift nicht gefunden' }, 404);
   const speichern = async (neu: Mitschrift) => {
-    await mitschriftSpeichern(neu);
+    const { papiere: _p, ...ohnePapiere } = neu;
+    await mitschriftSpeichern(ohnePapiere);
     liste = liste.some((x) => x.id === neu.id) ? liste.map((x) => (x.id === neu.id ? neu : x)) : [neu, ...liste];
   };
 
@@ -157,15 +165,14 @@ export default async (req: Request) => {
       }
       const neu = { id: neueId(), name: belegDateiname(roh || 'Sterbepapier', typ), typ, groesse: daten.byteLength, am: Date.now(), von: ich };
       await papierSpeichern(neu.id, daten, typ);
-      // Frisch lesen, damit gleichzeitige Uploads sich nicht gegenseitig überschreiben.
-      const akt = (await mitschriftLaden(m.id)) ?? m;
-      await speichern({ ...akt, papiere: [...(akt.papiere ?? []), neu] });
+      await papierInfoSpeichern(m.id, neu);
+      liste = liste.map((x) => (x.id === m.id ? { ...x, papiere: [...(x.papiere ?? []), neu] } : x));
     } else if (req.method === 'DELETE') {
       if (!info) return json({ fehler: 'Datei nicht gefunden' }, 404);
       if (!a.rechte.admin && info.von !== ich) return json({ fehler: 'Löschen dürfen nur Admins oder wer die Datei hochgeladen hat' }, 403);
+      await papierInfoLoeschen(m.id, info.id);
       await papierLoeschen(info.id);
-      const akt = (await mitschriftLaden(m.id)) ?? m;
-      await speichern({ ...akt, papiere: (akt.papiere ?? []).filter((x) => x.id !== info.id) });
+      liste = liste.map((x) => (x.id === m.id ? { ...x, papiere: (x.papiere ?? []).filter((p) => p.id !== info.id) } : x));
     }
   } else if (aktion === 'aufnahme' && m) {
     if (req.method === 'GET') {
@@ -235,7 +242,7 @@ export default async (req: Request) => {
   } else if (req.method === 'DELETE' && m) {
     if (!a.rechte.admin) return verboten();
     if (m.aufnahme) await aufnahmeLoeschen(m.aufnahme.id);
-    await Promise.all((m.papiere ?? []).map((x) => papierLoeschen(x.id)));
+    await Promise.all((m.papiere ?? []).flatMap((x) => [papierLoeschen(x.id), papierInfoLoeschen(m.id, x.id)]));
     await mitschriftLoeschen(m.id);
     liste = liste.filter((x) => x.id !== m.id);
   } else if (req.method !== 'GET') return json({ fehler: 'Unbekannte Aktion' }, 400);
