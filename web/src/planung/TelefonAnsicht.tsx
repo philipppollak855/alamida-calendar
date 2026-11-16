@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ORT_ARTEN,
   STATUS_TEXT,
@@ -354,6 +354,23 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
   const [schritt, setSchritt] = useState(0);
   const schmal = useSchmal();
   const formRef = useRef<HTMLFormElement>(null);
+  const rahmen = useRef<HTMLDivElement>(null);
+  // Assistent füllt am Handy genau den restlichen Bildschirm (auch bei offener Tastatur) – kein Seitenscrollen.
+  useLayoutEffect(() => {
+    const el = rahmen.current;
+    if (!schmal || !el) return;
+    const anpassen = () => {
+      const h = (window.visualViewport?.height ?? window.innerHeight) - el.getBoundingClientRect().top - 6;
+      el.style.height = `${Math.max(320, Math.floor(h))}px`;
+    };
+    anpassen();
+    window.visualViewport?.addEventListener('resize', anpassen);
+    window.addEventListener('resize', anpassen);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', anpassen);
+      window.removeEventListener('resize', anpassen);
+    };
+  }, [schmal]);
   const setE = (x: Entwurf) => {
     setERoh(x);
     setMeldung(null);
@@ -429,26 +446,36 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
     </>
   );
   const meldungZeile = meldung && <div className={`banner ${meldung.ok ? '' : 'fehler'}`}>{meldung.text}</div>;
+  const kurzwert = (kurz: string): [string, string] => {
+    if (kurz === 'Person') return ['✝', e.nameUnbekannt ? 'unbekannt' : e.verstorbener];
+    if (kurz === 'Ort') return [ORT_ARTEN.find((o) => o.id === e.ortArt)?.symbol ?? '📍', e.ort];
+    if (kurz === 'Anrufer') return ['📞', e.anrufer || e.nummer];
+    if (kurz === 'Anliegen') return ['💬', e.anliegen];
+    return ['✓', e.notiz ? 'mit Notiz' : ''];
+  };
 
   if (schmal)
     return (
-      <div className="tel-assistent">
+      <div className="tel-assistent" ref={rahmen}>
         <div className="tel-assistent-kopf">
           {artKnoepfe}
-          <div className="tel-assistent-werkzeug">
-            <Aufnehmen datei={datei} setDatei={setDatei} kompakt />
-            <button type="button" className="knopf klein" onClick={leeren}>
-              Leeren
-            </button>
-          </div>
+          <Aufnehmen datei={datei} setDatei={setDatei} kompakt />
+          <button type="button" className="knopf klein tel-leeren" onClick={leeren} title="Alles leeren" aria-label="Alles leeren">
+            ↺
+          </button>
         </div>
-        <div className="tel-schritte">
-          {schritte.map((x, i) => (
-            <button key={x.kurz} type="button" className={`tel-punkt ${i === s ? 'an' : i < s ? 'fertig' : ''}`} onClick={() => setSchritt(i)}>
-              <span>{i < s ? '✓' : i + 1}</span>
-              {x.kurz}
-            </button>
-          ))}
+        <div className="tel-chips" style={{ gridTemplateColumns: `repeat(${schritte.length}, minmax(0, 1fr))` }}>
+          {schritte.map((x, i) => {
+            const [sym, wert] = kurzwert(x.kurz);
+            return (
+              <button key={x.kurz} type="button" className={`tel-chip ${i === s ? 'an' : ''} ${wert ? 'fertig' : ''}`} onClick={() => setSchritt(i)}>
+                <small>
+                  {i + 1} · {x.kurz}
+                </small>
+                <b>{wert ? `${sym} ${wert}` : '—'}</b>
+              </button>
+            );
+          })}
         </div>
         <form
           ref={formRef}
@@ -461,22 +488,24 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
           <h3>{schritte[s].titel}</h3>
           <Felder e={e} setE={setE} daten={daten} neu bloecke={schritte[s].bloecke} />
           {s === schritte.length - 1 && e.art === 'sterbefall' && (
-            <p className="klein">Bereitschaft jetzt: {daten.bereitschaft.length ? personText(daten.bereitschaft) : 'niemand eingeteilt'}</p>
+            <div className="tel-held-mini">
+              🚐 Bereitschaft jetzt: <b>{daten.bereitschaft.length ? personText(daten.bereitschaft) : 'niemand eingeteilt'}</b>
+            </div>
           )}
           <button type="submit" hidden />
         </form>
         {meldungZeile}
         <div className="tel-schritt-fuss">
-          <button type="button" className="knopf" disabled={s === 0} onClick={() => setSchritt(s - 1)}>
-            ← Zurück
+          <button type="button" className="knopf tel-zurueck" disabled={s === 0} onClick={() => setSchritt(s - 1)} aria-label="Zurück">
+            ←
           </button>
           {s < schritte.length - 1 ? (
             <>
-              <button type="button" className="knopf klein tel-gleich" disabled={laeuft} onClick={() => void los(false)} title="Ohne weitere Angaben speichern">
-                Speichern
+              <button type="button" className="knopf tel-gleich" disabled={laeuft} onClick={() => void los(false)} title="Ohne weitere Angaben speichern">
+                💾
               </button>
               <button type="button" className="knopf primaer" onClick={() => setSchritt(s + 1)}>
-                Weiter →
+                Weiter: {schritte[s + 1].kurz} →
               </button>
             </>
           ) : (
