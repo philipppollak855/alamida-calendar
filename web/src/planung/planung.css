@@ -854,3 +854,34 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .tel-papiere li { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .tel-papiere li > .knopf:first-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 label.knopf.deaktiviert { opacity: 0.5; pointer-events: none; }
+
+/* Einsatzcockpit: Fallakte Sterbefall */
+.tel-cockpit { width: min(1120px, 100%); max-height: 94vh; display: flex; flex-direction: column; overflow: hidden; }
+.tel-cockpit .modal-kopf { position: static; padding: 1rem 1.3rem 0.9rem; flex: none; }
+.tel-cockpit .modal-kopf h2 { font-size: 1.45rem; }
+.tel-cockpit-leiste { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; padding: 0.6rem 1.3rem; border-bottom: 1px solid var(--rand); }
+.tel-schritte { display: flex; gap: 0.3rem; list-style: none; margin: 0; padding: 0; }
+.tel-schritte li { padding: 0.3rem 0.7rem; border-radius: 999px; background: var(--rand); color: var(--text-2); font-weight: 600; font-size: 0.85rem; white-space: nowrap; }
+.tel-schritte li.fertig { background: color-mix(in srgb, var(--gruen) 20%, transparent); color: var(--gruen); }
+.tel-hinweise { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.tel-hinweis { font-size: 0.8rem; }
+.tel-reiter { display: none; }
+.tel-cockpit .modal-inhalt { flex: 1 1 auto; min-height: 0; overflow: auto; padding-bottom: 0; }
+.tel-cockpit .tel-aktionen { position: sticky; bottom: 0; background: var(--flaeche-fest); border-top: 1px solid var(--rand); padding: 0.6rem 0 0.9rem; }
+@media (min-width: 900px) {
+  .tel-cockpit .modal-inhalt { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); column-gap: 1.8rem; align-content: start; }
+  .tel-cockpit .tel-b-fall { grid-column: 1; }
+  .tel-cockpit .tel-b-daten { grid-row: 1 / span 3; }
+  .tel-cockpit .tel-b-akte { grid-column: 2; }
+  .tel-cockpit .tel-b-voll, .tel-cockpit .tel-aktionen { grid-column: 1 / -1; }
+  .tel-cockpit .tel-zeile { font-size: 1.05rem; }
+}
+@media (max-width: 899px) {
+  .tel-reiter { display: flex; width: 100%; gap: 0.3rem; }
+  .tel-reiter button { flex: 1; min-height: 44px; border-radius: 12px; border: 1px solid var(--rand-stark); background: transparent; color: var(--text); font-weight: 600; font-size: 0.95rem; }
+  .tel-reiter button.aktiv { background: var(--akzent); color: var(--akzent-text, #fff); border-color: transparent; }
+  .tel-cockpit[data-reiter="fall"] .tel-b-akte, .tel-cockpit[data-reiter="akte"] .tel-b-fall { display: none; }
+  .tel-cockpit.mit-abholung .tel-b-daten { display: none; }
+  .tel-cockpit .tel-aktionen .knopf { flex: 1 1 calc(50% - 0.5rem); min-height: 46px; }
+  .tel-cockpit .tel-schritte li { font-size: 0.78rem; padding: 0.25rem 0.55rem; }
+}
