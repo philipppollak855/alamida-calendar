@@ -3,6 +3,7 @@ import { datumText, plusTage, spanneText, ueberschneidet, zeitText } from '../sh
 import { KERN_NAMEN, KERN_SCHLUESSEL, WOCHENTAGE, belegung, kernLuecken, kernText, musterText, tagesAbschnitte, type Kernzeit, type Kernzeiten, type TelMuster, type TelSegment } from '../shared/telefonplan';
 import { telKernSpeichern, telMusterLoeschen, telMusterSpeichern, telefonplanAustragen, telefonplanEintragen, telefonplanLaden, type TelefonplanDaten } from './api';
 import { standText } from './offlineCache';
+import { abwesendFuer, useAbwesenheiten } from './abwesend';
 
 const montag = (d: Date) => {
   const t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -23,7 +24,11 @@ function EintragModal({ e, daten, von, setDaten, zu }: { e: Eintrag; daten: Tele
   const [x, setX] = useState(e);
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
+  const abwListe = useAbwesenheiten();
+  const abwesend = (email: string) => abwesendFuer(abwListe, email, x.von, x.bis);
   const speichern = async () => {
+    const a = abwesend(x.email);
+    if (a && !confirm(`${a}.\n\nTrotzdem eintragen?`)) return;
     setLaeuft(true);
     setFehler(null);
     try {
@@ -57,6 +62,7 @@ function EintragModal({ e, daten, von, setDaten, zu }: { e: Eintrag; daten: Tele
                 {daten.personen.map((p) => (
                   <option key={p.email} value={p.email}>
                     {wer(p)}
+                    {abwesend(p.email) ? ` – ${abwesend(p.email)}` : ''}
                   </option>
                 ))}
               </select>
@@ -64,6 +70,7 @@ function EintragModal({ e, daten, von, setDaten, zu }: { e: Eintrag; daten: Tele
           ) : (
             <p className="klein">Für: {daten.ich.name || daten.ich.email}</p>
           )}
+          {abwesend(x.email) && <div className="warnung">{abwesend(x.email)}</div>}
           <div className="ab-zeile">
             <label className="ab-feld">
               Von
