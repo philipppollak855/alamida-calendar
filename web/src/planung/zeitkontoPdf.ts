@@ -14,7 +14,7 @@ import { briefpapierDatei } from './api';
 type Tabelle = { gruppe: string; body: string[][]; fett?: boolean[][] };
 
 /** Ränder wie im alten Programm (Briefpapier: oben 45 mm, Fußzeile des Briefpapiers frei lassen). */
-export const PDF_RAND = { links: 15, obenBrief: 45, untenBrief: 48, oben: 20, unten: 15 };
+export const PDF_RAND = { links: 15, obenBrief: 52, untenBrief: 48, oben: 20, unten: 15 };
 
 const bildFormat = (b: Uint8Array) => (b[0] === 0x89 && b[1] === 0x50 ? 'PNG' : 'JPEG');
 
@@ -39,17 +39,17 @@ async function aufbauen(titel: string, hinweis: string, tabellen: Tabelle[]): Pr
   doc.setTextColor(0);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text(titel, rand, oben);
+  doc.text(titel, rand, oben + 6);
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(9);
   const hz = doc.splitTextToSize(hinweis, 180) as string[];
-  doc.text(hz, rand, oben + 7);
-  let y = oben + 9 + hz.length * 4;
+  doc.text(hz, rand, oben + 13);
+  let y = oben + 17 + hz.length * 4;
   for (const g of tabellen) {
     if (y > 297 - unten - 30) {
       doc.addPage();
       hintergrund();
-      y = oben;
+      y = oben + 4;
     }
     doc.setFillColor(240, 240, 240);
     doc.setDrawColor(0);
@@ -63,7 +63,7 @@ async function aufbauen(titel: string, hinweis: string, tabellen: Tabelle[]): Pr
       head: [[...BERICHT_SPALTEN]],
       body: g.body,
       theme: 'grid',
-      styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.8, lineColor: 0, lineWidth: 0.2, textColor: 0, fillColor: [255, 255, 255] },
+      styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.3, lineColor: 0, lineWidth: 0.2, textColor: 0, fillColor: [255, 255, 255] },
       headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: 'bold', fontSize: 8 },
       columnStyles: { 0: { cellWidth: 52 } },
       willDrawPage: hintergrund,
@@ -71,7 +71,7 @@ async function aufbauen(titel: string, hinweis: string, tabellen: Tabelle[]): Pr
         if (c.section === 'body' && g.fett?.[c.row.index]?.[c.column.index]) c.cell.styles.fontStyle = 'bold';
       },
     });
-    y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y + 20) + 8;
+    y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y + 20) + 12;
   }
   const seiten = doc.getNumberOfPages();
   doc.setFont('helvetica', 'normal');
