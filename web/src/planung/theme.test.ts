@@ -6,6 +6,18 @@ describe('Farbstimmung aus dem Hub', () => {
     const s = stimmungPruefen({ basis: 'dunkel', farben: { '--akzent': '#7fb069', '--bg': 'red;} body{display:none', '--x': '#fff' } });
     expect(s).toEqual({ basis: 'dunkel', farben: { '--akzent': '#7fb069' } });
   });
+  it('übernimmt Oberfläche (Textur, Rundung, Schatten, Titelschrift)', () => {
+    const farben = {
+      '--bg-verlauf': 'repeating-linear-gradient(60deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 22px), radial-gradient(1200px 600px at 10% -10%, #b0122b26, transparent 60%)',
+      '--flaeche-textur': 'linear-gradient(180deg, #b0122b14, transparent 40%)',
+      '--radius': '2px',
+      '--schatten': '0 0 0 1px rgba(0, 0, 0, 0.8), 0 24px 60px -20px rgba(0, 0, 0, 0.9)',
+      '--schrift-titel': 'Georgia, Times New Roman, serif',
+    };
+    const s = stimmungPruefen({ basis: 'dunkel', farben });
+    expect(s?.farben).toEqual(farben);
+    expect(stimmungCss(s)).toContain('font-family: var(--schrift-titel)');
+  });
   it('lehnt Unbrauchbares ab', () => {
     expect(stimmungPruefen(null)).toBeNull();
     expect(stimmungPruefen({ basis: 'bunt', farben: { '--akzent': '#fff' } })).toBeNull();
