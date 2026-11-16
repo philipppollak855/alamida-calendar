@@ -1203,7 +1203,7 @@ function AltImport({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhe
     <section className="glas admin-block bs-block">
       <h3>Alte Einträge aus Excel / PDF</h3>
       <p className="klein">
-        <b>Excel</b> (An-/Abwesenheitsplaner, .xlsm/.xlsx): Urlaub, Krankenstand, Sonderurlaub, freie Tage, Fortbildung usw. werden als Abwesenheiten in den Kalender übertragen. <b>PDF</b> (Monatsbericht): Überstunden und Kr./Ur./So.-Tage werden als abgeschlossener Monat ins Zeitkonto übernommen. Schon vorhandene Einträge werden nicht doppelt angelegt.
+        <b>Excel</b> (An-/Abwesenheitsplaner, .xlsm/.xlsx): Urlaub, Krankenstand, Sonderurlaub, freie Tage, Fortbildung usw. werden als Abwesenheiten in den Kalender übertragen. <b>PDF</b> (Monatsbericht): Überstunden und Kr./Ur./So.-Tage werden als abgeschlossener Monat ins Zeitkonto übernommen. Schon vorhandene Einträge werden nicht doppelt angelegt. <b>Reihenfolge:</b> zuerst das Excel, danach die PDFs – das PDF speichert nur die Abweichung zum Kalender; später importierte Abwesenheiten würden sonst doppelt zählen.
       </p>
       <input type="file" accept=".xlsm,.xlsx,.pdf" disabled={laeuft} onChange={(e) => e.target.files?.[0] && void lesen(e.target.files[0])} />
       {laeuft && <p className="klein">Lese …</p>}
