@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { standText } from './offlineCache';
+import { useHubMenue } from './hubMenue';
 import TelefonplanAnsicht from './TelefonplanAnsicht';
 import { Calendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
 import { endOfMonth, format, getDay, parse, startOfMonth, startOfWeek } from 'date-fns';
@@ -689,6 +690,18 @@ export default function BereitschaftAnsicht({ aktiv }: { aktiv: boolean }) {
     if (modus === 'telefon' && daten.darfTelefonplan === false) setModus(daten.nurEigene ? 'planung' : 'uebersicht');
   }, [daten, modus]);
 
+  const reiter = ([
+    ...(daten?.nurEigene ? [] : [['uebersicht', '◔', 'Übersicht']]),
+    ['planung', '▦', 'Planung'],
+    ['liste', '☰', 'Liste'],
+    ...(daten?.darfTelefonplan === false ? [] : [['telefon', '📞', 'Telefon']]),
+  ] as [Modus, string, string][]);
+  const menueImHub = useHubMenue(
+    aktiv ? reiter.map(([id, icon, label]) => ({ id, icon, label })) : [],
+    modus,
+    (id) => setModus(id as Modus),
+  );
+
   if (!aktiv) return <p className="leer">Für die Bereitschaft bitte anmelden – oder du hast noch keine Freigabe.</p>;
   if (!daten && modus !== 'telefon') return <p className="leer">{fehler ?? 'Lädt …'}</p>;
   const gezeigt = !daten ? [] : nurMeine ? liste.filter((d) => einsaetzeIn(daten.eintraege, d).some((e) => e.email === daten.ich.email)) : liste;
@@ -704,18 +717,15 @@ export default function BereitschaftAnsicht({ aktiv }: { aktiv: boolean }) {
               : `Wochenenden (Fr–So), Feiertage und Zusatztage · 2 bis ${MAX_GLEICHZEITIG} Personen · ${daten?.darfPlanen ? 'du darfst alle einteilen' : 'trag dich selbst ein oder aus'}`}
           </p>
         </div>
-        <div className="tag-nav-knoepfe bs-umschalter" role="tablist">
-          {([
-            ...(daten?.nurEigene ? [] : [['uebersicht', '◔ Übersicht']]),
-            ['planung', '▦ Planung'],
-            ['liste', '☰ Liste'],
-            ...(daten?.darfTelefonplan === false ? [] : [['telefon', '📞 Telefon']]),
-          ] as [Modus, string][]).map(([m, label]) => (
-            <button key={m} role="tab" aria-selected={modus === m} className={modus === m ? 'aktiv' : ''} onClick={() => setModus(m)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        {!menueImHub && (
+          <div className="tag-nav-knoepfe bs-umschalter" role="tablist">
+            {reiter.map(([m, icon, label]) => (
+              <button key={m} role="tab" aria-selected={modus === m} className={modus === m ? 'aktiv' : ''} onClick={() => setModus(m)}>
+                {icon} {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       {fehler && <div className="banner fehler">{fehler}</div>}
 

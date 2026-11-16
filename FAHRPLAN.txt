@@ -114,7 +114,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] L11 Planung: Checkbox Urlaube und Fehltage einblenden
 - [x] L12 Übersicht „Vollständig besetzt“: Monat / Quartal / Jahr
 ### L-E Hub
-- [ ] L13 Seitenmenü der Unter-Apps ins Hauptseitenmenü integrieren
+- [x] L13 Seitenmenü der Unter-Apps ins Hauptseitenmenü integrieren
 - [ ] L14 Kiosk: Ansicht und Bedienung für Tablet optimieren (vor allem Kalender)
 
 ## Block M (Nachricht 16.11.)
