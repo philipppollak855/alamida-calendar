@@ -1,7 +1,7 @@
 import { createHmac, createPublicKey, createSign, randomBytes, timingSafeEqual, verify } from 'node:crypto';
 import { getStore } from '@netlify/blobs';
 import { STANDARD_KONFIG, konfigPruefen, rechteFuer, verzeichnisAnwenden, verzeichnisPruefen, type Konfiguration, type Rechte, type Verzeichnis } from '../../src/shared/rechte';
-import type { Einsatz } from '../../src/shared/bereitschaft';
+import type { Einsatz, Zusatztag } from '../../src/shared/bereitschaft';
 import { heuteWien, laufendBis, personalPruefen, type Abwesenheit, type Personal } from '../../src/shared/abwesenheit';
 import type { AgentStatus } from './agent';
 import type { Einteilung } from '../../src/shared/einteilung';
@@ -141,6 +141,13 @@ export async function konfigSpeichern(k: Konfiguration): Promise<void> {
 const einsatzSchluessel = (e: Pick<Einsatz, 'id' | 'bis'>) => `bereitschaft/${e.bis.slice(0, 10)}/${e.id}`;
 
 /** Alle Einträge, die am Tag `ab` (JJJJ-MM-TT) oder später enden. */
+/** Zusätzlich angesetzte Bereitschaftstage (außerhalb von „bereitschaft/“, damit sie nicht als Einsatz gelesen werden). */
+export async function zusatztageLaden(): Promise<Zusatztag[]> {
+  const l = (await store().get('bereitschaft-zusatztage', { type: 'json' })) as unknown;
+  return Array.isArray(l) ? l.filter((z): z is Zusatztag => !!z && typeof z.datum === 'string') : [];
+}
+export const zusatztageSpeichern = (l: Zusatztag[]) => store().setJSON('bereitschaft-zusatztage', [...l].sort((a, b) => a.datum.localeCompare(b.datum)));
+
 export async function bereitschaftLaden(ab: string): Promise<Einsatz[]> {
   const s = store();
   const { blobs } = await s.list({ prefix: 'bereitschaft/' });

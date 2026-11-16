@@ -133,11 +133,11 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [ ] M11 Abschließen fragt fehlenden Hausarzt/Kühlraum ab, überspringbar mit Warnung
 - [ ] M12 Geführtes, aufgeräumtes Einsatzcockpit ohne Scrollen, gut lesbar
 ### M-C Bereitschaft
-- [ ] M13 Bereitschaft an beliebigen Tagen per Klick im Kalender ansetzen
+- [x] M13 Bereitschaft an beliebigen Tagen per Klick im Kalender ansetzen
 - [x] M14 Popup „+ weitere“: Datum lesbar, Namen ausgeschrieben; im Tagesfeld Kürzel aller (auch bei 3 Personen)
 - [x] M15 Übersicht vor Planung und als Startreiter
 - [ ] M16 Telefonbereitschaft: Kernzeiten je Wochentag und Feiertag festlegbar
-- [ ] M17 Hinweis „Personal nicht vollständig“ mit der fehlenden Zeitspanne
+- [x] M17 Hinweis „Personal nicht vollständig“ mit der fehlenden Zeitspanne
 - [x] M18 Mobil: Kalender und Bereitschaftsplanung per waagrechtem Wischen blättern
 ### M-D Kalender
 - [x] M19 Abholungen und Gespräche im Tagesplan gruppieren (wie Kremationen), vor allem mobil
