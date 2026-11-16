@@ -115,7 +115,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] L12 Übersicht „Vollständig besetzt“: Monat / Quartal / Jahr
 ### L-E Hub
 - [x] L13 Seitenmenü der Unter-Apps ins Hauptseitenmenü integrieren
-- [ ] L14 Kiosk: Ansicht und Bedienung für Tablet optimieren (vor allem Kalender)
+- [x] L14 Kiosk: Ansicht und Bedienung für Tablet optimieren (vor allem Kalender)
 
 ## Block M (Nachricht 16.11.)
 ### M-A Stabilität und Fehler
