@@ -164,3 +164,19 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     stimmungAnwenden(s);
   });
 }
+
+/* Hub am Handy: Zurück-Taste schließt zuerst den obersten Dialog dieser App; sonst geht der Hub zurück. */
+const DIALOG_HINTERGRUND = '.modal-hintergrund, .fall-abschluss-backdrop, .wall-cal-day-dialog-backdrop';
+if (typeof window !== 'undefined' && window.parent !== window) {
+  window.addEventListener('message', (e: MessageEvent) => {
+    if (e.origin !== HUB_HERKUNFT || e.source !== window.parent || (e.data as { typ?: string } | null)?.typ !== 'hub-zurueck') return;
+    const offen = () => document.querySelectorAll(DIALOG_HINTERGRUND).length;
+    const vorher = offen();
+    if (!vorher) return window.parent.postMessage({ typ: 'hub-zurueck-ok', erledigt: false }, HUB_HERKUNFT);
+    [...document.querySelectorAll<HTMLElement>(DIALOG_HINTERGRUND)].pop()?.click();
+    setTimeout(() => {
+      if (offen() >= vorher) document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      window.parent.postMessage({ typ: 'hub-zurueck-ok', erledigt: true }, HUB_HERKUNFT);
+    }, 60);
+  });
+}

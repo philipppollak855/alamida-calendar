@@ -157,7 +157,7 @@ export function eingabePruefen(x: unknown, jetzt = Date.now()): { felder: Partia
       hausarzt: text(o.hausarzt, 120) || undefined,
       polizei: o.polizei === true || undefined,
     });
-    if (!felder.verstorbener && !felder.ort) return { felder, fehler: 'Bitte Name des Verstorbenen oder den Sterbeort eintragen' };
+    if (!felder.verstorbener && !felder.ort && o.nameUnbekannt !== true) return { felder, fehler: 'Bitte Name des Verstorbenen oder den Sterbeort eintragen' };
   } else {
     Object.assign(felder, { anliegen: text(o.anliegen, 4000), fall: text(o.fall, 40) || undefined, fallName: text(o.fallName, 120) || undefined });
     if (!felder.anliegen) return { felder, fehler: 'Bitte das Anliegen eintragen' };
