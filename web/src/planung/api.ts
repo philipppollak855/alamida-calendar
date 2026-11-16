@@ -272,7 +272,7 @@ export async function belegDatei(id: string, beleg: string): Promise<Blob> {
   return res.blob();
 }
 export const personalSpeichern = (personal: Personal[]) => holen<AbwesenheitDaten>('/api/abwesenheit?aktion=personal', jsonInit('PUT', { personal }));
-export const altdatenImportieren = (daten: { personal: Personal[]; abwesenheiten: Pick<Abwesenheit, 'email' | 'art' | 'von' | 'bis'>[] }) =>
+export const altdatenImportieren = (daten: { personal: Personal[]; abwesenheiten: (Pick<Abwesenheit, 'email' | 'art' | 'von' | 'bis'> & Partial<Pick<Abwesenheit, 'status' | 'stunden' | 'notiz'>>)[] }) =>
   holen<AbwesenheitDaten>('/api/abwesenheit?aktion=import', jsonInit('POST', daten));
 
 export const einteilungSpeichern = (termin: string, personen: string[]) =>

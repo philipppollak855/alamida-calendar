@@ -34,13 +34,15 @@ import {
   type Beleg,
   BELEG_ARTEN,
   belegFehlt,
-  belegMoeglich, internesKonto, OFFEN_ARTEN, wartet, istOhneEmail, stundenJeTag, tageAnzeige } from '../shared/abwesenheit';
+  belegMoeglich, internesKonto, OFFEN_ARTEN, wartet, istOhneEmail, sollStunden, stundenJeTag, tageAnzeige } from '../shared/abwesenheit';
 import { ausText, datumText, plusTage } from '../shared/bereitschaft';
 import { useBereitschaft } from './BereitschaftAnsicht';
 import { belegVorbereiten, drucken, herunterladen } from './beleg';
 import ZeitkontoAnsicht from './ZeitkontoAnsicht';
-import { altEintraegeLesen } from '../shared/zeitkonto';
-import { zeitkontoSpeichern } from './api';
+import { altEintraegeLesen, berichtZeile, gueltigerMonat, kalenderTage, monatPlus, monatText, runden, zahlText, type BerichtZeile, type ZeitkontoDaten } from '../shared/zeitkonto';
+import { berichtLesen, nameZuordnen, tageZuAbwesenheiten, type BerichtZeile as ImportBerichtZeile, type ImportAbwesenheit } from '../shared/altImport';
+import { excelLesen, pdfZeilen } from './altImport';
+import { zeitkontoLaden, zeitkontoSpeichern } from './api';
 
 /** Lädt Urlaub/Krank (nur mit Freigabe). */
 export function useAbwesenheit(aktiv: boolean) {
@@ -952,10 +954,342 @@ function KontoWahl({ wert, personen, leer, neu, onWahl }: { wert: string; person
   );
 }
 
+type Zeitraum = { von: string; bis: string };
+const ZEITRAEUME: [string, string][] = [
+  ['jahr', 'Dieses Jahr'],
+  ['vorjahr', 'Vorjahr'],
+  ['12m', '12 Monate'],
+  ['alles', 'Alles'],
+];
+function zeitraumVorlage(x: string, p: Personal): Zeitraum {
+  const h = heute();
+  const j = +h.slice(0, 4);
+  if (x === 'vorjahr') return { von: `${j - 1}-01-01`, bis: `${j - 1}-12-31` };
+  if (x === '12m') return { von: datumText(plusTage(ausText(h), -365)), bis: h };
+  if (x === 'alles') return { von: gueltigesDatum(p.eintritt) ? p.eintritt : '2000-01-01', bis: p.austritt && gueltigesDatum(p.austritt) ? p.austritt : `${j}-12-31` };
+  return { von: `${j}-01-01`, bis: `${j}-12-31` };
+}
+const endeVon = (e: Abwesenheit) => (e.offen || !gueltigesDatum(e.bis) ? heute() : e.bis);
+
+/** Volle Personalakte: Konto, Abwesenheiten und Zeitkonto einer Person im gewählten Zeitraum. */
+function PersonalAkte({ d, p, onDaten, schliessen }: { d: AbwesenheitDaten; p: Personal; onDaten: (x: AbwesenheitDaten) => void; schliessen: () => void }) {
+  const [z, setZ] = useState<Zeitraum>(() => zeitraumVorlage('jahr', p));
+  const [zk, setZk] = useState<ZeitkontoDaten | null>(null);
+  useEffect(() => {
+    zeitkontoLaden()
+      .then(setZk)
+      .catch(() => undefined);
+  }, []);
+  const ok = gueltigesDatum(z.von) && gueltigesDatum(z.bis) && z.von <= z.bis;
+  const eintraege = useMemo(
+    () => (ok ? d.eintraege.filter((e) => e.email === p.email && e.von <= z.bis && endeVon(e) >= z.von).sort((a, b) => b.von.localeCompare(a.von)) : []),
+    [d.eintraege, p.email, z, ok],
+  );
+  const summen = useMemo(
+    () =>
+      ART_LISTE.map((art) => {
+        let h = 0;
+        for (const e of eintraege) {
+          if (e.art !== art || !zaehlt(e)) continue;
+          const von = e.von < z.von ? z.von : e.von;
+          const bis = endeVon(e) > z.bis ? z.bis : endeVon(e);
+          if (von <= bis) for (const t of tageListe(von, bis)) h += e.stunden ?? sollStunden(p, t);
+        }
+        return { art, h };
+      }).filter((x) => x.h > 0),
+    [eintraege, z, p],
+  );
+  const monate = useMemo(() => {
+    if (!zk || !ok) return [];
+    const l: BerichtZeile[] = [];
+    const bis = [z.bis.slice(0, 7), heute().slice(0, 7)].sort()[0];
+    for (let m = [z.von.slice(0, 7), (p.eintritt || '2000-01').slice(0, 7)].sort()[1]; m <= bis && l.length < 240; m = monatPlus(m, 1)) l.push(berichtZeile(p, d.eintraege, zk, m));
+    return l.reverse();
+  }, [zk, ok, z, p, d.eintraege]);
+  const summe = (k: 'neu' | 'ausbezahlt' | 'kr' | 'ur' | 'so') => zahlText(monate.reduce((a, m) => a + m[k], 0));
+  const proTag = stundenJeTag(p);
+  return (
+    <div className="modal-hintergrund" onClick={schliessen}>
+      <div className="modal ab-modal ab-akte" role="dialog" aria-modal="true" onClick={(x) => x.stopPropagation()}>
+        <div className="modal-kopf">
+          <div>
+            <div className="modal-kategorie">Personalakte</div>
+            <h2>{p.name || p.email}</h2>
+            <div className="modal-nr">
+              {[p.gruppe, istOhneEmail(p.email) ? 'ohne E-Mail' : p.email, p.eintritt && `seit ${datum(p.eintritt, 'dd.MM.yyyy')}`, `${std(p.tage.reduce((a, b) => a + b, 0))}/Woche`, p.austritt && `Austritt ${datum(p.austritt, 'dd.MM.yyyy')}`]
+                .filter(Boolean)
+                .join(' · ')}
+            </div>
+          </div>
+          <button className="modal-zu" onClick={schliessen} aria-label="Schließen">✕</button>
+        </div>
+        <div className="modal-inhalt">
+          {gueltigesDatum(p.eintritt) && <KontoKacheln p={p} eintraege={d.eintraege} />}
+          <div className="ab-akte-filter">
+            {ZEITRAEUME.map(([x, l]) => (
+              <button key={x} className="knopf klein" onClick={() => setZ(zeitraumVorlage(x, p))}>
+                {l}
+              </button>
+            ))}
+            <label>
+              von <input className="feld" type="date" value={z.von} onChange={(e) => setZ({ ...z, von: e.target.value })} />
+            </label>
+            <label>
+              bis <input className="feld" type="date" value={z.bis} onChange={(e) => setZ({ ...z, bis: e.target.value })} />
+            </label>
+          </div>
+          <h3>Abwesenheiten im Zeitraum</h3>
+          <div className="ab-akte-summen">
+            {summen.length ? (
+              summen.map(({ art, h }) => (
+                <span key={art} style={{ borderColor: ARTEN[art].farbe }}>
+                  {ARTEN[art].symbol} {ARTEN[art].label} <b>{art === 'za' ? std(h) : tage(h, proTag)}</b>
+                </span>
+              ))
+            ) : (
+              <span className="klein">Keine</span>
+            )}
+          </div>
+          <h3>Stunden / Zeitkonto</h3>
+          {!zk ? (
+            <p className="klein">Lädt …</p>
+          ) : monate.length ? (
+            <div className="ab-akte-tabelle">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Monat</th>
+                    <th>Ü-Übertrag</th>
+                    <th>Ü-Neu</th>
+                    <th>Ü-Ausz.</th>
+                    <th>Ü-Saldo</th>
+                    <th>Kr.</th>
+                    <th>Ur.</th>
+                    <th>So.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monate.map((m) => (
+                    <tr key={m.monat} className={m.abgeschlossen ? '' : 'offen'} title={m.abgeschlossen ? 'abgeschlossen' : 'noch nicht abgeschlossen'}>
+                      <td>
+                        {monatText(m.monat)}
+                        {m.abgeschlossen ? '' : ' ·'}
+                      </td>
+                      <td>{zahlText(m.uebertrag)}</td>
+                      <td>{zahlText(m.neu)}</td>
+                      <td>{zahlText(m.ausbezahlt)}</td>
+                      <td>
+                        <b>{zahlText(m.saldo)}</b>
+                      </td>
+                      <td>{zahlText(m.kr)}</td>
+                      <td>{zahlText(m.ur)}</td>
+                      <td>{zahlText(m.so)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th>Summe</th>
+                    <th />
+                    <th>{summe('neu')}</th>
+                    <th>{summe('ausbezahlt')}</th>
+                    <th>{zahlText(monate[0].saldo)}</th>
+                    <th>{summe('kr')}</th>
+                    <th>{summe('ur')}</th>
+                    <th>{summe('so')}</th>
+                  </tr>
+                </tfoot>
+              </table>
+              <p className="klein">· = Monat noch nicht abgeschlossen. Kr./Ur./So. in Tagen laut Monatsbericht.</p>
+            </div>
+          ) : (
+            <p className="klein">Keine Monate im Zeitraum</p>
+          )}
+          <h3>Alle Einträge ({eintraege.length})</h3>
+          <EintragListe d={d} eintraege={eintraege} onDaten={onDaten} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type AltVorschau =
+  | { typ: 'excel'; jahr: number; personen: { name: string; email: string; abw: ImportAbwesenheit[]; tage: { datum: string; code: string }[] }[] }
+  | { typ: 'pdf'; monat: string; personen: (ImportBerichtZeile & { email: string })[] };
+
+/** Alte Einträge aus dem Excel-Abwesenheitsplaner (Abwesenheiten) und aus Monatsberichts-PDFs (Zeitkonto) übernehmen. */
+function AltImport({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: AbwesenheitDaten) => void }) {
+  const [v, setV] = useState<AltVorschau | null>(null);
+  const [zk, setZk] = useState<ZeitkontoDaten | null>(null);
+  const [laeuft, setLaeuft] = useState(false);
+  const [meldung, setMeldung] = useState<{ ok: boolean; text: string } | null>(null);
+  const personal = useMemo(() => [...d.personal].sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email)), [d.personal]);
+  const abwFuer = (tage: { datum: string; code: string }[], email: string) => tageZuAbwesenheiten(tage, d.personal.find((x) => x.email === email));
+  const lesen = async (f: File) => {
+    setMeldung(null);
+    setV(null);
+    setLaeuft(true);
+    try {
+      if (/\.pdf$/i.test(f.name)) {
+        const b = berichtLesen(await pdfZeilen(f));
+        if (!b.monat || !b.zeilen.length) throw new Error('Im PDF wurde kein Monatsbericht erkannt.');
+        setZk(await zeitkontoLaden());
+        setV({ typ: 'pdf', monat: b.monat, personen: b.zeilen.map((z) => ({ ...z, email: nameZuordnen(z.name, d.personal) })) });
+      } else {
+        const x = await excelLesen(f);
+        setV({
+          typ: 'excel',
+          jahr: x.jahr,
+          personen: x.personen.map((p) => {
+            const email = nameZuordnen(p.name, d.personal);
+            return { ...p, email, abw: abwFuer(p.tage, email) };
+          }),
+        });
+      }
+    } catch (e) {
+      setMeldung({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setLaeuft(false);
+    }
+  };
+  const zuordnen = (i: number, email: string) =>
+    setV((x) =>
+      !x
+        ? x
+        : x.typ === 'excel'
+          ? { ...x, personen: x.personen.map((p, j) => (j === i ? { ...p, email, abw: abwFuer(p.tage, email) } : p)) }
+          : { ...x, personen: x.personen.map((p, j) => (j === i ? { ...p, email } : p)) },
+    );
+  const uebernehmen = async () => {
+    if (!v) return;
+    setLaeuft(true);
+    setMeldung(null);
+    try {
+      if (v.typ === 'excel') {
+        const abwesenheiten = v.personen.flatMap((p) => (p.email ? p.abw.map((a) => ({ email: p.email, ...a })) : []));
+        const neu = await altdatenImportieren({ personal: [], abwesenheiten });
+        onDaten(neu);
+        const n = neu.eintraege.length - d.eintraege.length;
+        setMeldung({ ok: true, text: `${n} Abwesenheiten in den Kalender übernommen${abwesenheiten.length > n ? `, ${abwesenheiten.length - n} waren schon vorhanden` : ''}.` });
+      } else if (zk) {
+        const eintraege = v.personen.flatMap((z) => {
+          const p = d.personal.find((x) => x.email === z.email);
+          if (!p) return [];
+          const k = kalenderTage(p, d.eintraege, monatPlus(v.monat, zk.einstellungen.verschiebungAbw));
+          return [{ email: p.email, monat: v.monat, ue: z.ue, ueAusb: z.ueAusb, kr: runden(z.kr - k.kr), ur: runden(z.ur - k.ur), so: runden(z.so - k.so) }];
+        });
+        setZk(await zeitkontoSpeichern(eintraege));
+        setMeldung({ ok: true, text: `Monatsbericht ${monatText(v.monat)} für ${eintraege.length} Mitarbeiter als abgeschlossen übernommen.` });
+      }
+      setV(null);
+    } catch (e) {
+      setMeldung({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setLaeuft(false);
+    }
+  };
+  const wahl = (email: string, i: number) => (
+    <select className="feld" value={email} onChange={(e) => zuordnen(i, e.target.value)}>
+      <option value="">– nicht übernehmen –</option>
+      {personal.map((p) => (
+        <option key={p.email} value={p.email}>
+          {p.name || p.email}
+        </option>
+      ))}
+    </select>
+  );
+  const anzahl = !v ? 0 : v.typ === 'excel' ? v.personen.reduce((a, p) => a + (p.email ? p.abw.length : 0), 0) : v.personen.filter((p) => p.email).length;
+  return (
+    <section className="glas admin-block bs-block">
+      <h3>Alte Einträge aus Excel / PDF</h3>
+      <p className="klein">
+        <b>Excel</b> (An-/Abwesenheitsplaner, .xlsm/.xlsx): Urlaub, Krankenstand, Sonderurlaub, freie Tage, Fortbildung usw. werden als Abwesenheiten in den Kalender übertragen. <b>PDF</b> (Monatsbericht): Überstunden und Kr./Ur./So.-Tage werden als abgeschlossener Monat ins Zeitkonto übernommen. Schon vorhandene Einträge werden nicht doppelt angelegt.
+      </p>
+      <input type="file" accept=".xlsm,.xlsx,.pdf" disabled={laeuft} onChange={(e) => e.target.files?.[0] && void lesen(e.target.files[0])} />
+      {laeuft && <p className="klein">Lese …</p>}
+      {v && (
+        <>
+          <p className="klein">
+            {v.typ === 'excel' ? (
+              `Abwesenheitsplaner ${v.jahr}: ${v.personen.length} Mitarbeiter erkannt.`
+            ) : (
+              <>
+                Monatsbericht für{' '}
+                <input className="feld" type="month" value={v.monat} onChange={(e) => gueltigerMonat(e.target.value) && setV({ ...v, monat: e.target.value })} /> – {v.personen.length} Zeilen. Werte gelten als
+                Monatsbericht; die Abweichung zum Kalender wird als Korrektur gespeichert.
+              </>
+            )}
+          </p>
+          <div className="ab-akte-tabelle">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name (alt)</th>
+                  <th>Mitarbeiter</th>
+                  {v.typ === 'excel' ? (
+                    <th>Abwesenheiten</th>
+                  ) : (
+                    <>
+                      <th>Ü-Std</th>
+                      <th>Kr.</th>
+                      <th>Ur.</th>
+                      <th>So.</th>
+                      <th />
+                    </>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {v.typ === 'excel'
+                  ? v.personen.map((p, i) => (
+                      <tr key={i}>
+                        <td>{p.name}</td>
+                        <td>{wahl(p.email, i)}</td>
+                        <td title={p.abw.map((a) => `${ARTEN[a.art].label} ${a.von === a.bis ? a.von : `${a.von} – ${a.bis}`}${a.stunden ? ` (${a.stunden} h)` : ''}`).join('\n')}>
+                          {ART_LISTE.map((art) => [art, p.abw.filter((a) => a.art === art).length] as const)
+                            .filter(([, n]) => n)
+                            .map(([art, n]) => `${ARTEN[art].symbol} ${n}`)
+                            .join('  ') || '–'}
+                        </td>
+                      </tr>
+                    ))
+                  : v.personen.map((p, i) => (
+                      <tr key={i}>
+                        <td>
+                          {p.name}
+                          {p.gruppe && <span className="klein"> · {p.gruppe}</span>}
+                        </td>
+                        <td>{wahl(p.email, i)}</td>
+                        <td>{zahlText(p.ue)}</td>
+                        <td>{zahlText(p.kr)}</td>
+                        <td>{zahlText(p.ur)}</td>
+                        <td>{zahlText(p.so)}</td>
+                        <td className="klein">{zk?.eintraege.some((e) => e.email === p.email && e.monat === v.monat) ? 'ersetzt Abschluss' : ''}</td>
+                      </tr>
+                    ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="ab-knoepfe">
+            <button className="knopf primaer" disabled={laeuft || !anzahl} onClick={() => void uebernehmen()}>
+              {v.typ === 'excel' ? `${anzahl} Abwesenheiten übernehmen` : `${anzahl} Mitarbeiter übernehmen`}
+            </button>
+            <button className="knopf" onClick={() => setV(null)}>
+              Abbrechen
+            </button>
+          </div>
+        </>
+      )}
+      {meldung && <div className={`banner ${meldung.ok ? 'ok' : 'fehler'}`}>{meldung.text}</div>}
+    </section>
+  );
+}
+
 function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: AbwesenheitDaten) => void }) {
   const liste = d.personal;
   const [imp, setImp] = useState<{ alt: AltMitarbeiter[]; zuordnung: Record<string, string>; roh: unknown } | null>(null);
   const [meldung, setMeldung] = useState<{ ok: boolean; text: string } | null>(null);
+  const [akte, setAkte] = useState<Personal | null>(null);
   const fehlend = d.personen.filter((p) => !liste.some((x) => x.email === p.email));
   const fertig = (x: AbwesenheitDaten, text: string) => {
     onDaten(x);
@@ -1014,7 +1348,15 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
             const k = p.eintritt ? urlaubskonto(p, d.eintraege, heute()) : null;
             const wochenStd = p.tage.reduce((x, y) => x + y, 0);
             return (
-              <div key={p.email} className={`ab-stamm-karte glas ${p.austritt && p.austritt < heute() ? 'aus' : ''}`}>
+              <div
+                key={p.email}
+                className={`ab-stamm-karte glas ${p.austritt && p.austritt < heute() ? 'aus' : ''}`}
+                role="button"
+                tabIndex={0}
+                title="Personalakte öffnen"
+                onClick={() => setAkte(p)}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setAkte(p))}
+              >
                 <b>{p.name || 'Ohne Namen'}</b>
                 <span className="klein">{istOhneEmail(p.email) ? 'ohne E-Mail' : p.email || 'kein Konto'}</span>
                 <span className="ab-stamm-werte">
@@ -1030,6 +1372,8 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
         </div>
       </section>
 
+      {akte && <PersonalAkte d={d} p={d.personal.find((x) => x.email === akte.email) ?? akte} onDaten={onDaten} schliessen={() => setAkte(null)} />}
+      <AltImport d={d} onDaten={onDaten} />
       <section className="glas admin-block bs-block">
         <h3>Import aus dem bisherigen Programm</h3>
         <p className="klein">
