@@ -894,22 +894,52 @@ label.knopf.deaktiviert { opacity: 0.5; pointer-events: none; }
 .tel-reiter { display: none; }
 .tel-cockpit .modal-inhalt { flex: 1 1 auto; min-height: 0; overflow: auto; padding-bottom: 0; }
 .tel-cockpit .tel-aktionen { position: sticky; bottom: 0; background: var(--flaeche-fest); border-top: 1px solid var(--rand); padding: 0.6rem 0 0.9rem; }
+.tel-weiter { display: none; }
+.tel-nav-ziel { display: flex; flex-direction: column; gap: 0.1rem; }
+.tel-nav-ziel b { font-size: 1.1rem; }
+.tel-karte { width: 100%; height: 220px; border: 1px solid var(--rand); border-radius: 12px; background: var(--rand); }
+.tel-nav-knoepfe { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.tel-nav-knoepfe .knopf { flex: 1 1 auto; text-align: center; text-decoration: none; }
+.tel-naechster { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.6rem 0.9rem; border-radius: 12px; border: 2px solid var(--akzent); background: color-mix(in srgb, var(--akzent) 10%, transparent); }
+.tel-naechster b { font-size: 1.05rem; }
+.tel-naechster.fertig { border-color: var(--gruen); background: color-mix(in srgb, var(--gruen) 12%, transparent); }
 @media (min-width: 900px) {
   .tel-cockpit .modal-inhalt { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); column-gap: 1.8rem; align-content: start; }
-  .tel-cockpit .tel-b-fall { grid-column: 1; }
+  .tel-cockpit .tel-b-daten, .tel-cockpit .tel-b-abholung { grid-column: 1; }
   .tel-cockpit .tel-b-daten { grid-row: 1 / span 3; }
-  .tel-cockpit .tel-b-akte { grid-column: 2; }
-  .tel-cockpit .tel-b-voll, .tel-cockpit .tel-aktionen { grid-column: 1 / -1; }
+  .tel-cockpit .tel-b-nav, .tel-cockpit .tel-b-mitschnitt, .tel-cockpit .tel-b-akte { grid-column: 2; }
+  .tel-cockpit .tel-b-voll, .tel-cockpit .tel-aktionen, .tel-cockpit .tel-naechster { grid-column: 1 / -1; }
   .tel-cockpit .tel-zeile { font-size: 1.05rem; }
 }
+/* Handy im Einsatz: Vollbild, drei Wisch-Reiter Einsatz / Navigation / Abschluss, kein Scrollen */
 @media (max-width: 899px) {
-  .tel-reiter { display: flex; width: 100%; gap: 0.3rem; }
-  .tel-reiter button { flex: 1; min-height: 44px; border-radius: 12px; border: 1px solid var(--rand-stark); background: transparent; color: var(--text); font-weight: 600; font-size: 0.95rem; }
+  .modal-hintergrund:has(.tel-cockpit) { padding: 0; align-items: stretch; }
+  .tel-cockpit { width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; margin: 0; }
+  .tel-cockpit .modal-kopf { padding: 0.55rem 0.9rem; }
+  .tel-cockpit .modal-kopf h2 { font-size: 1.25rem; }
+  .tel-cockpit .modal-kopf .modal-nr { display: none; }
+  .tel-cockpit-leiste { padding: 0.45rem 0.7rem; gap: 0.35rem; }
+  .tel-reiter { display: flex; width: 100%; gap: 0.3rem; order: -1; }
+  .tel-reiter button { flex: 1; min-height: 48px; border-radius: 12px; border: 1px solid var(--rand-stark); background: transparent; color: var(--text); font-weight: 700; font-size: 0.95rem; }
   .tel-reiter button.aktiv { background: var(--akzent); color: var(--akzent-text, #fff); border-color: transparent; }
-  .tel-cockpit[data-reiter="fall"] .tel-b-akte, .tel-cockpit[data-reiter="akte"] .tel-b-fall { display: none; }
-  .tel-cockpit.mit-abholung .tel-b-daten { display: none; }
-  .tel-cockpit .tel-aktionen .knopf { flex: 1 1 calc(50% - 0.5rem); min-height: 46px; }
   .tel-cockpit .tel-schritte li { font-size: 0.78rem; padding: 0.25rem 0.55rem; }
+  .tel-cockpit .modal-inhalt { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.7rem 0.9rem 0; }
+  .tel-cockpit .modal-block { margin: 0; }
+  .tel-cockpit[data-reiter="fall"] :is(.tel-b-nav, .tel-b-akte, .tel-b-abholung, .tel-aktionen, .tel-naechster),
+  .tel-cockpit[data-reiter="nav"] :is(.tel-b-daten, .tel-b-mitschnitt, .tel-b-akte, .tel-b-abholung, .tel-aktionen, .tel-naechster),
+  .tel-cockpit[data-reiter="akte"] :is(.tel-b-daten, .tel-b-mitschnitt, .tel-b-nav),
+  .tel-cockpit.mit-abholung .tel-b-akte { display: none; }
+  .tel-cockpit .tel-b-daten, .tel-cockpit .tel-b-nav { flex: 1 1 auto; display: flex; flex-direction: column; gap: 0.45rem; min-height: 0; }
+  .tel-cockpit .tel-zeile { font-size: 1.08rem; }
+  .tel-cockpit .tel-umbruch { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .tel-cockpit .tel-b-mitschnitt h4 { display: none; }
+  .tel-cockpit .tel-b-mitschnitt .tel-aufnahme { flex-wrap: nowrap; }
+  .tel-karte { flex: 1 1 auto; height: auto; min-height: 170px; }
+  .tel-nav-knoepfe .knopf, .tel-weiter { min-height: 54px; font-size: 1.08rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .tel-weiter { width: 100%; margin-top: auto; }
+  .tel-cockpit .tel-aktionen { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .tel-cockpit .tel-aktionen .knopf { min-height: 48px; }
+  .tel-cockpit .tel-aktionen .knopf.primaer { grid-column: 1 / -1; min-height: 58px; font-size: 1.12rem; }
 }
 .tel-ort-chips { grid-column: 1 / -1; }
 .tel-ort-chips .pille { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
