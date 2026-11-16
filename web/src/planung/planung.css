@@ -897,7 +897,7 @@ label.knopf.deaktiviert { opacity: 0.5; pointer-events: none; }
 .tel-weiter { display: none; }
 .tel-nav-ziel { display: flex; flex-direction: column; gap: 0.1rem; }
 .tel-nav-ziel b { font-size: 1.1rem; }
-.tel-karte { width: 100%; height: 220px; border: 1px solid var(--rand); border-radius: 12px; background: var(--rand); }
+.tel-navkarte { width: 100%; height: 220px; border: 1px solid var(--rand); border-radius: 12px; background: var(--rand); }
 .tel-nav-knoepfe { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .tel-nav-knoepfe .knopf { flex: 1 1 auto; text-align: center; text-decoration: none; }
 .tel-naechster { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.6rem 0.9rem; border-radius: 12px; border: 2px solid var(--akzent); background: color-mix(in srgb, var(--akzent) 10%, transparent); }
@@ -934,7 +934,7 @@ label.knopf.deaktiviert { opacity: 0.5; pointer-events: none; }
   .tel-cockpit .tel-umbruch { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .tel-cockpit .tel-b-mitschnitt h4 { display: none; }
   .tel-cockpit .tel-b-mitschnitt .tel-aufnahme { flex-wrap: nowrap; }
-  .tel-karte { flex: 1 1 auto; height: auto; min-height: 170px; }
+  .tel-navkarte { flex: 1 1 auto; height: auto; min-height: 170px; }
   .tel-nav-knoepfe .knopf, .tel-weiter { min-height: 54px; font-size: 1.08rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
   .tel-weiter { width: 100%; margin-top: auto; }
   .tel-cockpit .tel-aktionen { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
