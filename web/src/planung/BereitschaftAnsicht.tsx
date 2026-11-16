@@ -288,14 +288,15 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
           }
           const ganz = (e: { von: string; bis: string }) => e.von <= tagVon && e.bis >= tagBis;
           const titel = [...da.map((e) => `${e.email === daten.ich.email ? '★' : ''}${kuerzel(e)}${ganz(e) ? '' : '◔'}`), ...(fehlt ? [`+${fehlt}`] : [])].join(' ');
-          if (vorher && vorher.titel === titel) {
+          const lang = da.map((e) => `${anzeigeName(e)}${ganz(e) ? '' : ` ${e.von.slice(11)}–${e.bis.slice(11)}`}`).join(', ') + (fehlt ? ` · ${fehlt} fehlt` : '');
+          if (vorher && vorher.titel === titel && vorher.lang === lang) {
             vorher.ende = plusTage(t, 1);
             continue;
           }
           vorher = {
             id: `tag-${d.id}-${datumText(t)}`,
             titel,
-            lang: da.map((e) => `${anzeigeName(e)}${ganz(e) ? '' : ` ${e.von.slice(11)}–${e.bis.slice(11)}`}`).join(', ') + (fehlt ? ` · ${fehlt} fehlt` : ''),
+            lang,
             start: t,
             ende: plusTage(t, 1),
             ganz: true,
