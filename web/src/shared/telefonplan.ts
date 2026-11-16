@@ -171,7 +171,8 @@ const MAX_KERN_JE_TAG = 4;
 
 /** Bereinigt Kernzeiten aus einer Anfrage. */
 export function kernzeitenAus(x: unknown): { kernzeiten?: Kernzeiten; fehler: string | null } {
-  const o = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return { fehler: 'Ungültige Kernzeiten' };
+  const o = x as Record<string, unknown>;
   const r: Kernzeiten = {};
   for (const k of KERN_SCHLUESSEL) {
     const l = o[k];

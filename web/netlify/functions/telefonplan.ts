@@ -38,7 +38,7 @@ export default async (req: Request) => {
   if (aktion === 'kernzeiten') {
     if (!planer) return json({ fehler: 'Kernzeiten dürfen nur Planer festlegen' }, 403);
     if (req.method !== 'POST') return json({ fehler: 'Methode nicht erlaubt' }, 405);
-    const { kernzeiten: neu, fehler } = kernzeitenAus(await req.json().catch(() => ({})));
+    const { kernzeiten: neu, fehler } = kernzeitenAus(await req.json().catch(() => null));
     if (!neu) return json({ fehler }, 400);
     kernzeiten = neu;
     await telKernSpeichern(kernzeiten);

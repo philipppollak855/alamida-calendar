@@ -22,4 +22,9 @@ describe('Telefon-Kernzeiten', () => {
     expect(kernzeitenAus({ '3': [{ von: '18:00', bis: '07:00' }] }).kernzeiten).toEqual({ '3': [{ von: '18:00', bis: '07:00' }] });
     expect(kernText(k)).toBe('Mo–Di 17:00–08:00 · Feiertag 00:00–00:00');
   });
+  it('lehnt fehlende oder kaputte Daten ab, statt alles zu leeren', () => {
+    expect(kernzeitenAus(null).kernzeiten).toBeUndefined();
+    expect(kernzeitenAus([]).kernzeiten).toBeUndefined();
+    expect(kernzeitenAus({}).kernzeiten).toEqual({});
+  });
 });
