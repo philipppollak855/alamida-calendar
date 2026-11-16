@@ -60,3 +60,59 @@ if (typeof window !== 'undefined' && window.parent !== window) {
   };
   for (const t of ['pointerdown', 'keydown', 'wheel', 'touchstart']) window.addEventListener(t, melden, { passive: true });
 }
+
+/** Farbstimmung aus dem Hub: CSS-Variablen für `.planung`, greift nur bei passendem Hell/Dunkel. */
+const LS_STIMMUNG = 'alamida.stimmung';
+const STIMMUNG_VARS = new Set(['--bg', '--bg-verlauf', '--flaeche-fest', '--akzent', '--akzent-2', '--akzent-text']);
+interface StimmungDaten {
+  basis: Theme;
+  farben: Record<string, string>;
+}
+
+export function stimmungPruefen(x: unknown): StimmungDaten | null {
+  const o = x as { basis?: unknown; farben?: unknown } | null;
+  if (!o || !gueltig(o.basis) || !o.farben || typeof o.farben !== 'object') return null;
+  const farben: Record<string, string> = {};
+  for (const [k, v] of Object.entries(o.farben as Record<string, unknown>))
+    if (STIMMUNG_VARS.has(k) && typeof v === 'string' && v.length <= 400 && /^[#(),.%\w\s-]+$/.test(v)) farben[k] = v;
+  return Object.keys(farben).length ? { basis: o.basis, farben } : null;
+}
+
+export function stimmungCss(s: StimmungDaten | null): string {
+  if (!s) return '';
+  const w = `html .planung.planung.theme-${s.basis}`;
+  const vars = Object.entries(s.farben)
+    .map(([k, v]) => `${k}: ${v};`)
+    .join(' ');
+  return [
+    `${w} { ${vars} }`,
+    `${w} .knopf.primaer { background: linear-gradient(135deg, var(--akzent-2), var(--akzent)); }`,
+    ...(s.farben['--bg'] ? [`body:has(.planung.theme-${s.basis}) { background: ${s.farben['--bg']}; }`] : []),
+  ].join('\n');
+}
+
+function stimmungAnwenden(s: StimmungDaten | null) {
+  let el = document.getElementById('alamida-stimmung');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'alamida-stimmung';
+    document.head.appendChild(el);
+  }
+  el.textContent = stimmungCss(s);
+}
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  try {
+    stimmungAnwenden(stimmungPruefen(JSON.parse(localStorage.getItem(LS_STIMMUNG) ?? 'null')));
+  } catch {
+    /* nichts gespeichert */
+  }
+  window.addEventListener('message', (e: MessageEvent) => {
+    const d = e.data as { typ?: string; stimmung?: unknown } | null;
+    if (e.origin !== HUB_HERKUNFT || d?.typ !== 'hub-stimmung') return;
+    const s = stimmungPruefen(d.stimmung);
+    if (s) localStorage.setItem(LS_STIMMUNG, JSON.stringify(s));
+    else localStorage.removeItem(LS_STIMMUNG);
+    stimmungAnwenden(s);
+  });
+}
