@@ -817,3 +817,24 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 
 /* Bereitschaft Handy-Monat: alle Kürzel eines Dienstes in einem Eintrag, bei Bedarf zweizeilig */
 .bs-kurz .rbc-event-content { white-space: normal; word-spacing: 0.1em; }
+
+/* Tablet / Touch (auch Kiosk): größere Ziele und Schrift, v. a. im Kalender */
+@media (pointer: coarse) {
+  .planung .knopf, .planung .pille, .planung .tag-nav-knoepfe button, .planung .rbc-toolbar button { min-height: 44px; }
+  .planung .rbc-toolbar button { padding: 0.55rem 1.1rem; font-size: 1rem; }
+  .planung .rbc-toolbar .rbc-toolbar-label { font-size: 1.35rem; }
+  .planung .rbc-header { padding: 0.7rem 0.3rem; font-size: 0.95rem; }
+  .planung .rbc-date-cell { padding: 6px 10px; font-size: 1rem; }
+  .planung .rbc-event { font-size: 0.92rem; padding: 4px 8px; min-height: 26px; }
+  .planung .rbc-show-more { font-size: 0.9rem; padding: 4px 8px; }
+  .planung .rbc-timeslot-group { min-height: 56px; }
+  .planung .rbc-agenda-view table.rbc-agenda-table td { padding: 0.7rem 0.6rem; font-size: 1rem; }
+  .planung .seitenleiste nav button { min-height: 48px; }
+  .planung .modal input, .planung .modal select, .planung .modal textarea, .planung .feld { min-height: 44px; font-size: 1rem; }
+  .bs-kurz .rbc-event { font-size: 0.74rem; min-height: 0; padding: 1px 2px; }
+  .planung kbd, .suchfeld kbd { display: none; }
+}
+/* Kiosk-Gerät: keine Tastenkürzel-, Installier- und Vollbild-Hinweise, kein versehentliches Markieren */
+.kiosk-geraet .planung { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.kiosk-geraet .planung input, .kiosk-geraet .planung textarea { -webkit-user-select: text; user-select: text; }
+.kiosk-geraet .planung .seitenleiste-fuss, .kiosk-geraet .planung .suchfeld kbd { display: none; }

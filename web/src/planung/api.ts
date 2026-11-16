@@ -112,6 +112,7 @@ export async function ichLaden(): Promise<Ich> {
   try {
     const i = await holen<Ich>('/api/me');
     benutzer = i.angemeldet && !i.kiosk ? (i.benutzer?.email ?? '').toLowerCase() : '';
+    if (typeof document !== 'undefined') document.documentElement.classList.toggle('kiosk-geraet', !!i.kiosk);
     if (benutzer) ls()?.setItem(LS_ICH, JSON.stringify(i));
     else alleCachesLeeren();
     return i;
