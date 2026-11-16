@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { altdatenLesen, belegDateiname, belegFehlt, belegSignaturPasst, darfVerwalten, internesKonto, istOhneEmail, stundenJeTag, umbenennungen, stundenVon, tageAnzeige, tageZuZeitraeumen, urlaubskonto, laufendBis, verlaengernFehler, wartet, type Abwesenheit, type Personal } from './abwesenheit';
+import { abwesendIn, abwesendText, letzterTag, altdatenLesen, belegDateiname, belegFehlt, belegSignaturPasst, darfVerwalten, internesKonto, istOhneEmail, stundenJeTag, umbenennungen, stundenVon, tageAnzeige, tageZuZeitraeumen, urlaubskonto, laufendBis, verlaengernFehler, wartet, type Abwesenheit, type Personal } from './abwesenheit';
 import type { Konfiguration, Rechte } from './rechte';
 
 const anna: Personal = { email: 'anna@x.at', name: 'Anna', eintritt: '2020-03-01', tage: [8, 8, 8, 8, 8, 0, 0] };
@@ -188,5 +188,26 @@ describe('Pflegefreistellung', () => {
     const k = urlaubskonto(luka, [abw('2026-10-23', '2026-10-23', 'pflege'), abw('2026-11-02', '2026-11-03', 'pflege', 'beantragt')], '2027-08-12');
     expect(k.pflege.verbraucht).toBe(0);
     expect(urlaubskonto(anna, [abw('2026-02-23', '2026-02-24', 'pflege'), abw('2026-03-02', '2026-03-02', 'pflege')], '2026-06-01').pflege.verbraucht).toBe(8);
+  });
+});
+
+describe('Personalauswahl: abwesend', () => {
+  const l = [
+    { email: 'a@x.at', art: 'urlaub' as const, von: '2026-11-03', bis: '2026-11-07', status: 'genehmigt' as const },
+    { email: 'b@x.at', art: 'krank' as const, von: '2026-11-05', bis: '2026-11-05', status: 'abgelehnt' as const },
+    { email: 'c@x.at', art: 'za' as const, von: '2026-11-05', bis: '2026-11-05', stunden: 4, status: 'beantragt' as const, verdeckt: true },
+  ];
+  it('findet Überschneidungen, ignoriert abgelehnte', () => {
+    expect(abwesendIn(l, 'A@x.at', '2026-11-07', '2026-11-08')?.art).toBe('urlaub');
+    expect(abwesendIn(l, 'a@x.at', '2026-11-08', '2026-11-09')).toBeUndefined();
+    expect(abwesendIn(l, 'b@x.at', '2026-11-05', '2026-11-05')).toBeUndefined();
+  });
+  it('Text, verdeckt ohne Grund', () => {
+    expect(abwesendText(l[0])).toBe('🌴 Urlaub bis 7.11.');
+    expect(abwesendText(l[2])).toBe('⛔ abwesend');
+  });
+  it('Ende 00:00 zählt zum Vortag', () => {
+    expect(letzterTag('2026-11-09T00:00')).toBe('2026-11-08');
+    expect(letzterTag('2026-11-09T08:00')).toBe('2026-11-09');
   });
 });

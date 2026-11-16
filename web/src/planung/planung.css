@@ -839,6 +839,8 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .kiosk-geraet .planung input, .kiosk-geraet .planung textarea { -webkit-user-select: text; user-select: text; }
 .kiosk-geraet .planung .seitenleiste-fuss, .kiosk-geraet .planung .suchfeld kbd { display: none; }
 
+.personal-wahl.abwesend:not(.an) { opacity: 0.7; border-style: dashed; }
+
 /* Abholung: Kühlraum-Schnellauswahl, Warnung beim Abschließen ohne Angaben */
 .tel-kuehl-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .tel-kuehl-chips .pille.aktiv { background: var(--akzent); border-color: var(--akzent); color: var(--akzent-text, #fff); }

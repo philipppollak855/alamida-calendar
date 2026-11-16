@@ -9,6 +9,7 @@ import { geblaettert, useWischen } from './wischen';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { abwesenheitLaden, bereitschaftAustragen, bereitschaftEintragen, bereitschaftLaden, zusatztagAnsetzen, zusatztagEntfernen, type BereitschaftDaten } from './api';
 import { ARTEN, type Abwesenheit } from '../shared/abwesenheit';
+import { abwesendFuer, useAbwesenheiten } from './abwesend';
 import {
   MAX_GLEICHZEITIG,
   ausText,
@@ -110,6 +111,13 @@ function DienstKarte({ d, daten, onDaten, ab }: KartenProps) {
     if (daten.darfEintragen !== false) m.set(daten.ich.email, daten.ich);
     return [...m.values()].sort((a, b) => anzeigeName(a).localeCompare(anzeigeName(b)));
   }, [daten]);
+  const abwListe = useAbwesenheiten(!vorbei && (darfIch || !!daten.darfPlanen));
+  const abwesend = (e: string, v = d.von, b = d.bis) => abwesendFuer(abwListe, e, v, b);
+  const abwesendOk = (e: string, v?: string, b?: string) => {
+    const a = abwesend(e, v, b);
+    const p = personen.find((x) => x.email === e);
+    return !a || confirm(`${p ? anzeigeName(p) : e}: ${a}.\n\nTrotzdem eintragen?`);
+  };
 
   const tun = async (f: () => Promise<BereitschaftDaten>) => {
     setLaeuft(true);
@@ -170,7 +178,7 @@ function DienstKarte({ d, daten, onDaten, ab }: KartenProps) {
       {!vorbei && !offen && (
         <div className="dienst-aktionen">
           {!ichDabei && darfIch && (
-            <button className="knopf primaer" disabled={laeuft} onClick={() => void tun(() => bereitschaftEintragen({ von: d.von, bis: d.bis }, ab))}>
+            <button className="knopf primaer" disabled={laeuft} onClick={() => abwesendOk(daten.ich.email) && void tun(() => bereitschaftEintragen({ von: d.von, bis: d.bis }, ab))}>
               Mich eintragen
             </button>
           )}
@@ -190,7 +198,10 @@ function DienstKarte({ d, daten, onDaten, ab }: KartenProps) {
           className="dienst-form"
           onSubmit={(ev) => {
             ev.preventDefault();
-            void tun(() => bereitschaftEintragen({ email: email || daten.ich.email, von: ganz ? d.von : von, bis: ganz ? d.bis : bis }, ab));
+            const wer = email || daten.ich.email;
+            const [v, b] = ganz ? [d.von, d.bis] : [von, bis];
+            if (!abwesendOk(wer, v, b)) return;
+            void tun(() => bereitschaftEintragen({ email: wer, von: v, bis: b }, ab));
           }}
         >
           {daten.darfPlanen && (
@@ -198,7 +209,7 @@ function DienstKarte({ d, daten, onDaten, ab }: KartenProps) {
               <option value="" disabled>Mitarbeiter wählen</option>
               {personen.map((p) => (
                 <option key={p.email} value={p.email}>
-                  {anzeigeName(p)}{p.email === daten.ich.email ? ' (ich)' : ''}
+                  {anzeigeName(p)}{p.email === daten.ich.email ? ' (ich)' : ''}{abwesend(p.email) ? ` – ${abwesend(p.email)}` : ''}
                 </option>
               ))}
             </select>

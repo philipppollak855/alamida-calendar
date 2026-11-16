@@ -4,6 +4,7 @@ import { de } from 'date-fns/locale';
 import { KATEGORIEN, ablaufGeeignet, ablaufTermine, checkliste, fallDaten, fallSchluessel, mapsLink, type Termin, type Warnung } from './planungLogic';
 import { maxPersonen, personName, tagWien } from '../shared/einteilung';
 import type { EinteilungRecht } from './api';
+import { abwesendFuer, useAbwesenheiten } from './abwesend';
 import { auswahlFuer, bedarf as bedarfVon, hatRolle, rolleVergeben, zeremonieFehler, zeremonieMax, type Bedarf } from '../shared/rollen';
 
 const FELDER: [string, string][] = [
@@ -28,6 +29,7 @@ function Auswahl({
   max,
   bedarf,
   konflikt,
+  abwesend,
   hinweis,
   onSpeichern,
   onAbbrechen,
@@ -37,6 +39,7 @@ function Auswahl({
   max: number;
   bedarf: Bedarf;
   konflikt: (email: string) => Termin | undefined;
+  abwesend: (email: string) => string | undefined;
   hinweis?: string;
   onSpeichern: (emails: string[]) => Promise<void>;
   onAbbrechen: () => void;
@@ -47,13 +50,20 @@ function Auswahl({
   const alle = einteilung.personen;
   const zeremonie = bedarf === 'zeremonie' && rolleVergeben(alle, 'arrangeur', 'arrangeurIA', 'traeger');
   if (zeremonie)
-    return <ZeremonieAuswahl einteilung={einteilung} start={start} konflikt={konflikt} hinweis={hinweis} onSpeichern={onSpeichern} onAbbrechen={onAbbrechen} />;
-  const liste = auswahlFuer(bedarf, alle);
-  const ungefiltert = bedarf !== 'sonstig' && liste === alle;
+    return <ZeremonieAuswahl einteilung={einteilung} start={start} konflikt={konflikt} abwesend={abwesend} hinweis={hinweis} onSpeichern={onSpeichern} onAbbrechen={onAbbrechen} />;
+  const gefiltert = auswahlFuer(bedarf, alle);
+  const ungefiltert = bedarf !== 'sonstig' && gefiltert === alle;
+  const liste = [...gefiltert].sort((a, b) => Number(!!abwesend(a.email)) - Number(!!abwesend(b.email)));
   const umschalten = (email: string) => {
     if (wahl.includes(email)) setWahl(wahl.filter((x) => x !== email));
+    else if (!abwesendOk(email)) return;
     else if (max === 1) setWahl([email]);
     else if (wahl.length < max) setWahl([...wahl, email]);
+  };
+  const abwesendOk = (email: string) => {
+    const a = abwesend(email);
+    const p = alle.find((x) => x.email === email);
+    return !a || confirm(`${p ? personName(p) : email}: ${a}.\n\nTrotzdem einteilen?`);
   };
   async function speichern() {
     setLaeuft(true);
@@ -74,13 +84,15 @@ function Auswahl({
         {liste.map((p) => {
           const an = wahl.includes(p.email);
           const k = konflikt(p.email);
+          const abw = abwesend(p.email);
           return (
-            <button key={p.email} className={`personal-wahl ${an ? 'an' : ''}`} disabled={!an && max > 1 && wahl.length >= max} onClick={() => umschalten(p.email)}>
+            <button key={p.email} className={`personal-wahl ${an ? 'an' : ''} ${abw ? 'abwesend' : ''}`} disabled={!an && max > 1 && wahl.length >= max} onClick={() => umschalten(p.email)}>
               <span>{an ? '✓' : '○'}</span>
               <span>
                 {personName(p)}
                 {p.extern && <span className="klein"> · extern</span>}
               </span>
+              {abw && <span className="klein warnung-text">{abw}</span>}
               {k && <span className="klein warnung-text">⚠️ zeitgleich: {k.verstorbener ?? k.titel}</span>}
             </button>
           );
@@ -107,6 +119,7 @@ function ZeremonieAuswahl({
   einteilung,
   start,
   konflikt,
+  abwesend,
   hinweis,
   onSpeichern,
   onAbbrechen,
@@ -114,6 +127,7 @@ function ZeremonieAuswahl({
   einteilung: EinteilungRecht;
   start: string[];
   konflikt: (email: string) => Termin | undefined;
+  abwesend: (email: string) => string | undefined;
   hinweis?: string;
   onSpeichern: (emails: string[]) => Promise<void>;
   onAbbrechen: () => void;
@@ -166,14 +180,20 @@ function ZeremonieAuswahl({
   }
   const knopf = (p: PersonW, an: boolean, onClick: () => void, zusatz?: string, gesperrt = false) => {
     const k = konflikt(p.email);
+    const abw = abwesend(p.email);
+    const klick = () => {
+      if (!an && abw && !confirm(`${personName(p)}: ${abw}.\n\nTrotzdem einteilen?`)) return;
+      onClick();
+    };
     return (
-      <button key={p.email} className={`personal-wahl ${an ? 'an' : ''}`} disabled={gesperrt} onClick={onClick}>
+      <button key={p.email} className={`personal-wahl ${an ? 'an' : ''} ${abw ? 'abwesend' : ''}`} disabled={gesperrt} onClick={klick}>
         <span>{an ? '✓' : '○'}</span>
         <span>
           {personName(p)}
           {zusatz && <span className="klein"> · {zusatz}</span>}
           {p.extern && <span className="klein"> · extern</span>}
         </span>
+        {abw && <span className="klein warnung-text">{abw}</span>}
         {k && <span className="klein warnung-text">⚠️ zeitgleich: {k.verstorbener ?? k.titel}</span>}
       </button>
     );
@@ -229,6 +249,9 @@ function PersonalBlock({
 }) {
   const [modus, setModus] = useState<null | 'ablauf' | 'termin'>(null);
   useEffect(() => setModus(null), [termin.id]);
+  const abwListe = useAbwesenheiten(!!einteilung?.darf && modus !== null);
+  const terminTag = tagWien(termin.start);
+  const abwesend = (email: string) => abwesendFuer(abwListe, email, terminTag, terminTag);
 
   const darf = !!einteilung?.darf;
   if (!darf && !termin.personal?.length) return null;
@@ -268,7 +291,7 @@ function PersonalBlock({
           Personal <span className="klein">{max === 1 ? '(1 Person)' : `(bis ${max} Personen)`}</span>
         </h3>
         {modus === 'termin' && einteilung ? (
-          <Auswahl einteilung={einteilung} start={aktuell.map((p) => p.email)} max={max} bedarf={bedarfVon(termin.kategorie)} konflikt={konflikt} onSpeichern={(w) => onEinteilen(termin, w)} onAbbrechen={() => setModus(null)} />
+          <Auswahl einteilung={einteilung} start={aktuell.map((p) => p.email)} max={max} bedarf={bedarfVon(termin.kategorie)} konflikt={konflikt} abwesend={abwesend} onSpeichern={(w) => onEinteilen(termin, w)} onAbbrechen={() => setModus(null)} />
         ) : (
           <div className="personal-chips">
             {chips(aktuell, konflikt, 'Noch niemand eingeteilt.', bedarfVon(termin.kategorie) === 'zeremonie')}
@@ -306,6 +329,7 @@ function PersonalBlock({
             max={5}
             bedarf={ablaufBedarf}
             konflikt={konfliktAblauf}
+            abwesend={abwesend}
             hinweis="Abweichend eingeteilte Termine behalten ihr eigenes Personal."
             onSpeichern={(w) => onAblauf!(fall!, tag, w)}
             onAbbrechen={() => setModus(null)}
@@ -332,6 +356,7 @@ function PersonalBlock({
             max={maxPersonen(termin.kategorie)}
             bedarf={bedarfVon(termin.kategorie)}
             konflikt={konfliktTermin}
+            abwesend={abwesend}
             hinweis="Nur für diesen Termin. Ohne Auswahl gilt wieder das Personal des Ablaufs."
             onSpeichern={(w) => onEinteilen(termin, w)}
             onAbbrechen={() => setModus(null)}

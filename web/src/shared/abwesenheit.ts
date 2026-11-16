@@ -481,3 +481,25 @@ export function altdatenLesen(x: unknown, stichtag: string): AltMitarbeiter[] {
     return { mId, name: personal.name, gruppe: personal.gruppe, personal, abwesenheiten, altRestTage };
   });
 }
+
+/* Personalauswahl: wer an einem Tag bzw. in einem Zeitraum abwesend ist. */
+type AbwKurz = Pick<Abwesenheit, 'email' | 'art' | 'von' | 'bis' | 'status'> & { stunden?: number; verdeckt?: boolean };
+
+/** Abwesenheit der Person, die sich mit den Tagen von–bis (YYYY-MM-DD, je inklusive) überschneidet; abgelehnte zählen nicht. */
+export function abwesendIn<T extends AbwKurz>(l: readonly T[], email: string, von: string, bis: string): T | undefined {
+  const e = email.trim().toLowerCase();
+  return l.find((a) => a.status !== 'abgelehnt' && a.email.toLowerCase() === e && a.von <= bis && von <= a.bis);
+}
+
+export function abwesendText(a: AbwKurz): string {
+  if (a.verdeckt || !ARTEN[a.art]) return '⛔ abwesend';
+  const art = ARTEN[a.art];
+  const zeit = a.von !== a.bis ? ` bis ${Number(a.bis.slice(8, 10))}.${Number(a.bis.slice(5, 7))}.` : a.stunden ? ` (${a.stunden} h)` : '';
+  return `${art.symbol} ${art.label}${zeit}${a.status === 'beantragt' ? ' · beantragt' : ''}`;
+}
+
+/** Letzter betroffener Tag eines exklusiven Endzeitpunkts (YYYY-MM-DDTHH:mm): 00:00 zählt zum Vortag. */
+export function letzterTag(bis: string): string {
+  if (bis.slice(11, 16) !== '00:00') return bis.slice(0, 10);
+  return new Date(Date.parse(`${bis.slice(0, 10)}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+}
