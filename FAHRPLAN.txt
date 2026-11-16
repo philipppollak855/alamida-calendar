@@ -111,8 +111,8 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] L9 Bereitschaftsteam sieht/bearbeitet nur eigene (übergebene) Fälle
 - [x] L10 Telefonbereitschafts-Planung nur für Berechtigte sichtbar
 ### L-D Bereitschaft
-- [ ] L11 Planung: Checkbox Urlaube und Fehltage einblenden
-- [ ] L12 Übersicht „Vollständig besetzt“: Monat / Quartal / Jahr
+- [x] L11 Planung: Checkbox Urlaube und Fehltage einblenden
+- [x] L12 Übersicht „Vollständig besetzt“: Monat / Quartal / Jahr
 ### L-E Hub
 - [ ] L13 Seitenmenü der Unter-Apps ins Hauptseitenmenü integrieren
 - [ ] L14 Kiosk: Ansicht und Bedienung für Tablet optimieren (vor allem Kalender)
