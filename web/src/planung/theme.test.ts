@@ -8,7 +8,7 @@ describe('Farbstimmung aus dem Hub', () => {
   });
   it('übernimmt Oberfläche (Textur, Rundung, Schatten, Titelschrift)', () => {
     const farben = {
-      '--bg-verlauf': 'repeating-linear-gradient(60deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 22px), radial-gradient(1200px 600px at 10% -10%, #b0122b26, transparent 60%)',
+      '--bg-verlauf': 'radial-gradient(1200px 600px at 10% -10%, #b0122b26, transparent 60%)',
       '--flaeche-textur': 'linear-gradient(180deg, #b0122b14, transparent 40%)',
       '--radius': '2px',
       '--schatten': '0 0 0 1px rgba(0, 0, 0, 0.8), 0 24px 60px -20px rgba(0, 0, 0, 0.9)',
@@ -26,6 +26,10 @@ describe('Farbstimmung aus dem Hub', () => {
     expect(css).not.toContain('--bg-verlauf: url(');
     expect(css).toMatch(/--flaeche-textur: linear-gradient\(rgba\(0, 0, 0, 0\.24\)[^)]*\)\), url\("data:image\/svg\+xml,/);
     expect(stimmungPruefen({ basis: 'dunkel', oberflaeche: 'url(x)', farben: { '--akzent': '#fff' } })?.oberflaeche).toBeUndefined();
+  });
+  it('Haupthintergrund ohne Muster, auch aus altem Zwischenspeicher', () => {
+    const s = stimmungPruefen({ basis: 'dunkel', farben: { '--akzent': '#fff', '--bg-verlauf': 'repeating-linear-gradient(60deg, red 0 1px, transparent 1px 22px)' } });
+    expect(s?.farben).toEqual({ '--akzent': '#fff' });
   });
   it('lehnt Unbrauchbares ab', () => {
     expect(stimmungPruefen(null)).toBeNull();

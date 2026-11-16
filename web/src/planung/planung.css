@@ -55,6 +55,8 @@ body:has(.planung.theme-hell) { background: #f6f3ec; }
 .planung button:disabled { opacity: 0.55; cursor: default; }
 .planung kbd { font-family: inherit; font-size: 0.72rem; padding: 0.1rem 0.4rem; border-radius: 6px; border: 1px solid var(--rand-stark); color: var(--text-2); background: var(--flaeche); }
 .glas { background: var(--flaeche-textur, linear-gradient(transparent, transparent)), var(--flaeche); border: 1px solid var(--rand); border-radius: var(--radius); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); box-shadow: var(--schatten); }
+/* Großflächige Ansichten wirken wie Hintergrund: ohne Textur. */
+.glas:is(.kalender-ansicht, .spalte) { background: var(--flaeche); }
 
 /* Knöpfe */
 .planung .knopf { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 1rem; border-radius: 12px; border: 1px solid var(--rand-stark); background: var(--flaeche); text-decoration: none; font-weight: 500; transition: background 0.2s, transform 0.1s, border-color 0.2s; }

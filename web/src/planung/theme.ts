@@ -93,6 +93,8 @@ export function stimmungPruefen(x: unknown): StimmungDaten | null {
   const farben: Record<string, string> = {};
   for (const [k, v] of Object.entries(o.farben as Record<string, unknown>))
     if (STIMMUNG_VARS.has(k) && typeof v === 'string' && v.length <= 1000 && /^[#(),.%\w\s-]+$/.test(v)) farben[k] = v;
+  // Haupthintergrund bleibt ohne Muster, auch bei älteren (zwischengespeicherten) Hub-Ständen.
+  if (/repeating-|url\(/.test(farben['--bg-verlauf'] ?? '')) delete farben['--bg-verlauf'];
   if (!Object.keys(farben).length) return null;
   return istTextur(o.oberflaeche) ? { basis: o.basis, farben, oberflaeche: o.oberflaeche } : { basis: o.basis, farben };
 }
