@@ -537,8 +537,23 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
   const [reiter, setReiter] = useState<Reiter>(() => (m.abholung ? 'akte' : 'fall'));
   const wisch = useRef<{ x: number; y: number } | null>(null);
   const [karteAn, setKarteAn] = useState(false);
+  const [mehr, setMehr] = useState(false);
+  const [nachtragOffen, setNachtragOffen] = useState<'hausarzt' | 'geburtsdatum' | null>(null);
+  const [standort, setStandort] = useState<{ lat: number; lng: number } | 'sucht' | 'fehlt' | null>(null);
+  const routeHolen = () => {
+    if (!navigator.geolocation) return setStandort('fehlt');
+    setStandort('sucht');
+    navigator.geolocation.getCurrentPosition(
+      (p) => setStandort({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => setStandort('fehlt'),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
+    );
+  };
   useEffect(() => {
-    if (reiter === 'nav') setKarteAn(true);
+    if (reiter !== 'nav') return;
+    setKarteAn(true);
+    if (standort === null && m.ort?.trim()) routeHolen();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reiter]);
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -607,6 +622,29 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
   const naechster =
     m.art !== 'sterbefall' ? null : m.abholung ? '✓ Einsatz abgeschlossen' : m.status === 'offen' ? 'An die Bereitschaft übergeben' : 'Verstorbene abholen, dann „Abholung abschließen“';
   const navZiel = m.ort?.trim() ?? '';
+  const seit = (t: number) => {
+    const min = Math.max(0, Math.round((Date.now() - t) / 60_000));
+    return min < 60 ? `${min} Min` : `${Math.floor(min / 60)} h ${min % 60} Min`;
+  };
+  const abholungStarten = () => {
+    setReiter('akte');
+    setAbholung({ kuehlraum: '', notiz: '', verstorbener: '', geburtsdatum: '', ort: '', hausarzt: '' });
+  };
+  const phase = m.abholung
+    ? { icon: '✓', text: 'Einsatz abgeschlossen', sub: `abgeholt ${zeitText(m.abholung.am)}${m.abholung.kuehlraum ? ` · ❄ ${m.abholung.kuehlraum}` : ''}` }
+    : m.status === 'offen'
+      ? { icon: '📞', text: 'Noch nicht übergeben', sub: `Anruf vor ${seit(m.zeit)}` }
+      : { icon: '🚐', text: 'Abholung offen', sub: `übergeben vor ${seit(m.uebergabe?.am ?? m.zeit)}${m.uebergabe?.an.length ? ` an ${personText(m.uebergabe.an)}` : ''}` };
+  const kachel = (icon: string, klein: string, gross: React.ReactNode, extra?: React.ReactNode) => (
+    <>
+      <span className="tel-k-icon">{icon}</span>
+      <span className="tel-k-text">
+        <small>{klein}</small>
+        <b>{gross}</b>
+        {extra}
+      </span>
+    </>
+  );
   const weiter = (r: Reiter, text: string) => (
     <button type="button" className="knopf tel-weiter" onClick={() => setReiter(r)}>
       {text} ›
@@ -622,9 +660,9 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
     const i = REITER.findIndex((r) => r.id === reiter) + (dx < 0 ? 1 : -1);
     if (REITER[i]) setReiter(REITER[i].id);
   };
-  const zeile = (label: string, wert?: React.ReactNode) =>
+  const zeile = (label: string, wert?: React.ReactNode, neben?: boolean) =>
     wert ? (
-      <div className="tel-zeile">
+      <div className={`tel-zeile ${neben ? 'tel-neben' : ''}`}>
         <span className="klein">{label}</span>
         <span>{wert}</span>
       </div>
@@ -633,7 +671,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
   return (
     <div className="modal-hintergrund" onClick={schliessen}>
       <div
-        className={`modal ab-modal tel-detail ${cockpit ? 'tel-cockpit' : ''} ${abholung ? 'mit-abholung' : ''}`}
+        className={`modal ab-modal tel-detail ${cockpit ? 'tel-cockpit' : ''} ${abholung ? 'mit-abholung' : ''} ${mehr ? 'mehr-offen' : ''}`}
         data-reiter={reiter}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
@@ -716,9 +754,74 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
               {zeile('Notiz', m.notiz && <span className="tel-umbruch">{m.notiz}</span>)}
               {m.uebergabe && zeile('Übergeben', `${zeitText(m.uebergabe.am)}${m.uebergabe.an.length ? ` an ${personText(m.uebergabe.an)}` : ''}`)}
               {m.abholung && zeile('Abgeholt', `${zeitText(m.abholung.am)} · ${m.abholung.kuehlraum ? `Kühlraum ${m.abholung.kuehlraum}` : '⚠ ohne Kühlraum'}${m.abholung.notiz ? ` · ${m.abholung.notiz}` : ''}`)}
-              {m.geaendert && zeile('Geändert', zeitText(m.geaendert.am))}
-              {verknuepft.length > 0 && zeile('Anliegen dazu', verknuepft.map((x) => `💬 ${titel(x)} (${zeitText(x.zeit)})`).join('\n'))}
+              {m.geaendert && zeile('Geändert', zeitText(m.geaendert.am), true)}
+              {verknuepft.length > 0 && zeile('Anliegen dazu', verknuepft.map((x) => `💬 ${titel(x)} (${zeitText(x.zeit)})`).join('\n'), true)}
               {cockpit && weiter('nav', '🧭 Weiter zur Navigation')}
+            </div>
+          )}
+
+          {cockpit && (
+            <div className="modal-block tel-b-cockpit">
+              <div className={`tel-held ${m.abholung ? 'fertig' : ''}`}>
+                <div className="tel-held-kopf">
+                  <span className="tel-held-icon">{phase.icon}</span>
+                  <span>
+                    <b>{phase.text}</b>
+                    <small>{phase.sub}</small>
+                  </span>
+                </div>
+                {m.status === 'offen' && daten.darfTelefon ? (
+                  <button className="knopf primaer" disabled={laeuft} onClick={() => void tun(() => mitschriftAktion(m.id, 'uebergeben'))}>
+                    🚐 An Bereitschaft übergeben
+                  </button>
+                ) : istOffen(m) && daten.darfAbholen ? (
+                  navZiel ? (
+                    <button className="knopf primaer" onClick={() => setReiter('nav')}>
+                      🧭 Losfahren
+                    </button>
+                  ) : (
+                    <button className="knopf primaer" onClick={abholungStarten}>
+                      ❄ Abholung abschließen
+                    </button>
+                  )
+                ) : null}
+              </div>
+              <div className="tel-kacheln">
+                {navZiel ? (
+                  <button type="button" className="tel-kachel breit" onClick={() => setReiter('nav')}>
+                    {kachel(ort?.symbol ?? '📍', ort?.label ?? 'Sterbeort', navZiel, m.ortNotiz && <small>{m.ortNotiz}</small>)}
+                    <span className="tel-k-pfeil">›</span>
+                  </button>
+                ) : (
+                  <div className="tel-kachel breit warn">{kachel('⚠', 'fehlt', 'Sterbeort – über „Mehr“ → Bearbeiten')}</div>
+                )}
+                {m.nummer ? (
+                  <a className="tel-kachel" href={`tel:${m.nummer.replace(/[^\d+]/g, '')}`}>
+                    {kachel('📞', 'Anrufer', m.anrufer || m.nummer)}
+                  </a>
+                ) : (
+                  m.anrufer && <div className="tel-kachel">{kachel('👤', 'Anrufer', m.anrufer)}</div>
+                )}
+                {m.polizei && <div className="tel-kachel signal">{kachel('🚓', 'Achtung', 'Polizei')}</div>}
+                {m.geburtsdatum && <div className="tel-kachel">{kachel('🎂', 'Geboren', m.geburtsdatum.split('-').reverse().join('.'))}</div>}
+                {m.hausarzt && <div className="tel-kachel">{kachel('🩺', 'Hausarzt', m.hausarzt)}</div>}
+                {(['hausarzt', 'geburtsdatum'] as const)
+                  .filter((f) => !m[f])
+                  .map((f) =>
+                    nachtragOffen === f ? (
+                      <div key={f} className="tel-kachel breit warn">
+                        {fehltFeld(f === 'hausarzt' ? 'Hausarzt nachtragen' : 'Geburtsdatum nachtragen', f, f === 'hausarzt' ? 'text' : 'date')}
+                      </div>
+                    ) : (
+                      <button key={f} type="button" className="tel-kachel warn" onClick={() => setNachtragOffen(f)}>
+                        {kachel('⚠', 'fehlt – antippen', f === 'hausarzt' ? 'Hausarzt' : 'Geburtsdatum')}
+                        <span className="tel-k-pfeil">＋</span>
+                      </button>
+                    ),
+                  )}
+                {m.abholung?.notiz && <div className="tel-kachel breit notiz">{kachel('❄', 'Notiz zur Abholung', <span className="tel-umbruch">{m.abholung.notiz}</span>)}</div>}
+                {m.notiz && <div className="tel-kachel breit notiz">{kachel('📝', 'Notiz', <span className="tel-umbruch">{m.notiz}</span>)}</div>}
+              </div>
             </div>
           )}
 
@@ -734,22 +837,37 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
                     {m.ortNotiz && <span className="klein">{m.ortNotiz}</span>}
                   </div>
                   {karteAn ? (
-                    <iframe className="tel-navkarte" title={`Karte: ${navZiel}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" src={`https://maps.google.com/maps?q=${encodeURIComponent(navZiel)}&z=15&output=embed`} />
+                    <iframe
+                      className="tel-navkarte"
+                      title={`Karte: ${navZiel}`}
+                      loading="lazy"
+                      allow="geolocation"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={
+                        typeof standort === 'object' && standort
+                          ? `https://maps.google.com/maps?saddr=${standort.lat},${standort.lng}&daddr=${encodeURIComponent(navZiel)}&dirflg=d&output=embed`
+                          : `https://maps.google.com/maps?q=${encodeURIComponent(navZiel)}&z=15&output=embed`
+                      }
+                    />
                   ) : (
                     <button type="button" className="knopf tel-navkarte tel-karte-laden" onClick={() => setKarteAn(true)}>
                       🗺 Karte anzeigen
                     </button>
                   )}
+                  {standort === 'fehlt' && <p className="klein tel-nav-info">Standort nicht verfügbar – Standortfreigabe erlauben und erneut tippen.</p>}
                   <div className="tel-nav-knoepfe">
-                    <a className="knopf primaer" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(navZiel)}&travelmode=driving`} target="_blank" rel="noreferrer">
-                      🧭 Navigation starten
-                    </a>
+                    <button type="button" className="knopf primaer" disabled={standort === 'sucht'} onClick={() => { setKarteAn(true); routeHolen(); }}>
+                      {standort === 'sucht' ? '📍 Standort wird gesucht …' : typeof standort === 'object' && standort ? '📍 Route aktualisieren' : '🧭 Route von hier'}
+                    </button>
                     {m.nummer && (
                       <a className="knopf" href={`tel:${m.nummer.replace(/[^\d+]/g, '')}`}>
                         📞 {m.anrufer || 'Anrufer'}
                       </a>
                     )}
                   </div>
+                  <a className="klein tel-nav-extern" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(navZiel)}&travelmode=driving`} target="_blank" rel="noreferrer">
+                    Sprachnavigation in Google Maps ↗
+                  </a>
                 </>
               ) : (
                 <p className="klein">Kein Sterbeort eingetragen – über „✎ Bearbeiten“ nachtragen.</p>
@@ -821,7 +939,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
               )}
               {(m.papiere?.length ?? 0) < PAPIER_MAX_ANZAHL && (
                 <label className={`knopf ${laeuft ? 'deaktiviert' : ''}`}>
-                  📎 Papiere hochladen (Foto oder PDF, mehrere möglich)
+                  📎 Papiere hochladen<span className="tel-lang"> (Foto oder PDF, mehrere möglich)</span>
                   <input
                     type="file"
                     hidden
@@ -957,7 +1075,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
                 </button>
               )}
               {m.art === 'sterbefall' && istOffen(m) && daten.darfAbholen && (
-                <button className={`knopf ${m.status === 'uebergeben' ? 'primaer' : ''}`} onClick={() => { setReiter('akte'); setAbholung({ kuehlraum: '', notiz: '', verstorbener: '', geburtsdatum: '', ort: '', hausarzt: '' }); }}>
+                <button className={`knopf ${m.status === 'uebergeben' ? 'primaer' : ''}`} onClick={abholungStarten}>
                   ❄ Abholung abschließen
                 </button>
               )}
@@ -966,16 +1084,21 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
                   {m.status === 'erledigt' ? '↺ Wieder offen' : '✓ Erledigt'}
                 </button>
               )}
-              <button className="knopf" onClick={() => void teilen()}>
+              {cockpit && (
+                <button type="button" className="knopf tel-mehr-knopf" aria-expanded={mehr} onClick={() => setMehr(!mehr)}>
+                  {mehr ? '✕ Weniger' : '⋯ Mehr'}
+                </button>
+              )}
+              <button className="knopf tel-zweit" onClick={() => void teilen()}>
                 ↗ Teilen
               </button>
               {(daten.darfTelefon || (daten.darfAbholen && m.art === 'sterbefall')) && (
-                <button className="knopf" disabled={laeuft} onClick={() => setBearbeiten(ausMitschrift(m))}>
+                <button className="knopf tel-zweit" disabled={laeuft} onClick={() => setBearbeiten(ausMitschrift(m))}>
                   ✎ Bearbeiten
                 </button>
               )}
               {daten.admin && (
-                <button className="knopf gefahr" disabled={laeuft} onClick={() => confirm('Mitschrift endgültig löschen?') && void tun(() => mitschriftEntfernen(m.id), schliessen)}>
+                <button className="knopf gefahr tel-zweit" disabled={laeuft} onClick={() => confirm('Mitschrift endgültig löschen?') && void tun(() => mitschriftEntfernen(m.id), schliessen)}>
                   Löschen
                 </button>
               )}

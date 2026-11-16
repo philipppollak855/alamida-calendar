@@ -33,6 +33,7 @@ import {
   aufnahmeSpeichern,
   bereitschaftLaden,
   env,
+  hubPushAusloesen,
   googleGet,
   json,
   kuehlraeumeLaden,
@@ -208,6 +209,7 @@ export default async (req: Request) => {
     if (neu.fall && !liste.some((x) => x.id === neu.fall && x.art === 'sterbefall')) delete neu.fall;
     if (b.uebergeben === true && neu.art === 'sterbefall') Object.assign(neu, { status: 'uebergeben', uebergabe: { am: Date.now(), von: ich, an: await bereitschaftJetzt() } });
     await speichern(neu);
+    if (neu.status === 'uebergeben') await hubPushAusloesen();
     return antwort(neu.id);
   } else if (req.method === 'PUT' && m) {
     // Sterbefälle darf auch die Bereitschaft nachbearbeiten (sie sieht nur die ihr übergebenen Fälle).
@@ -222,6 +224,7 @@ export default async (req: Request) => {
     if (!telefon) return verboten();
     if (m.art !== 'sterbefall' || !istOffen(m)) return json({ fehler: 'Nur offene Sterbefälle können übergeben werden' }, 400);
     await speichern({ ...m, status: 'uebergeben', uebergabe: { am: Date.now(), von: ich, an: await bereitschaftJetzt() } });
+    await hubPushAusloesen();
   } else if (req.method === 'POST' && m && aktion === 'abholung') {
     if (m.art !== 'sterbefall' || !istOffen(m)) return json({ fehler: 'Diese Abholung ist schon abgeschlossen' }, 400);
     const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
