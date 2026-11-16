@@ -1,3 +1,4 @@
+import { aerztePruefen, type Arzt } from '../../src/shared/telefon';
 import { createHmac, createPublicKey, createSign, randomBytes, timingSafeEqual, verify } from 'node:crypto';
 import { getStore } from '@netlify/blobs';
 import { STANDARD_KONFIG, konfigPruefen, rechteFuer, verzeichnisAnwenden, verzeichnisPruefen, type Konfiguration, type Rechte, type Verzeichnis } from '../../src/shared/rechte';
@@ -277,6 +278,8 @@ export async function kuehlraeumeLaden(): Promise<string[]> {
   return Array.isArray(l) ? l.filter((x): x is string => typeof x === 'string' && !!x.trim()) : [];
 }
 export const kuehlraeumeSpeichern = (l: string[]) => store().setJSON('telefon/kuehlraeume', l);
+export const aerzteLaden = async () => aerztePruefen(await store().get('telefon/aerzte', { type: 'json' }));
+export const aerzteSpeichern = (l: Arzt[]) => store().setJSON('telefon/aerzte', l);
 const aufnahmeSchluessel = (id: string) => `telefon/aufnahme/${id}`;
 export const aufnahmeSpeichern = (id: string, daten: ArrayBuffer, typ: string) => store().set(aufnahmeSchluessel(id), daten, { metadata: { typ } });
 export const aufnahmeLaden = (id: string) => store().get(aufnahmeSchluessel(id), { type: 'arrayBuffer' });

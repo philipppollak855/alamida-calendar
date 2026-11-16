@@ -17,7 +17,7 @@ import {
   aufnahmeEntfernen,
   aufnahmeHochladen,
   mitschriftAendern,
-  kuehlraeumeFestlegen, mitschriftAktion,
+  kuehlraeumeFestlegen, aerzteFestlegen, mitschriftAktion,
   mitschriftAnlegen,
   mitschriftEntfernen,
   papierDatei,
@@ -28,9 +28,9 @@ import {
 } from './api';
 import { belegVorbereiten, herunterladen } from './beleg';
 import { BELEG_TYPEN } from '../shared/abwesenheit';
-import { PAPIER_MAX_ANZAHL, ortVorschlaege } from '../shared/telefon';
+import { PAPIER_MAX_ANZAHL, aerzteAusText, aerzteFuer, aerzteZuText, ortVorschlaege, type Arzt } from '../shared/telefon';
 
-type Modus = 'neu' | 'offen' | 'archiv';
+type Modus = 'neu' | 'offen' | 'archiv' | 'aerzte';
 
 interface Entwurf {
   art: MitschriftArt;
@@ -339,6 +339,80 @@ function BereitschaftWahl({ l }: { l: TelefonDaten['bereitschaft'] }) {
   );
 }
 
+const telLink = (n: string) => `tel:${n.replace(/[^\d+]/g, '')}`;
+
+function ArztKachel({ a }: { a: Arzt }) {
+  return (
+    <a className="tel-kachel breit signal" href={telLink(a.telefon)}>
+      <span className="tel-k-icon">🩺</span>
+      <span className="tel-k-text">
+        <small>Zuständiger Arzt · {a.telefon}</small>
+        <b>{a.name}</b>
+      </span>
+      <span className="tel-k-pfeil">📞</span>
+    </a>
+  );
+}
+
+function Aerzte({ daten, setDaten }: { daten: TelefonDaten; setDaten: (d: TelefonDaten) => void }) {
+  const [suche, setSuche] = useState('');
+  const [text, setText] = useState<string | null>(null);
+  const [fehler, setFehler] = useState('');
+  const l = daten.aerzte ?? [];
+  const q = suche.trim().toLowerCase();
+  const treffer = q ? l.filter((a) => a.name.toLowerCase().includes(q) || a.gebiet.some((g) => g.toLowerCase().includes(q) || q.includes(g.toLowerCase()))) : l;
+  return (
+    <div className="tel-aerzte">
+      <input className="feld" type="search" placeholder="Arzt oder Gemeinde suchen …" value={suche} onChange={(e) => setSuche(e.target.value)} />
+      <div className="tel-kacheln">
+        {treffer.map((a) => (
+          <a key={a.name + a.telefon} className="tel-kachel breit" href={telLink(a.telefon)}>
+            <span className="tel-k-icon">🩺</span>
+            <span className="tel-k-text">
+              <b>{a.name}</b>
+              <small>{a.gebiet.join(', ') || '—'}</small>
+            </span>
+            <span className="tel-k-pfeil">📞</span>
+          </a>
+        ))}
+        {!treffer.length && <p className="leer">{l.length ? 'Kein Treffer' : 'Noch keine Ärzte eingetragen'}</p>}
+      </div>
+      {daten.admin &&
+        (text === null ? (
+          <button type="button" className="knopf klein" onClick={() => setText(aerzteZuText(l))}>
+            ✎ Ärzteliste bearbeiten
+          </button>
+        ) : (
+          <div className="glas admin-block">
+            <p className="klein">Eine Zeile je Arzt: Name; Telefon; Gemeinde, Gemeinde …</p>
+            <textarea className="feld" rows={8} value={text} placeholder="Dr. Muster; 02662 12345; Gloggnitz, Schottwien" onChange={(e) => setText(e.target.value)} />
+            {fehler && <div className="banner fehler">{fehler}</div>}
+            <div className="ab-modal-knoepfe">
+              <button
+                type="button"
+                className="knopf primaer"
+                onClick={() =>
+                  void aerzteFestlegen(aerzteAusText(text))
+                    .then((d) => {
+                      setDaten(d);
+                      setText(null);
+                      setFehler('');
+                    })
+                    .catch((x: Error) => setFehler(x.message))
+                }
+              >
+                Speichern
+              </button>
+              <button type="button" className="knopf" onClick={() => setText(null)}>
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        ))}
+    </div>
+  );
+}
+
 function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; setDaten: (d: TelefonDaten) => void; gespeichert: (id?: string) => void }) {
   const [e, setERoh] = useState<Entwurf>(() => {
     try {
@@ -479,6 +553,7 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
             <>
               {kachel('✝', 'Verstorben', e.nameUnbekannt ? 'derzeit unbekannt' : [e.verstorbener, e.geburtsdatum && `* ${e.geburtsdatum.split('-').reverse().join('.')}`].filter(Boolean).join(' · '), { titel: 'Wer ist verstorben?', bloecke: ['person'] }, `breit ${fehltPerson ? 'warn' : ''}`)}
               {kachel(ortArt?.symbol ?? '📍', ortArt?.label ?? 'Sterbeort', [e.ort, e.ortNotiz].filter(Boolean).join(' · '), { titel: 'Wo verstorben?', bloecke: ['ort'] }, `breit ${fehltPerson ? 'warn' : ''}`)}
+              {aerzteFuer(e.ort, daten.aerzte ?? []).slice(0, 2).map((a) => <ArztKachel key={a.name} a={a} />)}
               {kachel('📞', 'Anrufer', [e.anrufer, e.nummer].filter(Boolean).join(' · '), { titel: 'Wer ruft an?', bloecke: ['anrufer'] }, `breit ${fehltAnrufer ? 'warn' : ''}`)}
               <button type="button" className={`tel-kachel ${e.polizei ? 'signal' : 'leer'}`} aria-pressed={e.polizei} onClick={() => setE({ ...e, polizei: !e.polizei })}>
                 <span className="tel-k-icon">🚓</span>
@@ -833,6 +908,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
                 ) : (
                   <div className="tel-kachel breit warn">{kachel('⚠', 'fehlt', 'Sterbeort – über „Mehr“ → Bearbeiten')}</div>
                 )}
+                {!m.abholung && aerzteFuer(m.ort, daten.aerzte ?? []).slice(0, 2).map((a) => <ArztKachel key={a.name} a={a} />)}
                 {m.nummer ? (
                   <a className="tel-kachel" href={`tel:${m.nummer.replace(/[^\d+]/g, '')}`}>
                     {kachel('📞', 'Anrufer', m.anrufer || m.nummer)}
@@ -1234,6 +1310,7 @@ export default function TelefonAnsicht() {
     ...(daten.darfTelefon ? ([['neu', '＋ Neu']] as [Modus, string][]) : []),
     ['offen', `${daten.darfTelefon ? 'Offen' : 'Abholungen'} (${daten.darfTelefon ? offene.length : abholungen.length})`],
     ['archiv', '🗂 Archiv'],
+    ['aerzte', '🩺 Ärzte'],
   ];
 
   return (
@@ -1271,6 +1348,7 @@ export default function TelefonAnsicht() {
         </div>
       )}
       {m === 'archiv' && <Archiv daten={daten} oeffnen={setOffen} />}
+      {m === 'aerzte' && <Aerzte daten={daten} setDaten={setDaten} />}
       {detail && <Detail key={detail.id} m={detail} daten={daten} setDaten={setDaten} schliessen={() => setOffen(null)} />}
     </div>
   );

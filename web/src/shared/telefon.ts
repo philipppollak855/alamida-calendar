@@ -327,3 +327,40 @@ export function ortVorschlaege(liste: readonly Mitschrift[], art: OrtArt, eingab
     .slice(0, max)
     .map((x) => x.v);
 }
+
+/** Ärzte für die Schnellwahl im Telefondienst, zuständig für Gemeinden. */
+export interface Arzt {
+  name: string;
+  telefon: string;
+  gebiet: string[];
+}
+
+export function aerztePruefen(x: unknown): Arzt[] {
+  if (!Array.isArray(x)) return [];
+  const t = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  return x
+    .map((o: Record<string, unknown>) => ({
+      name: t(o?.name, 80),
+      telefon: t(o?.telefon, 40).replace(/[^\d+ /()-]/g, ''),
+      gebiet: (Array.isArray(o?.gebiet) ? o.gebiet : []).map((g) => t(g, 60)).filter(Boolean).slice(0, 40),
+    }))
+    .filter((a) => a.name && /\d{3}/.test(a.telefon))
+    .slice(0, 100);
+}
+
+/** Zeilen „Name; Telefon; Gemeinde, Gemeinde“ ↔ Liste. */
+export const aerzteAusText = (s: string) =>
+  aerztePruefen(
+    s.split('\n').map((z) => {
+      const [name, telefon, gebiet] = z.split(';');
+      return { name, telefon, gebiet: (gebiet ?? '').split(',') };
+    }),
+  );
+export const aerzteZuText = (l: Arzt[]) => l.map((a) => `${a.name}; ${a.telefon}; ${a.gebiet.join(', ')}`).join('\n');
+
+/** Für einen Sterbeort zuständige Ärzte (Gemeinde kommt im Ort vor). */
+export function aerzteFuer(ort: string | undefined, l: Arzt[]): Arzt[] {
+  const o = (ort ?? '').toLowerCase();
+  if (!o) return [];
+  return l.filter((a) => a.gebiet.some((g) => g.length >= 3 && o.includes(g.toLowerCase())));
+}
