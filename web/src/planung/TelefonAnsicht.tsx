@@ -534,6 +534,9 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
   const [reiter, setReiter] = useState<Reiter>(() => (m.abholung ? 'akte' : 'fall'));
   const wisch = useRef<{ x: number; y: number } | null>(null);
   const [karteAn, setKarteAn] = useState(false);
+  useEffect(() => {
+    if (reiter === 'nav') setKarteAn(true);
+  }, [reiter]);
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   useEffect(() => () => void (audio && URL.revokeObjectURL(audio)), [audio]);
@@ -727,7 +730,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
                     </b>
                     {m.ortNotiz && <span className="klein">{m.ortNotiz}</span>}
                   </div>
-                  {karteAn || reiter === 'nav' ? (
+                  {karteAn ? (
                     <iframe className="tel-navkarte" title={`Karte: ${navZiel}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" src={`https://maps.google.com/maps?q=${encodeURIComponent(navZiel)}&z=15&output=embed`} />
                   ) : (
                     <button type="button" className="knopf tel-navkarte tel-karte-laden" onClick={() => setKarteAn(true)}>
