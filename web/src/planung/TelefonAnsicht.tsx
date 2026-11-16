@@ -39,6 +39,7 @@ interface Entwurf {
   nummer: string;
   notiz: string;
   verstorbener: string;
+  nameUnbekannt?: boolean;
   geburtsdatum: string;
   ortArt: OrtArt;
   ort: string;
@@ -239,7 +240,12 @@ function Felder({ e, setE, daten, neu, bloecke }: { e: Entwurf; setE: (e: Entwur
       <div className="ab-zeile" key="person">
         <label className="ab-feld">
           Verstorbene Person
-          <input className="feld" value={e.verstorbener} placeholder="Vor- und Nachname" autoComplete="off" onChange={(x) => f('verstorbener', x.target.value)} autoFocus={neu && !bloecke} />
+          <span className="tel-zeit-zeile">
+            <input className="feld" value={e.verstorbener} disabled={e.nameUnbekannt} placeholder={e.nameUnbekannt ? 'derzeit unbekannt' : 'Vor- und Nachname'} autoComplete="off" onChange={(x) => f('verstorbener', x.target.value)} autoFocus={neu && !bloecke} />
+            <button type="button" className={`knopf klein ${e.nameUnbekannt ? 'primaer' : ''}`} aria-pressed={!!e.nameUnbekannt} onClick={() => setE({ ...e, nameUnbekannt: !e.nameUnbekannt, verstorbener: '' })}>
+              unbekannt
+            </button>
+          </span>
         </label>
         <label className="ab-feld">
           Geburtsdatum
@@ -360,10 +366,6 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
   }, [e]);
   const schritte = SCHRITTE[e.art];
   const s = Math.min(schritt, schritte.length - 1);
-  useEffect(() => {
-    if (!schmal) return;
-    formRef.current?.querySelector<HTMLElement>('input:not([type=date]):not([type=datetime-local]), textarea')?.focus({ preventScroll: true });
-  }, [s, e.art, schmal]);
 
   const artWahl = (a: MitschriftArt) => {
     setE({ ...e, art: a });
