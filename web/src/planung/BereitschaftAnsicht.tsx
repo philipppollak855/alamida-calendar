@@ -4,6 +4,7 @@ import TelefonplanAnsicht from './TelefonplanAnsicht';
 import { Calendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
 import { endOfMonth, format, getDay, parse, startOfMonth, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { geblaettert, useWischen } from './wischen';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { bereitschaftAustragen, bereitschaftEintragen, bereitschaftLaden, type BereitschaftDaten } from './api';
 import {
@@ -238,6 +239,8 @@ interface KalEintrag {
   dienst: Dienst;
   farbe: string;
   offen?: boolean;
+  /** Ausgeschriebene Namen (Tooltip), wenn der Titel nur Kürzel zeigt. */
+  lang?: string;
 }
 
 function DienstModal({ d, onSchliessen, ...props }: Omit<KartenProps, 'd'> & { d: Dienst; onSchliessen: () => void }) {
@@ -271,6 +274,40 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
       const belegt = einsaetzeIn(daten.eintraege, d);
       if (!belegt.length && d.bis > jetzt && !daten.nurEigene) eintraege.push({ id: `offen-${d.id}`, titel: kurz ? '+' : '+ offen', start: ausText(d.von), ende: ausText(d.bis), ganz: true, dienst: d, farbe: 'var(--warn)', offen: true });
       const b = besetzung(daten.eintraege, d, dritter);
+      // Handy-Monat: ein Eintrag je Tag mit allen Kürzeln (auch bei 3 Personen, kein „+2 weitere“); gleiche Folgetage zusammengefasst.
+      if (kurz && belegt.length) {
+        const fehlt = !b.vollstaendig && d.bis > jetzt && !daten.nurEigene ? b.noetig - b.personen : 0;
+        let vorher: KalEintrag | null = null;
+        for (let t = ausText(d.von); t < ausText(d.bis); t = plusTage(t, 1)) {
+          const tagVon = minText(`${datumText(t)}T00:00`, d.von) === d.von ? `${datumText(t)}T00:00` : d.von;
+          const tagBis = minText(`${datumText(plusTage(t, 1))}T00:00`, d.bis);
+          const da = belegt.filter((e) => e.von < tagBis && e.bis > tagVon);
+          if (!da.length && !fehlt) {
+            vorher = null;
+            continue;
+          }
+          const ganz = (e: { von: string; bis: string }) => e.von <= tagVon && e.bis >= tagBis;
+          const titel = [...da.map((e) => `${e.email === daten.ich.email ? '★' : ''}${kuerzel(e)}${ganz(e) ? '' : '◔'}`), ...(fehlt ? [`+${fehlt}`] : [])].join(' ');
+          const lang = da.map((e) => `${anzeigeName(e)}${ganz(e) ? '' : ` ${e.von.slice(11)}–${e.bis.slice(11)}`}`).join(', ') + (fehlt ? ` · ${fehlt} fehlt` : '');
+          if (vorher && vorher.titel === titel && vorher.lang === lang) {
+            vorher.ende = plusTage(t, 1);
+            continue;
+          }
+          vorher = {
+            id: `tag-${d.id}-${datumText(t)}`,
+            titel,
+            lang,
+            start: t,
+            ende: plusTage(t, 1),
+            ganz: true,
+            dienst: d,
+            farbe: da.some((e) => e.email === daten.ich.email) ? farbeFuer(daten.ich.email) : 'var(--akzent)',
+            offen: fehlt > 0,
+          };
+          eintraege.push(vorher);
+        }
+        continue;
+      }
       if (belegt.length && !b.vollstaendig && d.bis > jetzt && !daten.nurEigene)
         eintraege.push({ id: `teil-${d.id}`, titel: kurz ? `+${b.noetig - b.personen}` : `+ ${b.noetig - b.personen} fehlt`, start: ausText(d.von), ende: ausText(d.bis), ganz: true, dienst: d, farbe: 'var(--warn)', offen: true });
       for (const e of belegt)
@@ -289,15 +326,16 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
     return { liste, eintraege, tage };
   }, [daten, datum, kurz, dritter]);
   const feiertagsTage = useMemo(() => new Set(liste.flatMap((d) => (d.art === 'feiertag' ? [d.von.slice(0, 10)] : []))), [liste]);
+  const wischen = useWischen((r) => setDatum(geblaettert(datum, ansicht, r)));
 
   return (
-    <section className="ansicht kalender-ansicht glas bs-kalender">
+    <section className="ansicht kalender-ansicht glas bs-kalender" {...wischen}>
       <Calendar
         localizer={localizer}
         culture="de"
         events={eintraege}
         titleAccessor={(t: KalEintrag) => t.titel}
-        tooltipAccessor={(t: KalEintrag) => (t.offen ? (t.id.startsWith('teil-') ? 'Noch nicht vollständig (mind. 2 Personen) – klicken zum Einteilen' : 'Noch niemand eingeteilt – klicken zum Einteilen') : t.titel)}
+        tooltipAccessor={(t: KalEintrag) => (t.offen ? (t.id.startsWith('teil-') ? 'Noch nicht vollständig (mind. 2 Personen) – klicken zum Einteilen' : 'Noch niemand eingeteilt – klicken zum Einteilen') : (t.lang ?? t.titel))}
         className={kurz ? 'bs-kurz' : ''}
         startAccessor="start"
         endAccessor="ende"
@@ -323,6 +361,7 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
           dayRangeHeaderFormat: ({ start, end }: { start: Date; end: Date }) =>
             `${format(start, 'd. MMM', { locale: de })} – ${format(end, 'd. MMM yyyy', { locale: de })}`,
           monthHeaderFormat: (d: Date) => format(d, 'MMMM yyyy', { locale: de }),
+          dayHeaderFormat: (d: Date) => format(d, 'EEEE, d. MMMM yyyy', { locale: de }),
           dayFormat: (d: Date) => format(d, 'EEE d.', { locale: de }),
           timeGutterFormat: (d: Date) => format(d, 'HH:mm'),
         }}

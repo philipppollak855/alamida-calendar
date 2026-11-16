@@ -775,3 +775,27 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
   .telefon .bereitschaft-kopf p { display: none; }
   .bereitschaft-seite .inhalt:has(.telefon) { padding: 0.6rem 0.6rem 0.5rem; }
 }
+
+/* Kontrast: native Bedienelemente passend zum Design; Knöpfe ohne eigene Farbe nicht hellgrau (Android-Standard). */
+.planung { color-scheme: dark; }
+.planung.theme-hell { color-scheme: light; }
+:where(.planung) button { background-color: transparent; }
+.planung .rbc-overlay { background: var(--flaeche-fest); color: var(--text); border: 1px solid var(--rand-stark); border-radius: 12px; box-shadow: var(--schatten); }
+.planung .rbc-overlay-header { color: var(--text); font-weight: 600; border-bottom-color: var(--rand); padding: 0.4rem 0.6rem; }
+
+/* Kacheln: lange Bezeichnungen umbrechen statt überlaufen */
+.kachel { min-width: 0; }
+.kachel-label { overflow-wrap: anywhere; hyphens: auto; }
+@media (max-width: 600px) {
+  .bs-kacheln.ab-kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kachel-label { letter-spacing: 0.04em; font-size: 0.68rem; }
+  .ab-kacheln .kachel-wert { font-size: 1.3rem; }
+}
+
+/* Kopfnavigation: seitlich wischbar, wenn nicht alle Reiter passen */
+.tag-nav-knoepfe { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; max-width: 100%; }
+.tag-nav-knoepfe::-webkit-scrollbar { display: none; }
+.tag-nav-knoepfe button { flex: 1 0 auto; white-space: nowrap; }
+
+/* Bereitschaft Handy-Monat: alle Kürzel eines Dienstes in einem Eintrag, bei Bedarf zweizeilig */
+.bs-kurz .rbc-event-content { white-space: normal; word-spacing: 0.1em; }
