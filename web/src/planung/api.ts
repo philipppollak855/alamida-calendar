@@ -310,6 +310,7 @@ export interface TelefonDaten {
   admin: boolean;
   bereitschaft: { email: string; name?: string }[];
   kuehlraeume: string[];
+  faelle?: { name: string; zuletzt: string; aktiv: boolean }[];
   ich: { email: string; name?: string };
   telefonJetzt?: TelSegment | null;
   neu?: string;

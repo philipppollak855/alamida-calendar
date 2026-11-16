@@ -42,6 +42,7 @@ interface Entwurf {
   polizei: boolean;
   anliegen: string;
   fall: string;
+  fallName: string;
 }
 
 const lokal = (ms: number) => {
@@ -64,6 +65,7 @@ const leer = (art: MitschriftArt = 'sterbefall'): Entwurf => ({
   polizei: false,
   anliegen: '',
   fall: '',
+  fallName: '',
 });
 const ausMitschrift = (m: Mitschrift): Entwurf => ({
   art: m.art,
@@ -80,6 +82,7 @@ const ausMitschrift = (m: Mitschrift): Entwurf => ({
   polizei: !!m.polizei,
   anliegen: m.anliegen ?? '',
   fall: m.fall ?? '',
+  fallName: m.fallName ?? '',
 });
 const senden = (e: Entwurf) => ({ ...e, zeit: new Date(e.zeit).getTime() });
 const symbol = (m: Pick<Mitschrift, 'art'>) => (m.art === 'sterbefall' ? '✝' : '💬');
@@ -196,7 +199,22 @@ function useSchmal(px = 760) {
 function Felder({ e, setE, daten, neu, bloecke }: { e: Entwurf; setE: (e: Entwurf) => void; daten: TelefonDaten; neu?: boolean; bloecke?: Block[] }) {
   const f = <K extends keyof Entwurf>(k: K, v: Entwurf[K]) => setE({ ...e, [k]: v });
   const orte = useMemo(() => [...new Set(daten.mitschriften.flatMap((m) => (m.ort ? [m.ort] : [])))].slice(0, 50), [daten.mitschriften]);
-  const faelle = daten.mitschriften.filter((m) => m.art === 'sterbefall').slice(0, 40);
+  // Fallauswahl: Sterbefälle aus Telefondienst und Kalender, aktive zuerst; freie Beschreibung möglich.
+  const telFaelle = useMemo(() => daten.mitschriften.filter((m) => m.art === 'sterbefall'), [daten.mitschriften]);
+  const faelle = useMemo(() => {
+    const l = new Map<string, [string, string]>();
+    const tel = (m: Mitschrift) => l.set(titel(m).toLowerCase(), [titel(m), `📞 ${zeitText(m.zeit).slice(0, 10)}${istOffen(m) ? ' · ● aktiv' : ''}`]);
+    for (const m of telFaelle) if (istOffen(m)) tel(m);
+    for (const x of daten.faelle ?? [])
+      if (!l.has(x.name.toLowerCase())) l.set(x.name.toLowerCase(), [x.name, `${x.aktiv ? '● aktiv · ' : ''}${x.zuletzt.split('-').reverse().join('.')}`]);
+    for (const m of telFaelle) if (!l.has(titel(m).toLowerCase())) tel(m);
+    return [...l.values()];
+  }, [telFaelle, daten.faelle]);
+  const fallText = e.fallName || (e.fall ? titel(telFaelle.find((x) => x.id === e.fall) ?? ({ art: 'sterbefall' } as Mitschrift)) : '');
+  const fallWaehlen = (name: string) => {
+    const m = telFaelle.find((x) => titel(x).toLowerCase() === name.trim().toLowerCase());
+    setE({ ...e, fallName: name, fall: m?.id ?? '' });
+  };
   const teile: Record<Block, React.ReactNode> = {
     zeit: (
       <label className="ab-feld tel-zeit" key="zeit">
@@ -280,14 +298,14 @@ function Felder({ e, setE, daten, neu, bloecke }: { e: Entwurf; setE: (e: Entwur
         </label>
         <label className="ab-feld">
           Gehört zu Sterbefall (optional)
-          <select className="feld" value={e.fall} onChange={(x) => f('fall', x.target.value)}>
-            <option value="">–</option>
-            {faelle.map((m) => (
-              <option key={m.id} value={m.id}>
-                {titel(m)} · {zeitText(m.zeit).slice(0, 10)}
+          <input className="feld" list="tel-faelle" placeholder="Name tippen oder frei beschreiben" value={fallText} onChange={(x) => fallWaehlen(x.target.value)} />
+          <datalist id="tel-faelle">
+            {faelle.map(([name, info]) => (
+              <option key={name} value={name}>
+                {info}
               </option>
             ))}
-          </select>
+          </datalist>
         </label>
       </div>
     ),
@@ -568,7 +586,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
               ) : (
                 <>
                   {zeile('Anliegen', <span className="tel-umbruch">{m.anliegen}</span>)}
-                  {fall && zeile('Sterbefall', `✝ ${titel(fall)}`)}
+                  {(fall || m.fallName) && zeile('Sterbefall', `✝ ${fall ? titel(fall) : m.fallName}`)}
                 </>
               )}
               {zeile('Anrufer', m.anrufer)}
