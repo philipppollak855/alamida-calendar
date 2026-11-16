@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, isSameDay } from 'date-fns';
+import { geblaettert, useWischen } from './wischen';
 import { de } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './planung.css';
@@ -173,6 +174,7 @@ export default function PlanungPage() {
   const [tag, setTag] = useState(() => startDesTages(new Date()));
   const [kalView, setKalView] = useState<View>(Views.WEEK);
   const [kalDatum, setKalDatum] = useState(new Date());
+  const kalWischen = useWischen((r) => setKalDatum(geblaettert(kalDatum, kalView, r)));
   const [aus, setAus] = useState<Kategorie[]>([]);
   const [suchtext, setSuchtext] = useState('');
   const [offen, setOffen] = useState<Termin | null>(null);
@@ -762,7 +764,7 @@ export default function PlanungPage() {
         )}
 
         {tab === 'kalender' && (
-          <section className="ansicht kalender-ansicht glas">
+          <section className="ansicht kalender-ansicht glas" {...kalWischen}>
             <label className="kal-buendeln">
               <input type="checkbox" checked={buendeln} onChange={(e) => setBuendeln(e.target.checked)} /> Zusammenhängende Termine eines Sterbefalls und ganztägige Überführungen bündeln
             </label>
