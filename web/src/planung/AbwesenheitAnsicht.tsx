@@ -993,7 +993,7 @@ function PersonalAkte({ d, p, onDaten, schliessen }: { d: AbwesenheitDaten; p: P
           if (e.art !== art || !zaehlt(e)) continue;
           const von = e.von < z.von ? z.von : e.von;
           const bis = endeVon(e) > z.bis ? z.bis : endeVon(e);
-          if (von <= bis) for (const t of tageListe(von, bis)) h += e.stunden ?? sollStunden(p, t);
+          if (von <= bis) for (const t of tageListe(von, bis)) h += e.stunden != null ? Math.min(e.stunden, sollStunden(p, t)) : sollStunden(p, t);
         }
         return { art, h };
       }).filter((x) => x.h > 0),
