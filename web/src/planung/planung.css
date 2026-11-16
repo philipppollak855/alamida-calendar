@@ -425,6 +425,9 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .planung .rbc-day-bg.bs-feiertag { background: color-mix(in srgb, var(--rot) 9%, transparent); }
 .planung .rbc-event.bs-offen { background: transparent; border: 1px dashed color-mix(in srgb, var(--warn) 70%, transparent); color: var(--warn); }
 .planung .rbc-event.bs-abw { background: color-mix(in srgb, var(--kat) 16%, transparent); border: 1px solid color-mix(in srgb, var(--kat) 55%, transparent); color: var(--text); cursor: default; font-size: 0.78em; }
+.bs-kachel-zr { display: inline-flex; gap: 0.2rem; margin-top: 0.3rem; }
+.bs-kachel-zr button { font: inherit; font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 999px; border: 1px solid var(--rand); background: transparent; color: inherit; cursor: pointer; }
+.bs-kachel-zr button.aktiv { background: var(--akzent); border-color: var(--akzent); color: #fff; }
 .bs-abw-wahl { justify-self: start; margin-bottom: 0.4rem; }
 .bs-kalender .rbc-day-bg { cursor: pointer; }
 .bs-legende { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; margin-top: 0.7rem; color: var(--text-2); }

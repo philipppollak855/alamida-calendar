@@ -528,11 +528,16 @@ function Uebersicht({ daten, jahr, setJahr, onWahl }: { daten: BereitschaftDaten
   const zrAb = monat === null ? new Date(jahr, 0, 1) : new Date(jahr, monat, 1);
   const zrBis = monat === null ? new Date(jahr + 1, 0, 1) : new Date(jahr, monat + 1, 1);
   const zrText = monat === null ? String(jahr) : format(zrAb, 'MMMM yyyy', { locale: de });
-  const jahresDienste = useMemo(
-    () => dienste(zrAb, plusTage(zrBis, -1), daten.zusatz).filter((d) => d.von >= zeitText(zrAb) && d.von < zeitText(zrBis)),
-    [jahr, monat, daten.zusatz], // eslint-disable-line react-hooks/exhaustive-deps
-  );
-  const besetzt = jahresDienste.filter((d) => besetzung(daten.eintraege, d, dritter).vollstaendig).length;
+  const [kachelZr, setKachelZr] = useState<'monat' | 'quartal' | 'jahr'>(() => (localStorage.getItem('bs-kachel-zr') as 'monat' | 'quartal' | 'jahr' | null) ?? 'jahr');
+  const kachel = useMemo(() => {
+    const m = monat ?? (jahr === heute.getFullYear() ? heute.getMonth() : 0);
+    const [vonM, anzahl] = kachelZr === 'jahr' ? [0, 12] : kachelZr === 'quartal' ? [m - (m % 3), 3] : [m, 1];
+    const a = new Date(jahr, vonM, 1);
+    const b = new Date(jahr, vonM + anzahl, 1);
+    const ds = dienste(a, plusTage(b, -1), daten.zusatz).filter((d) => d.von >= zeitText(a) && d.von < zeitText(b));
+    const text = kachelZr === 'jahr' ? String(jahr) : kachelZr === 'quartal' ? `Q${vonM / 3 + 1} ${jahr}` : format(a, 'MMMM yyyy', { locale: de });
+    return { text, gesamt: ds.length, besetzt: ds.filter((d) => besetzung(daten.eintraege, d, dritter).vollstaendig).length };
+  }, [kachelZr, jahr, monat, daten, dritter]); // eslint-disable-line react-hooks/exhaustive-deps
   const personen = useMemo(() => {
     const stat = uebersichtZeitraum(daten.eintraege, zrAb, zrBis, jetzt, daten.zusatz);
     const bekannt = new Set(stat.map((p) => p.email));
@@ -553,9 +558,15 @@ function Uebersicht({ daten, jahr, setJahr, onWahl }: { daten: BereitschaftDaten
           <div className="kachel-sub">von {kommend.length} Diensten</div>
         </div>
         <div className="kachel glas">
-          <div className="kachel-label">Vollständig besetzt {zrText}</div>
-          <div className="kachel-wert">{besetzt}<small> / {jahresDienste.length}</small></div>
-          <div className="kachel-sub">Wochenenden, Feiertage, Zusatztage</div>
+          <div className="kachel-label">Vollständig besetzt {kachel.text}</div>
+          <div className="kachel-wert">{kachel.besetzt}<small> / {kachel.gesamt}</small></div>
+          <div className="bs-kachel-zr" role="tablist" aria-label="Zeitraum">
+            {([['monat', 'Monat'], ['quartal', 'Quartal'], ['jahr', 'Jahr']] as const).map(([z, l]) => (
+              <button key={z} role="tab" aria-selected={kachelZr === z} className={kachelZr === z ? 'aktiv' : ''} onClick={() => { setKachelZr(z); localStorage.setItem('bs-kachel-zr', z); }}>
+                {l}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="kachel glas">
           <div className="kachel-label">Mein nächster Dienst</div>
