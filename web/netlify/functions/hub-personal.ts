@@ -27,7 +27,8 @@ export default async (req: Request) => {
   if (!p) return json({ fehler: 'Stammdaten unvollständig (Konto fehlt)' }, 400);
   const vorher = norm(b.vorher) || p.email;
   if (vorher !== p.email) {
-    if (personal.some((x) => x.email === p.email)) return json({ fehler: 'Für dieses Konto gibt es schon Personaldaten' }, 409);
+    // Nur ablehnen, wenn beide Konten noch Personaldaten haben; fehlt das alte schon, war ein früherer Umzug unterbrochen und wird fortgesetzt.
+    if (personal.some((x) => x.email === p.email) && personal.some((x) => x.email === vorher)) return json({ fehler: 'Für dieses Konto gibt es schon Personaldaten' }, 409);
     await emailUmziehen(vorher, p.email);
     personal = await personalLaden();
   }
