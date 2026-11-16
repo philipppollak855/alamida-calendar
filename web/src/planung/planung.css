@@ -1035,3 +1035,7 @@ label.knopf.deaktiviert { opacity: 0.5; pointer-events: none; }
   .tel-kachel.notiz .tel-umbruch { -webkit-line-clamp: 2; }
 }
 
+
+/* Bereitschaft: heute klar anders als planbare Diensttage */
+.bs-kalender .rbc-day-bg.rbc-today { background: color-mix(in srgb, #3b82f6 16%, transparent); box-shadow: inset 0 0 0 2px #3b82f6; }
+.bs-kalender .rbc-date-cell.rbc-now > * { display: inline-block; min-width: 1.6em; padding: 0 0.3em; border-radius: 999px; background: #3b82f6; color: #fff; font-weight: 700; text-align: center; }
