@@ -1,12 +1,12 @@
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { KATEGORIEN, countdown, personalText, type Termin } from './planungLogic';
+import { KATEGORIEN, bestattungsart, countdown, personalText, type Termin } from './planungLogic';
 
 /** Sterbefall-Karte: Name oben, darunter je Termin eine anklickbare Unter-Karte. */
 export default function FallKarte({ name, sterbefallId, termine, onOeffnen, mitName }: { name: string; sterbefallId?: string; termine: Termin[]; onOeffnen: (t: Termin) => void; mitName?: boolean }) {
   const jetzt = new Date();
   const naechster = termine.find((t) => t.ende > jetzt) ?? termine[0];
-  const art = termine.find((t) => t.details.bestattungsart)?.details.bestattungsart;
+  const art = bestattungsart(termine);
   return (
     <div className="fall-karte">
       <button className="fall-kopf" onClick={() => onOeffnen(naechster)}>

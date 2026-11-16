@@ -19,6 +19,7 @@ import FallKarte from './FallKarte';
 import {
   GRUPPEN,
   KATEGORIEN,
+  bestattungsart,
   checkliste,
   countdown,
   fahrten,
@@ -615,6 +616,7 @@ export default function PlanungPage() {
         {ich && !ich.angemeldet && <div className="banner">Beispieldaten – nach der Anmeldung erscheinen eure echten Termine.</div>}
         {fehler && <div className="banner fehler">{fehler}</div>}
 
+        {tab === 'tag' && (
         <section className="kennzahlen">
           <div className="kachel glas">
             <div className="kachel-label">Heute</div>
@@ -648,6 +650,7 @@ export default function PlanungPage() {
             </button>
           )}
         </section>
+        )}
 
         <div className="filter-leiste">
           <div className="suche-inline">
@@ -870,7 +873,7 @@ export default function PlanungPage() {
                       <h3>{f.name}</h3>
                       <div className="fall-nr">
                         #{f.sterbefallId}
-                        {f.termine[0]?.details.bestattungsart && ` · ${f.termine[0].details.bestattungsart}`}
+                        {bestattungsart(f.termine) && ` · ${bestattungsart(f.termine)}`}
                       </div>
                     </div>
                     <div className="fortschritt" style={{ ['--p' as string]: `${(fertig / punkte.length) * 100}%` }}>

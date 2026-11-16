@@ -92,10 +92,30 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] K27 Monatsberichte im Archiv (fester Stand je Monat, automatisch beim Herunterladen/Drucken)
 - [x] K28 Kalender-App ohne fremde Unter-Apps (Bereitschaft, Urlaub / Krank eigene Hub-Apps; Rechte → Kalender-Einstellungen)
 - [x] K29 Telefondienst mobil: neue Mitschrift als geführter Ablauf in Schritten ohne Scrollen, Weiter/Zurück unten fest, Aufnahme über alle Schritte
-||||||| 594147d
 - [x] K30 Pflegefreistellung-Zähler: zählt im laufenden Arbeitsjahr auch bei übernommenem Resturlaub (zeigte 0)
 - [x] K31 E-Mail eines Mitarbeiters im Hub änderbar: Hub (Konfig, PIN, Einstellungen) und Kalender (/api/email-umzug: Urlaub, Zeitkonten, Bereitschaft, Telefonplan, Telefondienst, Einteilungen) übernehmen alles
 - [x] K32 Rollen als Rechte: Hub-Übersicht „Rollen × Apps“ (z. B. Telefon → Telefondienst, Bereitschaft → Bereitschaft); veraltete Hub-Fenster dürfen nicht mehr speichern (hatten Rollen-Freigaben gelöscht)
+
+## Block L (Nachrichten 9.11.)
+### L-A Fehler
+- [x] L1 Sterbefall: Kremationstermin → Feuerbestattung (auch wenn in Alamida Erdbestattung steht)
+- [x] L2 Kalender: Infoboxen (Heute, Zeremonien, Fahrten 14 Tage, Hinweise, Nächster Termin) nur im Tagesplan
+- [x] L3 Bereitschaftskalender am Tablet nicht abgeschnitten (Mindesthöhe)
+### L-B Eine Mitarbeiter-Grundlage
+- [x] L4 Hub-Mitarbeiter und Personal (Urlaub / Krank) zu einer Liste zusammenführen, Stammdaten im Hub pflegen
+- [ ] L5 Pro Person: Termine alle / nur eigene Einteilungen
+- [ ] L6 Pro Person: Bereitschaft alle / nur eigene Einträge
+- [ ] L7 Pro Person: Telefondienst nur während aktiver Bereitschaft sichtbar
+### L-C Telefondienst
+- [ ] L8 Aufnehmen (Sterbefall/Anliegen) nur mit Rolle Telefon
+- [ ] L9 Bereitschaftsteam sieht/bearbeitet nur eigene (übergebene) Fälle
+- [ ] L10 Telefonbereitschafts-Planung nur für Berechtigte sichtbar
+### L-D Bereitschaft
+- [ ] L11 Planung: Checkbox Urlaube und Fehltage einblenden
+- [ ] L12 Übersicht „Vollständig besetzt“: Monat / Quartal / Jahr
+### L-E Hub
+- [ ] L13 Seitenmenü der Unter-Apps ins Hauptseitenmenü integrieren
+- [ ] L14 Kiosk: Ansicht und Bedienung für Tablet optimieren (vor allem Kalender)
 
 ## Block M (Nachricht 16.11.)
 ### M-A Stabilität und Fehler
