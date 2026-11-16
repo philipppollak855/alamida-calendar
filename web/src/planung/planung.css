@@ -534,6 +534,13 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
   .bs-kacheln .kachel-label, .bs-kacheln .kachel-sub { font-size: 0.66rem; }
   .bs-tabelle th { font-size: 0.62rem; letter-spacing: 0.02em; white-space: normal; }
   .bs-legende { font-size: 0.72rem; gap: 0.2rem 0.8rem; }
+  .bs-kacheln .kachel { min-width: 0; overflow: hidden; }
+  .bs-kacheln .kachel-label { overflow-wrap: anywhere; hyphens: auto; }
+  .bs-kachel-zr { display: flex; flex-wrap: wrap; gap: 0.15rem; }
+  .bs-kachel-zr button { flex: 1 1 auto; min-width: 0; font-size: 0.6rem; padding: 0.1rem 0.3rem; }
+  .bs-tabelle th { overflow-wrap: anywhere; hyphens: auto; }
+  .bs-balken-zelle { min-width: 48px; }
+  .bs-block { padding: 0.7rem; }
 }
 
 /* Personalplanung */
