@@ -1,6 +1,12 @@
 /** Telefonbereitschaft: genau eine Person gleichzeitig (Rolle Telefon). Wiederkehrende Muster plus freie Einträge, die das Muster überschreiben. */
 import { ausText, datumText, gueltigeZeit, plusTage, ueberschneidet, zeitText } from './bereitschaft';
 import { hatRolle, rolleVergeben, type MitRollen } from './rollen';
+import { darfPlanen } from './bereitschaft';
+import type { Konfiguration, Rechte } from './rechte';
+
+/** Telefonbereitschafts-Plan sehen: Planer, Admins und Rolle Telefon (solange niemand die Rolle hat: alle). */
+export const darfTelefonplan = (r: Rechte, k: Konfiguration, personen: MitRollen[]) =>
+  darfPlanen(r, k) || r.admin || !rolleVergeben(personen, 'telefon') || hatRolle(personen.find((p) => p.email === r.email), 'telefon');
 
 export interface TelEinsatz {
   id: string;

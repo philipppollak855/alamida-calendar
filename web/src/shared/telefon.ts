@@ -90,6 +90,10 @@ export const darfTelefon = (r: Rechte, personen: MitRollen[]) =>
 export const darfAbholen = (r: Rechte, personen: MitRollen[]) =>
   darfTelefon(r, personen) || (r.freigeschaltet && (!rolleVergeben(personen, 'bereitschaft') || hatRolle(personen.find((p) => p.email === r.email), 'bereitschaft')));
 
+/** Ohne Telefondienst (nur Bereitschaft) sieht man nur Sterbefälle, die einem übergeben wurden (ohne Empfänger: allen) oder die man selbst abgeholt hat. */
+export const fallFuerMich = (m: Mitschrift, ich: string, telefon: boolean) =>
+  telefon || (m.art === 'sterbefall' && m.status !== 'offen' && (!m.uebergabe?.an.length || m.uebergabe.an.some((p) => p.email === ich) || m.abholung?.von === ich));
+
 const text = (v: unknown, max = 300) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const datum = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) ? v : '');
 

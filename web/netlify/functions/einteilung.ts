@@ -1,6 +1,6 @@
 import type { Config } from '@netlify/functions';
 import { ablaufId, darfEinteilen, einteilungFehler, terminTeile, type EinteilungPerson } from '../../src/shared/einteilung';
-import { darfKalender, darfSehen } from '../../src/shared/rechte';
+import { darfKalender, darfSehen, sichtFuer } from '../../src/shared/rechte';
 import { bedarf, zeremonieMax } from '../../src/shared/rollen';
 import { kategorieAus, type GoogleEvent } from '../../src/planung/planungLogic';
 import { angemeldet, einteilungLoeschen, einteilungSpeichern, einteilungenLaden, googleGet, json } from '../lib/server';
@@ -53,7 +53,10 @@ export default async (req: Request) => {
     return json({ termin, personen });
   }
 
-  const alle = await einteilungenLaden();
+  // „Nur eigene Termine“: keine Einteilungen fremder Termine (Fälle, Kollegen) ausliefern.
+  const ich = a.sitzung.email.toLowerCase();
+  const nurEigene = !darf && sichtFuer(a.rechte, a.konfig).termine === 'eigene';
+  const alle = (await einteilungenLaden()).filter((e) => !nurEigene || e.personen.some((p) => p.email === ich));
   return json({
     // Namen aus dem aktuellen Verzeichnis (falls im Hub umbenannt).
     einteilungen: alle.map((e) => ({ termin: e.termin, personen: e.personen.map((p) => ({ ...p, name: benutzer.get(p.email) ?? p.name })) })),

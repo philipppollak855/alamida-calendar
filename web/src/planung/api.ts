@@ -207,6 +207,9 @@ export interface BereitschaftDaten {
   dritter?: string[];
   /** Ich habe die Rolle „Bereitschaft“ (oder die Rolle ist noch niemandem zugewiesen). */
   darfEintragen?: boolean;
+  /** Im Hub eingestellt: ich sehe nur meine eigenen Einträge. */
+  nurEigene?: boolean;
+  darfTelefonplan?: boolean;
 }
 
 const mitVon = (pfad: string, von?: string) => (von ? `${pfad}${pfad.includes('?') ? '&' : '?'}von=${von}` : pfad);
