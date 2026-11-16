@@ -50,6 +50,8 @@ export interface Mitschrift {
   anliegen?: string;
   /** Zugehöriger Sterbefall (Mitschrift-ID). */
   fall?: string;
+  /** Zugehöriger Fall als Text (aus dem Kalender gewählt oder frei beschrieben). */
+  fallName?: string;
   status: MitschriftStatus;
   uebergabe?: { am: number; von: string; an: { email: string; name?: string }[] };
   abholung?: { am: number; von: string; kuehlraum: string; notiz?: string };
@@ -91,6 +93,29 @@ export const darfAbholen = (r: Rechte, personen: MitRollen[]) =>
   darfTelefon(r, personen) || (r.freigeschaltet && (!rolleVergeben(personen, 'bereitschaft') || hatRolle(personen.find((p) => p.email === r.email), 'bereitschaft')));
 
 /** Ohne Telefondienst (nur Bereitschaft) sieht man nur Sterbefälle, die einem übergeben wurden (ohne Empfänger: allen) oder die man selbst abgeholt hat. */
+/** Fall zur Auswahl bei Anliegen: aus dem Kalender (alle Sterbefälle der letzten Zeit), aktive zuerst. */
+export interface FallWahl {
+  name: string;
+  /** Letzter Termin (JJJJ-MM-TT). */
+  zuletzt: string;
+  aktiv: boolean;
+}
+
+/** Fälle aus Kalenderterminen: je Sterbefall ein Eintrag; aktiv = Termin heute − 7 Tage oder später. */
+export function faelleAus(events: { fall?: string; name?: string; tag: string }[], heute: string): FallWahl[] {
+  const grenze = new Date(Date.parse(`${heute}T12:00:00Z`) - 7 * 86_400_000).toISOString().slice(0, 10);
+  const m = new Map<string, FallWahl>();
+  for (const e of events) {
+    const name = e.name?.trim();
+    if (!name) continue;
+    const k = e.fall || `name:${name.toLowerCase()}`;
+    const alt = m.get(k);
+    const zuletzt = alt && alt.zuletzt > e.tag ? alt.zuletzt : e.tag;
+    m.set(k, { name: alt?.name ?? name, zuletzt, aktiv: zuletzt >= grenze });
+  }
+  return [...m.values()].sort((a, b) => Number(b.aktiv) - Number(a.aktiv) || b.zuletzt.localeCompare(a.zuletzt));
+}
+
 export const fallFuerMich = (m: Mitschrift, ich: string, telefon: boolean) =>
   telefon || (m.art === 'sterbefall' && m.status !== 'offen' && (!m.uebergabe?.an.length || m.uebergabe.an.some((p) => p.email === ich) || m.abholung?.von === ich));
 
@@ -122,7 +147,7 @@ export function eingabePruefen(x: unknown, jetzt = Date.now()): { felder: Partia
     });
     if (!felder.verstorbener && !felder.ort) return { felder, fehler: 'Bitte Name des Verstorbenen oder den Sterbeort eintragen' };
   } else {
-    Object.assign(felder, { anliegen: text(o.anliegen, 4000), fall: text(o.fall, 40) || undefined });
+    Object.assign(felder, { anliegen: text(o.anliegen, 4000), fall: text(o.fall, 40) || undefined, fallName: text(o.fallName, 120) || undefined });
     if (!felder.anliegen) return { felder, fehler: 'Bitte das Anliegen eintragen' };
   }
   if (!felder.anrufer && !felder.nummer) return { felder, fehler: 'Bitte Anrufer oder Telefonnummer eintragen' };
