@@ -34,6 +34,7 @@ import {
   bereitschaftLaden,
   env,
   hubPushAusloesen,
+  personalLaden,
   googleGet,
   json,
   kuehlraeumeLaden,
@@ -127,6 +128,15 @@ export default async (req: Request) => {
     await mitschriftSpeichern(ohnePapiere);
     liste = liste.some((x) => x.id === neu.id) ? liste.map((x) => (x.id === neu.id ? neu : x)) : [neu, ...liste];
   };
+
+  async function mitTelefon(l: { email: string; name?: string }[]) {
+    if (!l.length) return l;
+    const personal = await personalLaden().catch(() => []);
+    return l.map((x) => {
+      const tel = personal.find((p) => p.email === x.email.toLowerCase())?.telefon;
+      return tel ? { ...x, telefon: tel } : x;
+    });
+  }
 
   async function bereitschaftJetzt() {
     const jetzt = ortszeit(new Date());
@@ -258,7 +268,7 @@ export default async (req: Request) => {
       darfTelefon: telefon,
       darfAbholen: abholen,
       admin: a!.rechte.admin,
-      bereitschaft: await bereitschaftJetzt(),
+      bereitschaft: await mitTelefon(await bereitschaftJetzt()),
       faelle: telefon ? await faelleLaden(a!.konfig).catch(() => []) : [],
       kuehlraeume: [...new Set(liste.flatMap((x) => (x.abholung?.kuehlraum ? [x.abholung.kuehlraum] : [])))].slice(0, 12),
       kuehlraeumeFest: await kuehlraeumeLaden().catch(() => []),

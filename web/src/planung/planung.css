@@ -1075,3 +1075,32 @@ label.knopf.deaktiviert { opacity: 0.5; pointer-events: none; }
 @media (max-width: 400px) {
   .tel-assistent-kopf .tel-art { font-size: 0.85rem; gap: 0.25rem; padding: 0.5rem 0.3rem; }
 }
+
+/* Neuer Anruf am Handy: Cockpit mit Kacheln, Eingabe je Kachel als Blatt von unten */
+@media (max-width: 760px) {
+  .tel-aufnahme-cockpit .tel-held-werkzeug { display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
+  .tel-aufnahme-cockpit .tel-held-werkzeug .tel-arten { flex: 1; min-width: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.3rem; }
+  .tel-aufnahme-cockpit .tel-art { min-width: 0; padding: 0.45rem 0.3rem; font-size: 0.85rem; border-radius: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; gap: 0.25rem; }
+  .tel-aufnahme-cockpit .tel-art span { font-size: 1rem; }
+  .tel-aufnahme-cockpit .tel-aufnahme { flex: none; }
+  .tel-aufnahme-cockpit .tel-kacheln { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: none; align-content: start; }
+  .tel-aufnahme-cockpit .tel-kacheln::-webkit-scrollbar { display: none; }
+  .tel-aufnahme-cockpit .tel-kachel { min-height: 62px; }
+  .tel-kachel.leer b { color: var(--text-3); font-weight: 500; }
+  .tel-aufnahme-cockpit .tel-schritt-fuss { position: static; flex: none; display: flex; gap: 0.45rem; padding: 0 0 env(safe-area-inset-bottom); background: none; }
+  .tel-aufnahme-cockpit .tel-schritt-fuss .knopf { min-height: 56px; font-size: 1.05rem; font-weight: 700; }
+  .tel-aufnahme-cockpit .tel-schritt-fuss .primaer { flex: 2 1 0; }
+  .tel-blatt-hintergrund { place-items: end stretch; padding: 0; }
+  .tel-blatt { width: 100%; max-height: 85dvh; border-radius: 20px 20px 0 0; padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 0.7rem; scrollbar-width: none; }
+  .tel-blatt h3 { margin: 0; font-size: 1.15rem; }
+  .tel-blatt .feld { font-size: 16px; padding: 0.7rem 0.8rem; }
+  .tel-blatt .ab-zeile { display: grid; grid-template-columns: 1fr; gap: 0.6rem; }
+  .tel-blatt .tel-ort { display: grid; gap: 0.6rem; }
+  .tel-blatt .tel-ort-arten { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+  .tel-blatt .tel-ort-arten .pille, .tel-blatt .tel-polizei { padding: 0.7rem 0.5rem; justify-content: center; text-align: center; }
+  .tel-blatt .tel-ort-chips .pille:nth-child(n + 5) { display: none; }
+  .tel-blatt > .knopf { min-height: 52px; font-size: 1.05rem; font-weight: 700; }
+}
+.tel-direktwahl { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.tel-direktwahl .knopf { flex: 1 1 0; min-height: 40px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 600; }
+

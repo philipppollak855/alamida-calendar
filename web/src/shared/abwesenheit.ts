@@ -20,6 +20,8 @@ export interface Personal {
   email: string;
   name: string;
   gruppe?: string;
+  /** Diensthandy für Direktwahl aus Telefondienst / Einsatzcockpit. */
+  telefon?: string;
   /** JJJJ-MM-TT */
   eintritt: string;
   austritt?: string;
@@ -348,6 +350,8 @@ export function personalPruefen(x: unknown): Personal[] {
         tage,
       };
       if (t(o?.gruppe)) p.gruppe = t(o?.gruppe);
+      const tel = t(o?.telefon, 40).replace(/[^\d+ /()-]/g, '');
+      if (/\d{3}/.test(tel)) p.telefon = tel;
       if (gueltigesDatum(t(o?.austritt))) p.austritt = t(o?.austritt);
       if (n(o?.vordienstjahre)) p.vordienstjahre = n(o?.vordienstjahre);
       if (n(o?.urlaubswochen)) p.urlaubswochen = n(o?.urlaubswochen);

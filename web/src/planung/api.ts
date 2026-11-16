@@ -339,7 +339,7 @@ export interface TelefonDaten {
   darfTelefon: boolean;
   darfAbholen: boolean;
   admin: boolean;
-  bereitschaft: { email: string; name?: string }[];
+  bereitschaft: { email: string; name?: string; telefon?: string }[];
   kuehlraeume: string[];
   /** Vom Admin angelegte Kühlräume (Schnellauswahl). */
   kuehlraeumeFest?: string[];
