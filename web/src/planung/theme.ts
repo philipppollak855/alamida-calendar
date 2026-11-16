@@ -173,9 +173,9 @@ if (typeof window !== 'undefined' && window.parent !== window) {
     const offen = () => document.querySelectorAll(DIALOG_HINTERGRUND).length;
     const vorher = offen();
     if (!vorher) return window.parent.postMessage({ typ: 'hub-zurueck-ok', erledigt: false }, HUB_HERKUNFT);
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    [...document.querySelectorAll<HTMLElement>(DIALOG_HINTERGRUND)].pop()?.click();
     setTimeout(() => {
-      if (offen() >= vorher) [...document.querySelectorAll<HTMLElement>(DIALOG_HINTERGRUND)].pop()?.click();
+      if (offen() >= vorher) document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       window.parent.postMessage({ typ: 'hub-zurueck-ok', erledigt: true }, HUB_HERKUNFT);
     }, 60);
   });
