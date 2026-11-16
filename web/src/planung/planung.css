@@ -1039,3 +1039,39 @@ label.knopf.deaktiviert { opacity: 0.5; pointer-events: none; }
 /* Bereitschaft: heute klar anders als planbare Diensttage */
 .bs-kalender .rbc-day-bg.rbc-today { background: color-mix(in srgb, #3b82f6 16%, transparent); box-shadow: inset 0 0 0 2px #3b82f6; }
 .bs-kalender .rbc-date-cell.rbc-now > * { display: inline-block; min-width: 1.6em; padding: 0 0.3em; border-radius: 999px; background: #3b82f6; color: #fff; font-weight: 700; text-align: center; }
+
+/* Neuer Sterbefall / Anliegen am Handy: bildschirmfüllend, Kopf + Zusammenfassung + Schritt + Fuß, ohne Scrollbalken */
+@media (max-width: 760px) {
+  .tel-assistent { min-height: 0; overflow: hidden; gap: 0.45rem; }
+  .tel-assistent-kopf { display: flex; align-items: center; gap: 0.4rem; }
+  .tel-assistent-kopf .tel-arten { flex: 1; gap: 0.35rem; }
+  .tel-assistent .tel-art { padding: 0.5rem 0.4rem; font-size: 0.95rem; border-radius: 12px; }
+  .tel-assistent .tel-art span { font-size: 1.1rem; }
+  .tel-assistent-kopf .tel-aufnahme { flex: none; }
+  .tel-leeren { flex: none; min-width: 2.6rem; font-size: 1.1rem; }
+  .tel-chips { display: grid; gap: 0.3rem; flex: none; }
+  .tel-chip { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; padding: 0.3rem 0.45rem; border-radius: 10px; border: 1px solid var(--rand-stark, var(--rand)); background: var(--flaeche); color: var(--text-2); font: inherit; text-align: left; }
+  .tel-chip small { font-size: 0.66rem; color: var(--text-3); white-space: nowrap; }
+  .tel-chip b { width: 100%; font-size: 0.78rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tel-chip.fertig { border-color: color-mix(in srgb, var(--gruen) 55%, transparent); background: color-mix(in srgb, var(--gruen) 10%, var(--flaeche)); color: var(--text); }
+  .tel-chip.an { border-color: var(--akzent); box-shadow: 0 0 0 1px var(--akzent) inset; color: var(--text); }
+  .tel-assistent .tel-schritt { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: none; gap: 0.6rem; padding: 0.75rem; }
+  .tel-assistent .tel-schritt::-webkit-scrollbar { display: none; }
+  .tel-assistent .tel-schritt h3 { font-size: 1.15rem; }
+  .tel-assistent .tel-schritt textarea.feld { min-height: 4.5rem; }
+  .tel-assistent .tel-ort-chips .pille:nth-child(n + 5) { display: none; }
+  .tel-held-mini { padding: 0.55rem 0.7rem; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--akzent) 45%, transparent); background: color-mix(in srgb, var(--akzent) 14%, var(--flaeche)); font-size: 0.9rem; }
+  .tel-assistent .tel-schritt-fuss { position: static; flex: none; padding: 0 0 env(safe-area-inset-bottom); background: none; }
+  .tel-assistent .tel-schritt-fuss .knopf { min-height: 52px; font-size: 1.02rem; font-weight: 600; }
+  .tel-assistent .tel-schritt-fuss .tel-zurueck, .tel-assistent .tel-schritt-fuss .tel-gleich { flex: 0 0 3.4rem; }
+  .tel-assistent .banner { flex: none; margin: 0; }
+}
+.tel-nav-knoepfe .knopf:not(.tel-nav-start) { flex: 0 0 3.6rem; }
+.tel-nav-knoepfe .tel-nav-start { flex: 1 1 auto; }
+@media (max-width: 760px) {
+  .tel-assistent-kopf .tel-arten { min-width: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .tel-assistent-kopf .tel-art { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+}
+@media (max-width: 400px) {
+  .tel-assistent-kopf .tel-art { font-size: 0.85rem; gap: 0.25rem; padding: 0.5rem 0.3rem; }
+}
