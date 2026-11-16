@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { datumText, plusTage, zeitText } from '../shared/bereitschaft';
-import { WOCHENTAGE, belegung, musterText, tagesAbschnitte, type TelMuster, type TelSegment } from '../shared/telefonplan';
-import { telMusterLoeschen, telMusterSpeichern, telefonplanAustragen, telefonplanEintragen, telefonplanLaden, type TelefonplanDaten } from './api';
+import { datumText, plusTage, spanneText, ueberschneidet, zeitText } from '../shared/bereitschaft';
+import { KERN_NAMEN, KERN_SCHLUESSEL, WOCHENTAGE, belegung, kernLuecken, kernText, musterText, tagesAbschnitte, type Kernzeit, type Kernzeiten, type TelMuster, type TelSegment } from '../shared/telefonplan';
+import { telKernSpeichern, telMusterLoeschen, telMusterSpeichern, telefonplanAustragen, telefonplanEintragen, telefonplanLaden, type TelefonplanDaten } from './api';
 import { standText } from './offlineCache';
 
 const montag = (d: Date) => {
@@ -196,6 +196,95 @@ function MusterModal({ m, daten, von, setDaten, zu }: { m: Partial<TelMuster>; d
   );
 }
 
+function KernModal({ daten, von, setDaten, zu }: { daten: TelefonplanDaten; von: string; setDaten: (d: TelefonplanDaten) => void; zu: () => void }) {
+  const [k, setK] = useState<Kernzeiten>(() => structuredClone(daten.kernzeiten ?? {}));
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [laeuft, setLaeuft] = useState(false);
+  const setzen = (key: keyof Kernzeiten, l: Kernzeit[] | undefined) => {
+    const neu = { ...k };
+    if (l) neu[key] = l;
+    else delete neu[key];
+    setK(neu);
+  };
+  const speichern = async () => {
+    setLaeuft(true);
+    setFehler(null);
+    try {
+      setDaten(await telKernSpeichern(von, k));
+      zu();
+    } catch (err) {
+      setFehler((err as Error).message);
+    } finally {
+      setLaeuft(false);
+    }
+  };
+  return (
+    <div className="modal-hintergrund" onClick={zu}>
+      <div className="modal ab-modal" onClick={(ev) => ev.stopPropagation()} role="dialog" aria-modal="true">
+        <div className="modal-kopf" style={{ background: '#3b82f6' }}>
+          <div>
+            <div className="modal-kategorie">📞 Telefonbereitschaft</div>
+            <h2>Kernzeiten</h2>
+            <div className="modal-nr">In diesen Zeiten muss jemand das Telefon haben. Endet eine Zeit vor dem Beginn, reicht sie in den Folgetag.</div>
+          </div>
+          <button className="modal-zu" onClick={zu} aria-label="Schließen">
+            ✕
+          </button>
+        </div>
+        <div className="modal-inhalt ab-formular">
+          {KERN_SCHLUESSEL.map((key) => {
+            const l = k[key];
+            return (
+              <div key={key} className="kern-zeile">
+                <b>{KERN_NAMEN[key]}</b>
+                <div className="kern-zeiten">
+                  {key === 'ft' && !l && <span className="klein">wie Wochentag</span>}
+                  {l?.length === 0 && <span className="klein">keine Kernzeit</span>}
+                  {l?.map((z, i) => (
+                    <span key={i} className="kern-zeit">
+                      <input className="feld" type="time" aria-label="Beginn" value={z.von} onChange={(e) => setzen(key, l.map((y, j) => (j === i ? { ...y, von: e.target.value } : y)))} />
+                      –
+                      <input className="feld" type="time" aria-label="Ende" value={z.bis} onChange={(e) => setzen(key, l.map((y, j) => (j === i ? { ...y, bis: e.target.value } : y)))} />
+                      {z.von && z.bis && z.bis <= z.von && <span className="klein">+1</span>}
+                      <button type="button" className="knopf klein-knopf" aria-label="Zeit entfernen" onClick={() => setzen(key, l.filter((_, j) => j !== i))}>
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                  {(l?.length ?? 0) < 4 && (
+                    <button type="button" className="pille" onClick={() => setzen(key, [...(l ?? []), key === 'ft' || key === '0' || key === '6' ? { von: '00:00', bis: '00:00' } : { von: '17:00', bis: '08:00' }])}>
+                      ＋ Zeit
+                    </button>
+                  )}
+                  {key !== '1' && key !== 'ft' && (
+                    <button type="button" className="pille" onClick={() => setzen(key, structuredClone(k['1'] ?? []))}>
+                      wie Mo
+                    </button>
+                  )}
+                  {key === 'ft' && l && (
+                    <button type="button" className="pille" onClick={() => setzen('ft', undefined)}>
+                      wie Wochentag
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {fehler && <div className="banner fehler">{fehler}</div>}
+          <div className="ab-modal-knoepfe">
+            <button className="knopf primaer" disabled={laeuft} onClick={() => void speichern()}>
+              Speichern
+            </button>
+            <button className="knopf" onClick={zu}>
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Telefonbereitschaft: Wochenplan aus Mustern und freien Einträgen, genau eine Person gleichzeitig. */
 export default function TelefonplanAnsicht() {
   const [woche, setWoche] = useState(() => montag(new Date()));
@@ -204,6 +293,7 @@ export default function TelefonplanAnsicht() {
   const [fehler, setFehler] = useState<string | null>(null);
   const [eintrag, setEintrag] = useState<Eintrag | null>(null);
   const [muster, setMuster] = useState<Partial<TelMuster> | null>(null);
+  const [kernOffen, setKernOffen] = useState(false);
 
   const laden = useCallback(() => {
     telefonplanLaden(von)
@@ -217,6 +307,10 @@ export default function TelefonplanAnsicht() {
 
   const tage = useMemo(() => Array.from({ length: 7 }, (_, i) => plusTage(woche, i)), [woche]);
   const segmente = useMemo(() => (daten ? belegung(daten.eintraege, daten.muster, woche, plusTage(woche, 7)) : []), [daten, woche]);
+  const luecken = useMemo(() => {
+    const jetzt = zeitText(new Date());
+    return daten?.kernzeiten ? kernLuecken(segmente, daten.kernzeiten, woche, plusTage(woche, 7)).filter((l) => l.bis > jetzt) : [];
+  }, [daten, segmente, woche]);
 
   if (!daten) return <p className="leer">{fehler ?? 'Lädt …'}</p>;
   const heute = datumText(new Date());
@@ -245,6 +339,11 @@ export default function TelefonplanAnsicht() {
           'Gerade ist niemand für das Telefon eingeteilt'
         )}
       </div>
+      {luecken.length > 0 && (
+        <div className="banner warnung telplan-kern-warnung">
+          ⚠ Kernzeit unbesetzt: {luecken.map((l) => spanneText(l.von, l.bis)).join(' · ')}
+        </div>
+      )}
       {fehler && <div className="banner fehler">{fehler}</div>}
       <div className="tag-nav telplan-nav">
         <div className="tag-nav-knoepfe">
@@ -283,19 +382,33 @@ export default function TelefonplanAnsicht() {
                       <span>{wer(a.s)}</span>
                       <span className="klein">{a.s.quelle === 'muster' ? '↻' : '✎'}</span>
                     </button>
-                  ) : (
-                    <button key={a.von} className="telplan-abschnitt frei" disabled={!darf} onClick={() => neu(`${tag}T${a.von}`, tagEnde(t, a.bis))}>
-                      <span className="telplan-zeit">
-                        {a.von}–{a.bis}
-                      </span>
-                      <span className="klein">frei{darf ? ' · ＋' : ''}</span>
-                    </button>
-                  ),
+                  ) : (() => {
+                    const kern = luecken.some((l) => ueberschneidet(l, { von: `${tag}T${a.von}`, bis: tagEnde(t, a.bis) }));
+                    return (
+                      <button key={a.von} className={`telplan-abschnitt frei ${kern ? 'kern' : ''}`} disabled={!darf} onClick={() => neu(`${tag}T${a.von}`, tagEnde(t, a.bis))}>
+                        <span className="telplan-zeit">
+                          {a.von}–{a.bis}
+                        </span>
+                        <span className="klein">{kern ? '⚠ Kernzeit frei' : 'frei'}{darf ? ' · ＋' : ''}</span>
+                      </button>
+                    );
+                  })(),
                 )}
               </div>
             </div>
           );
         })}
+      </div>
+      <div className="glas admin-block telplan-muster">
+        <div className="telplan-muster-kopf">
+          <h3>⏰ Kernzeiten</h3>
+          {daten.darfPlanen && (
+            <button className="knopf klein" onClick={() => setKernOffen(true)}>
+              Festlegen
+            </button>
+          )}
+        </div>
+        <p className="klein">{daten.kernzeiten && kernText(daten.kernzeiten) ? kernText(daten.kernzeiten) : `Noch keine Kernzeiten.${daten.darfPlanen ? ' Lege fest, wann das Telefon besetzt sein muss – je Wochentag und für Feiertage.' : ''}`}</p>
       </div>
       <div className="glas admin-block telplan-muster">
         <div className="telplan-muster-kopf">
@@ -319,6 +432,7 @@ export default function TelefonplanAnsicht() {
         ))}
       </div>
       {eintrag && <EintragModal e={eintrag} daten={daten} von={von} setDaten={setDaten} zu={() => setEintrag(null)} />}
+      {kernOffen && <KernModal daten={daten} von={von} setDaten={setDaten} zu={() => setKernOffen(false)} />}
       {muster && <MusterModal m={muster} daten={daten} von={von} setDaten={setDaten} zu={() => setMuster(null)} />}
     </section>
   );

@@ -5,7 +5,7 @@ import type { NeuerTermin } from '../shared/neuerTermin';
 import type { AbwArt, Abwesenheit, Personal } from '../shared/abwesenheit';
 import type { BerichtArchiv, MonatsEintrag, ZeitkontoDaten, ZeitkontoEinstellungen } from '../shared/zeitkonto';
 import type { Mitschrift } from '../shared/telefon';
-import type { TelEinsatz, TelMuster, TelSegment } from '../shared/telefonplan';
+import type { Kernzeiten, TelEinsatz, TelMuster, TelSegment } from '../shared/telefonplan';
 import { ausGoogleEvent, personalZuordnen, type GoogleEvent, type Termin } from './planungLogic';
 import { cacheLeeren, cacheLesen, cacheSchreiben, istOffline, OfflineFehler } from './offlineCache';
 
@@ -347,6 +347,7 @@ export async function aufnahmeDatei(id: string): Promise<Blob> {
 export interface TelefonplanDaten {
   eintraege: TelEinsatz[];
   muster: TelMuster[];
+  kernzeiten?: Kernzeiten;
   darfPlanen: boolean;
   darfEintragen: boolean;
   ich: { email: string; name?: string };
@@ -360,3 +361,4 @@ export const telefonplanEintragen = (von: string, e: { email?: string; von: stri
 export const telefonplanAustragen = (von: string, id: string) => holen<TelefonplanDaten>(tpAdresse(von, { id }), { method: 'DELETE' });
 export const telMusterSpeichern = (von: string, m: Partial<TelMuster>) => holen<TelefonplanDaten>(tpAdresse(von, { aktion: 'muster' }), jsonInit('POST', m));
 export const telMusterLoeschen = (von: string, id: string) => holen<TelefonplanDaten>(tpAdresse(von, { aktion: 'muster', id }), { method: 'DELETE' });
+export const telKernSpeichern = (von: string, k: Kernzeiten) => holen<TelefonplanDaten>(tpAdresse(von, { aktion: 'kernzeiten' }), jsonInit('POST', k));
