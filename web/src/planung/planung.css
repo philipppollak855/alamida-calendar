@@ -742,6 +742,13 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .telplan-abschnitt.meins { box-shadow: 0 0 0 1px var(--akzent) inset; }
 .telplan-abschnitt.frei { border-style: dashed; color: var(--text-3); background: transparent; }
 .telplan-abschnitt:disabled { cursor: default; }
+.telplan-abschnitt.frei.kern { border-color: var(--warn); color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.telplan-kern-warnung { margin: 0; }
+.kern-zeile { display: grid; grid-template-columns: 7rem 1fr; gap: 0.5rem; align-items: start; padding: 0.35rem 0; border-top: 1px solid var(--rand); }
+.kern-zeiten { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+.kern-zeit { display: inline-flex; gap: 0.25rem; align-items: center; }
+.kern-zeit .feld { width: 6.2rem; padding: 0.3rem 0.4rem; }
+@media (max-width: 600px) { .kern-zeile { grid-template-columns: 1fr; } }
 .telplan-zeit { font-variant-numeric: tabular-nums; font-weight: 600; }
 .telplan-muster-kopf { display: flex; justify-content: space-between; align-items: center; }
 .telplan-muster-zeile { display: grid; grid-template-columns: minmax(8rem, auto) 1fr auto; gap: 0.7rem; align-items: center; width: 100%; text-align: left; padding: 0.55rem 0.4rem; border: none; border-top: 1px solid var(--rand); background: transparent; color: var(--text); cursor: pointer; }

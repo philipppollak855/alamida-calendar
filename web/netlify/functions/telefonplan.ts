@@ -2,15 +2,16 @@ import type { Config } from '@netlify/functions';
 import { randomBytes } from 'node:crypto';
 import { darfPlanen, datumText, plusTage } from '../../src/shared/bereitschaft';
 import { hatRolle, mitRolle, rolleVergeben } from '../../src/shared/rollen';
-import { darfTelefonplan, musterAus, telEintragFehler, telefonJetzt, type TelEinsatz } from '../../src/shared/telefonplan';
+import { darfTelefonplan, kernzeitenAus, musterAus, telEintragFehler, telefonJetzt, type TelEinsatz } from '../../src/shared/telefonplan';
 import { ortszeit } from '../../src/shared/heute';
-import { angemeldet, json, telMusterLaden, telMusterSpeichern, telPlanLaden, telPlanLoeschen, telPlanSpeichern } from '../lib/server';
+import { angemeldet, json, telKernLaden, telKernSpeichern, telMusterLaden, telMusterSpeichern, telPlanLaden, telPlanLoeschen, telPlanSpeichern } from '../lib/server';
 
 const neueId = () => randomBytes(9).toString('base64url');
 
 /**
  * Telefonbereitschaft. GET ?von=JJJJ-MM-TT; POST eintragen, DELETE ?id= austragen (selbst oder Planer).
  * Muster (nur Planer): POST ?aktion=muster (mit id = ändern), DELETE ?aktion=muster&id=.
+ * Kernzeiten (nur Planer): POST ?aktion=kernzeiten { '0'…'6', ft: [{ von, bis }] }.
  */
 export default async (req: Request) => {
   const a = await angemeldet(req);
@@ -32,8 +33,16 @@ export default async (req: Request) => {
 
   let liste = await telPlanLaden(ab < standardAb ? ab : standardAb);
   let muster = await telMusterLaden();
+  let kernzeiten = await telKernLaden();
 
-  if (aktion === 'muster') {
+  if (aktion === 'kernzeiten') {
+    if (!planer) return json({ fehler: 'Kernzeiten dürfen nur Planer festlegen' }, 403);
+    if (req.method !== 'POST') return json({ fehler: 'Methode nicht erlaubt' }, 405);
+    const { kernzeiten: neu, fehler } = kernzeitenAus(await req.json().catch(() => null));
+    if (!neu) return json({ fehler }, 400);
+    kernzeiten = neu;
+    await telKernSpeichern(kernzeiten);
+  } else if (aktion === 'muster') {
     if (!planer) return json({ fehler: 'Muster dürfen nur Planer anlegen' }, 403);
     if (req.method === 'POST') {
       const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
@@ -77,6 +86,7 @@ export default async (req: Request) => {
   return json({
     eintraege: liste.filter((e) => e.bis.slice(0, 10) >= ab).map(({ erstellt: _e, eingetragenVon, ...rest }) => (planer ? { ...rest, eingetragenVon } : rest)),
     muster,
+    kernzeiten,
     darfPlanen: planer,
     darfEintragen,
     ich: { email: ich, name: a.sitzung.name },

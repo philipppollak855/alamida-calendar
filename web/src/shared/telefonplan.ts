@@ -1,5 +1,5 @@
 /** Telefonbereitschaft: genau eine Person gleichzeitig (Rolle Telefon). Wiederkehrende Muster plus freie Einträge, die das Muster überschreiben. */
-import { ausText, datumText, gueltigeZeit, plusTage, ueberschneidet, zeitText } from './bereitschaft';
+import { ausText, datumText, feiertage, gueltigeZeit, plusTage, ueberschneidet, zeitText } from './bereitschaft';
 import { hatRolle, rolleVergeben, type MitRollen } from './rollen';
 import { darfPlanen } from './bereitschaft';
 import type { Konfiguration, Rechte } from './rechte';
@@ -157,3 +157,87 @@ export function musterAus(x: unknown, id: string, andere: TelMuster[], personen?
 
 export const musterText = (m: TelMuster) =>
   `${[1, 2, 3, 4, 5, 6, 0].filter((t) => m.tage.includes(t)).map((t) => WOCHENTAGE[t]).join(' ')} · ${m.von}–${m.bis}${m.bis <= m.von ? ' (+1)' : ''} · ${m.intervall === 1 ? 'jede Woche' : `jede ${m.intervall}. Woche`}`;
+
+/** Kernzeit: HH:mm; ist `bis` ≤ `von`, endet sie am Folgetag. */
+export interface Kernzeit {
+  von: string;
+  bis: string;
+}
+/** Kernzeiten je Wochentag ('0' = Sonntag … '6' = Samstag) und 'ft' für gesetzliche Feiertage (gilt dann statt des Wochentags). */
+export type Kernzeiten = Partial<Record<'0' | '1' | '2' | '3' | '4' | '5' | '6' | 'ft', Kernzeit[]>>;
+export const KERN_SCHLUESSEL = ['1', '2', '3', '4', '5', '6', '0', 'ft'] as const;
+export const KERN_NAMEN: Record<(typeof KERN_SCHLUESSEL)[number], string> = { '1': 'Montag', '2': 'Dienstag', '3': 'Mittwoch', '4': 'Donnerstag', '5': 'Freitag', '6': 'Samstag', '0': 'Sonntag', ft: 'Feiertag' };
+const MAX_KERN_JE_TAG = 4;
+
+/** Bereinigt Kernzeiten aus einer Anfrage. */
+export function kernzeitenAus(x: unknown): { kernzeiten?: Kernzeiten; fehler: string | null } {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return { fehler: 'Ungültige Kernzeiten' };
+  const o = x as Record<string, unknown>;
+  const r: Kernzeiten = {};
+  for (const k of KERN_SCHLUESSEL) {
+    const l = o[k];
+    if (l === undefined) continue;
+    if (!Array.isArray(l) || l.length > MAX_KERN_JE_TAG) return { fehler: `${KERN_NAMEN[k]}: höchstens ${MAX_KERN_JE_TAG} Zeiten` };
+    const zeiten: Kernzeit[] = [];
+    for (const z of l) {
+      const v = (z as Kernzeit | null)?.von;
+      const b = (z as Kernzeit | null)?.bis;
+      if (typeof v !== 'string' || !UHR.test(v) || typeof b !== 'string' || !UHR.test(b)) return { fehler: `${KERN_NAMEN[k]}: bitte Beginn und Ende als Uhrzeit angeben` };
+      zeiten.push({ von: v, bis: b });
+    }
+    r[k] = zeiten.sort((a, b) => a.von.localeCompare(b.von));
+  }
+  return { kernzeiten: r, fehler: null };
+}
+
+/** Alle Kernzeit-Spannen, die zwischen `ab` und `bis` liegen (beginnend ab dem Vortag wegen Nachtzeiten), auf [ab, bis) begrenzt und zusammengefasst. */
+export function kernSpannen(k: Kernzeiten, ab: Date, bis: Date): { von: string; bis: string }[] {
+  const z = { von: zeitText(ab), bis: zeitText(bis) };
+  const ft = new Set<string>();
+  for (let j = ab.getFullYear() - 1; j <= bis.getFullYear(); j++) for (const f of feiertage(j)) ft.add(f.datum);
+  const roh: { von: string; bis: string }[] = [];
+  for (let t = plusTage(new Date(ab.getFullYear(), ab.getMonth(), ab.getDate()), -1); t < bis; t = plusTage(t, 1)) {
+    const tag = datumText(t);
+    const zeiten = (ft.has(tag) && k.ft ? k.ft : k[String(t.getDay()) as keyof Kernzeiten]) ?? [];
+    for (const x of zeiten) roh.push({ von: `${tag}T${x.von}`, bis: `${x.bis <= x.von ? datumText(plusTage(t, 1)) : tag}T${x.bis}` });
+  }
+  const r: { von: string; bis: string }[] = [];
+  for (const s of roh.filter((x) => ueberschneidet(x, z)).sort((a, b) => a.von.localeCompare(b.von))) {
+    const v = s.von < z.von ? z.von : s.von;
+    const b = s.bis > z.bis ? z.bis : s.bis;
+    const letzte = r[r.length - 1];
+    if (letzte && v <= letzte.bis) letzte.bis = b > letzte.bis ? b : letzte.bis;
+    else r.push({ von: v, bis: b });
+  }
+  return r;
+}
+
+/** Kernzeiten ohne Telefonbereitschaft im Zeitraum [ab, bis). */
+export function kernLuecken(segmente: { von: string; bis: string }[], k: Kernzeiten, ab: Date, bis: Date): { von: string; bis: string }[] {
+  let frei = kernSpannen(k, ab, bis);
+  for (const s of segmente)
+    frei = frei.flatMap((f) => {
+      if (!ueberschneidet(f, s)) return [f];
+      const teile: { von: string; bis: string }[] = [];
+      if (f.von < s.von) teile.push({ von: f.von, bis: s.von });
+      if (s.bis < f.bis) teile.push({ von: s.bis, bis: f.bis });
+      return teile;
+    });
+  return frei;
+}
+
+/** Kurztext, z. B. „Mo–Do 17:00–08:00 · Fr 12:00–08:00 · Feiertag 00:00–00:00“. */
+export function kernText(k: Kernzeiten): string {
+  const teile: string[] = [];
+  const tagText = (key: keyof Kernzeiten) => (k[key] ?? []).map((z) => `${z.von}–${z.bis}`).join(', ');
+  const wt = ['1', '2', '3', '4', '5', '6', '0'] as const;
+  for (let i = 0; i < wt.length; ) {
+    const t = tagText(wt[i]);
+    let j = i;
+    while (j + 1 < wt.length && tagText(wt[j + 1]) === t) j++;
+    if (t) teile.push(`${WOCHENTAGE[Number(wt[i])]}${j > i ? `–${WOCHENTAGE[Number(wt[j])]}` : ''} ${t}`);
+    i = j + 1;
+  }
+  if (k.ft) teile.push(`Feiertag ${tagText('ft') || 'keine'}`);
+  return teile.join(' · ');
+}
