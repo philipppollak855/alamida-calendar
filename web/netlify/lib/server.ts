@@ -7,7 +7,7 @@ import type { AgentStatus } from './agent';
 import type { Einteilung } from '../../src/shared/einteilung';
 import { zeitkontoPruefen, type BerichtArchiv, type ZeitkontoDaten } from '../../src/shared/zeitkonto';
 import type { Mitschrift } from '../../src/shared/telefon';
-import { telefonJetzt, type TelEinsatz, type TelMuster, type TelSegment } from '../../src/shared/telefonplan';
+import { telefonJetzt, type Kernzeiten, type TelEinsatz, type TelMuster, type TelSegment } from '../../src/shared/telefonplan';
 import { emailErsetzen } from '../../src/shared/emailUmzug';
 
 export const SESSION_COOKIE = 'alamida_session';
@@ -175,6 +175,8 @@ export const telPlanSpeichern = (e: TelEinsatz) => store().setJSON(telPlanSchlue
 export const telPlanLoeschen = (e: TelEinsatz) => store().delete(telPlanSchluessel(e));
 export const telMusterLaden = async () => ((await store().get('telefonplan/muster', { type: 'json' })) as TelMuster[] | null) ?? [];
 export const telMusterSpeichern = (l: TelMuster[]) => store().setJSON('telefonplan/muster', l);
+export const telKernLaden = async () => ((await store().get('telefonplan/kernzeiten', { type: 'json' })) as Kernzeiten | null) ?? {};
+export const telKernSpeichern = (k: Kernzeiten) => store().setJSON('telefonplan/kernzeiten', k);
 /** Wer gerade Telefondienst hat (Ortszeit Wien). */
 export async function telefonJetztLaden(): Promise<TelSegment | null> {
   const jetzt = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Vienna', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
