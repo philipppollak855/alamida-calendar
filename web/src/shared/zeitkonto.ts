@@ -24,6 +24,22 @@ export interface ZeitkontoEinstellungen {
 export interface ZeitkontoDaten {
   eintraege: MonatsEintrag[];
   einstellungen: ZeitkontoEinstellungen;
+  /** Nur in der Antwort: zwischengespeicherte, noch nicht abgeschlossene Werte. */
+  entwuerfe?: MonatsEntwurf[];
+  /** Nur in der Antwort: Briefpapier für den PDF-Bericht hinterlegt. */
+  briefpapier?: boolean;
+}
+
+export type WertSchluessel = 'ue' | 'ueAusb' | 'kr' | 'ur' | 'so';
+export const WERT_SCHLUESSEL: readonly WertSchluessel[] = ['ue', 'ueAusb', 'kr', 'ur', 'so'];
+
+/** Zwischengespeicherte Eingaben eines Monats (wie angezeigt: Fehltage absolut), zählen nicht im Bericht. */
+export interface MonatsEntwurf {
+  email: string;
+  monat: string;
+  werte: Partial<Record<WertSchluessel, number>>;
+  geaendert?: number;
+  von?: string;
 }
 
 export const STANDARD_EINSTELLUNGEN: ZeitkontoEinstellungen = { verschiebungUe: 0, verschiebungAbw: 1 };
@@ -61,6 +77,22 @@ export function eintragPruefen(x: unknown): MonatsEintrag | null {
     kr: zahl(o.kr, -31, 31),
     ur: zahl(o.ur, -31, 31),
     so: zahl(o.so, -31, 31),
+    ...(typeof o.geaendert === 'number' ? { geaendert: o.geaendert } : {}),
+    ...(typeof o.von === 'string' ? { von: o.von.slice(0, 200) } : {}),
+  };
+}
+
+export function entwurfPruefen(x: unknown): MonatsEntwurf | null {
+  const o = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
+  const email = typeof o.email === 'string' ? o.email.trim().toLowerCase().slice(0, 200) : '';
+  if (!email.includes('@') || !gueltigerMonat(o.monat)) return null;
+  const w = (o.werte && typeof o.werte === 'object' ? o.werte : {}) as Record<string, unknown>;
+  const werte: MonatsEntwurf['werte'] = {};
+  for (const k of WERT_SCHLUESSEL) if (typeof w[k] === 'number' && isFinite(w[k] as number)) werte[k] = zahl(w[k], k.startsWith('ue') ? -1000 : -31, k.startsWith('ue') ? 1000 : 62);
+  return {
+    email,
+    monat: o.monat,
+    werte,
     ...(typeof o.geaendert === 'number' ? { geaendert: o.geaendert } : {}),
     ...(typeof o.von === 'string' ? { von: o.von.slice(0, 200) } : {}),
   };
@@ -190,6 +222,69 @@ export function berichtCsv(gruppen: { gruppe: string; zeilen: BerichtZeile[] }[]
     g.zeilen.map((z) => [g.gruppe, z.name, `${z.monat.slice(5, 7)}/${z.monat.slice(0, 4)}`, ...berichtWerte(z).slice(2)]),
   );
   return '\ufeff' + [kopf, ...zeilen].map((r) => r.map(csvFeld).join(';')).join('\r\n') + '\r\n';
+}
+
+const NACHTRAG_FELDER: [keyof BerichtZeile, string][] = [
+  ['uebertrag', 'Ü-Übertrag'],
+  ['neu', 'Ü-Neu'],
+  ['ausbezahlt', 'Ü-Ausz.'],
+  ['saldo', 'Ü-Saldo'],
+  ['kr', 'Kr.'],
+  ['ur', 'Ur.'],
+  ['so', 'So.'],
+];
+
+/** Mitarbeiter, deren Berichtswerte sich gegenüber einem früheren (versendeten) Stand geändert haben. */
+export interface NachtragZeile {
+  gruppe: string;
+  name: string;
+  email: string;
+  monat: string;
+  alt?: BerichtZeile;
+  neu?: BerichtZeile;
+  /** Geänderte Felder (bei neu/entfallen alle). */
+  felder: (keyof BerichtZeile)[];
+}
+
+/** Unterschiede zwischen einem früheren Stand und dem aktuellen Bericht (z. B. nachträglicher Krankenstand). */
+export function berichtNachtrag(alt: BerichtGruppen, neu: BerichtGruppen): NachtragZeile[] {
+  const a = new Map(alt.flatMap((g) => g.zeilen).map((z) => [z.email, z]));
+  const n = new Map(neu.flatMap((g) => g.zeilen).map((z) => [z.email, z]));
+  const alle = [...neu.flatMap((g) => g.zeilen), ...alt.flatMap((g) => g.zeilen).filter((z) => !n.has(z.email))];
+  const aus: NachtragZeile[] = [];
+  for (const z of alle) {
+    const x = a.get(z.email);
+    const y = n.get(z.email);
+    const felder = NACHTRAG_FELDER.map(([k]) => k).filter((k) => !x || !y || runden(x[k] as number) !== runden(y[k] as number));
+    if (felder.length) aus.push({ gruppe: (y ?? x)!.gruppe, name: (y ?? x)!.name, email: z.email, monat: z.monat, alt: x, neu: y, felder });
+  }
+  return aus;
+}
+
+/** Kurzbeschreibung der Änderung, z. B. „Kr. 2 → 5; Ü-Saldo 3 → 1“. */
+export function nachtragText(z: NachtragZeile): string {
+  if (!z.alt) return 'neu im Bericht';
+  if (!z.neu) return 'entfällt';
+  return NACHTRAG_FELDER.filter(([k]) => z.felder.includes(k))
+    .map(([k, t]) => `${t} ${zahlText(z.alt![k] as number)} → ${zahlText(z.neu![k] as number)}`)
+    .join('; ');
+}
+
+/** Tabellenzeile wie im Bericht, geänderte Werte als „alt → neu“. */
+export function nachtragWerte(z: NachtragZeile): string[] {
+  const w = (k: keyof BerichtZeile) =>
+    z.alt && z.neu && z.felder.includes(k) ? `${zahlText(z.alt[k] as number)} → ${zahlText(z.neu[k] as number)}` : zahlText(((z.neu ?? z.alt)![k] as number) ?? 0);
+  const name = z.alt ? (z.neu ? z.name : `${z.name} (entfällt)`) : `${z.name} (neu)`;
+  return [name, z.monat.slice(5, 7), ...NACHTRAG_FELDER.map(([k]) => w(k))];
+}
+
+export function nachtragCsv(zeilen: NachtragZeile[]): string {
+  const kopf = ['Gruppe', 'Name', 'Monat', 'Änderung', 'Ü-Übertrag', 'Ü-Neu', 'Ü-Ausz.', 'Ü-Saldo', 'Krank (Tage)', 'Urlaub (Tage)', 'Sonstiges (Tage)'];
+  const liste = zeilen.map((z) => {
+    const w = z.neu ?? z.alt!;
+    return [z.gruppe, z.name, `${z.monat.slice(5, 7)}/${z.monat.slice(0, 4)}`, nachtragText(z), ...(z.neu ? berichtWerte(w).slice(2) : NACHTRAG_FELDER.map(() => ''))];
+  });
+  return '\ufeff' + [kopf, ...liste].map((r) => r.map(csvFeld).join(';')).join('\r\n') + '\r\n';
 }
 
 /** Monatsabschlüsse aus personal_daten.json (Liste „eintraege“) des alten Programms. */

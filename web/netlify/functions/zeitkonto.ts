@@ -1,13 +1,20 @@
 import type { Config } from '@netlify/functions';
 import { darfVerwalten } from '../../src/shared/abwesenheit';
 import { randomBytes } from 'node:crypto';
-import { berichtGleich, eintragPruefen, einstellungenPruefen, gueltigerMonat, monatsbericht, type BerichtArchiv, type MonatsEintrag } from '../../src/shared/zeitkonto';
+import { berichtGleich, eintragPruefen, einstellungenPruefen, entwurfPruefen, gueltigerMonat, monatsbericht, type BerichtArchiv, type MonatsEintrag } from '../../src/shared/zeitkonto';
 import {
   abwesenheitenLaden,
   angemeldet,
   berichtArchivLaden,
   berichtArchivLoeschen,
   berichtArchivSpeichern,
+  briefpapierDa,
+  briefpapierLaden,
+  briefpapierLoeschen,
+  briefpapierSpeichern,
+  entwuerfeLaden,
+  entwurfLoeschen,
+  entwurfSpeichern,
   json,
   personalLaden,
   zeitkontoLaden,
@@ -17,8 +24,14 @@ import {
 /**
  * Zeitkonten für die Buchhaltung: GET (Verwalter alles, sonst nur eigene Monate);
  * PUT { eintraege } Monate abschließen/ändern, PUT { einstellungen } Monats-Verschiebung; DELETE ?email=&monat= Monatsabschluss entfernen.
+ * PUT { entwuerfe } Eingaben zwischenspeichern (leere Werte löschen den Entwurf); Abschließen entfernt den Entwurf.
  * ?aktion=archiv (nur Verwalter): GET Liste, POST { monat } Bericht archivieren (gleicher Stand wird nicht doppelt abgelegt), DELETE ?monat=&id=.
+ * ?aktion=briefpapier: GET Bild (JPEG/PNG) für den PDF-Hintergrund; PUT Bild (Verwalter), DELETE (Verwalter).
  */
+const MAX_BRIEFPAPIER = 5 * 1024 * 1024;
+const bildTyp = (b: Uint8Array) =>
+  b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff ? 'image/jpeg' : b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 ? 'image/png' : null;
+
 export default async (req: Request) => {
   const a = await angemeldet(req);
   if (!a) return json({ fehler: 'nicht angemeldet' }, 401);
@@ -27,6 +40,29 @@ export default async (req: Request) => {
   const ich = a.sitzung.email.toLowerCase();
   let d = await zeitkontoLaden();
   const url = new URL(req.url);
+
+  if (url.searchParams.get('aktion') === 'briefpapier') {
+    if (req.method === 'GET') {
+      const daten = await briefpapierLaden();
+      const typ = daten && bildTyp(new Uint8Array(daten));
+      if (!daten || !typ) return json({ fehler: 'Kein Briefpapier hinterlegt' }, 404);
+      return new Response(daten, { headers: { 'content-type': typ, 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' } });
+    }
+    if (!verwalter) return json({ fehler: 'Dafür fehlt dir das Recht' }, 403);
+    if (req.method === 'PUT') {
+      const daten = await req.arrayBuffer();
+      if (daten.byteLength > MAX_BRIEFPAPIER) return json({ fehler: 'Bild zu groß (max. 5 MB)' }, 413);
+      const typ = bildTyp(new Uint8Array(daten));
+      if (!typ) return json({ fehler: 'Nur JPG oder PNG' }, 400);
+      await briefpapierSpeichern(daten, typ);
+      return json({ briefpapier: true });
+    }
+    if (req.method === 'DELETE') {
+      await briefpapierLoeschen();
+      return json({ briefpapier: false });
+    }
+    return json({ fehler: 'Methode nicht erlaubt' }, 405);
+  }
 
   if (url.searchParams.get('aktion') === 'archiv') {
     if (!verwalter) return json({ fehler: 'Dafür fehlt dir das Recht' }, 403);
@@ -55,11 +91,26 @@ export default async (req: Request) => {
     return json({ archiv });
   }
 
+  let abgeschlossen: MonatsEintrag[] = [];
+  const antwort = async () => {
+    const [entwuerfe, briefpapier] = await Promise.all([verwalter ? entwuerfeLaden() : [], briefpapierDa().catch(() => false)]);
+    return verwalter ? { ...d, entwuerfe, briefpapier } : { ...d, eintraege: d.eintraege.filter((e) => e.email === ich), briefpapier };
+  };
+
   if (req.method !== 'GET') {
     if (!verwalter) return json({ fehler: 'Dafür fehlt dir das Recht' }, 403);
     if (req.method === 'PUT') {
       const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
       if (b.einstellungen) d = { ...d, einstellungen: einstellungenPruefen(b.einstellungen) };
+      if (Array.isArray(b.entwuerfe)) {
+        if (b.entwuerfe.length > 500) return json({ fehler: 'Zu viele Einträge auf einmal' }, 400);
+        const liste = b.entwuerfe.map(entwurfPruefen);
+        if (liste.some((e) => !e)) return json({ fehler: 'Ungültiger Entwurf' }, 400);
+        await Promise.all(
+          liste.map((e) => (Object.keys(e!.werte).length ? entwurfSpeichern({ ...e!, geaendert: Date.now(), von: ich }) : entwurfLoeschen(e!.monat, e!.email))),
+        );
+        if (!b.einstellungen && !Array.isArray(b.eintraege)) return json(await antwort());
+      }
       if (Array.isArray(b.eintraege)) {
         if (b.eintraege.length > 5000) return json({ fehler: 'Zu viele Einträge auf einmal' }, 400);
         const neu = new Map<string, MonatsEintrag>();
@@ -69,6 +120,7 @@ export default async (req: Request) => {
           neu.set(`${e.email}|${e.monat}`, { ...e, geaendert: Date.now(), von: ich });
         }
         d = { ...d, eintraege: [...d.eintraege.filter((e) => !neu.has(`${e.email}|${e.monat}`)), ...neu.values()] };
+        abgeschlossen = [...neu.values()];
       }
     } else if (req.method === 'DELETE') {
       const email = (url.searchParams.get('email') ?? '').toLowerCase();
@@ -78,9 +130,10 @@ export default async (req: Request) => {
     } else return json({ fehler: 'Methode nicht erlaubt' }, 405);
     d.eintraege.sort((x, y) => x.monat.localeCompare(y.monat) || x.email.localeCompare(y.email));
     await zeitkontoSpeichern(d);
+    await Promise.all(abgeschlossen.map((e) => entwurfLoeschen(e.monat, e.email)));
   }
 
-  return json(verwalter ? d : { ...d, eintraege: d.eintraege.filter((e) => e.email === ich) });
+  return json(await antwort());
 };
 
 export const config: Config = { path: '/api/zeitkonto', method: ['GET', 'POST', 'PUT', 'DELETE'] };

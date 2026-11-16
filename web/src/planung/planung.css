@@ -624,6 +624,30 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .zk-tabelle .zk-zahl { width: 4.8rem; min-width: 0; margin-right: 0.25rem; }
 .zk-tabelle .knopf.klein { margin: 0.15rem 0.15rem 0 0; }
 .zk-tabelle tr.zk-fertig td:first-child b { color: var(--akzent); }
+.zk-status { display: flex; align-items: center; gap: 0.4rem 0.9rem; flex-wrap: wrap; margin: 0.4rem 0 0.6rem; }
+.zk-fortschritt { flex: 0 0 8rem; height: 0.45rem; border-radius: 999px; background: var(--linie, rgba(127, 127, 127, 0.25)); overflow: hidden; }
+.zk-fortschritt > div { height: 100%; background: var(--akzent); transition: width 0.3s; }
+.zk-filter { display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; }
+.zk-sicherung { margin-left: auto; color: var(--text-3); }
+.zk-sicherung.fehler { color: #ef4444; }
+.zk-tabelle .zk-zahl.geaendert { border-color: var(--akzent); }
+.zk-tabelle tr.zk-entwurf td:first-child .klein { color: var(--akzent); }
+.zk-nachtrag { margin: 0.8rem 0; padding: 0.7rem 0.8rem; border-radius: var(--radius, 10px); border: 1px solid #f59e0b; background: rgba(245, 158, 11, 0.1); display: grid; gap: 0.4rem; }
+.zk-nachtrag ul { margin: 0; padding-left: 1.1rem; }
+.zk-briefpapier { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.8rem; color: var(--text-3); }
+@media (max-width: 760px) {
+  .zk-tabelle thead { display: none; }
+  .zk-tabelle, .zk-tabelle tbody, .zk-tabelle tr, .zk-tabelle td { display: block; width: 100%; }
+  .zk-tabelle tr { border: 1px solid var(--linie, rgba(127, 127, 127, 0.25)); border-radius: var(--radius, 10px); padding: 0.5rem 0.6rem; margin-bottom: 0.6rem; }
+  .zk-tabelle td { display: grid; grid-template-columns: 6.5rem 1fr; align-items: center; gap: 0.3rem; border: 0; padding: 0.2rem 0; }
+  .zk-tabelle td[data-label='']{ display: block; }
+  .zk-tabelle td::before { content: attr(data-label); font-size: 0.8rem; color: var(--text-3); }
+  .zk-tabelle td[data-label='']::before { content: none; }
+  .zk-tabelle td:not([data-label='']) > * { justify-self: start; }
+  .zk-tabelle .zk-zahl { width: 6rem; font-size: 1rem; }
+  .zk-zeilenknoepfe { padding-top: 0.4rem !important; }
+  .zk-zeilenknoepfe .knopf.klein { min-height: 2.4rem; }
+}
 .zk-minus { color: #ef4444; font-weight: 600; }
 .zk-aktionen { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .zk-einstellungen { display: flex; gap: 1rem; flex-wrap: wrap; }

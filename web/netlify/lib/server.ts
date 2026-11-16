@@ -5,7 +5,7 @@ import type { Einsatz, Zusatztag } from '../../src/shared/bereitschaft';
 import { heuteWien, laufendBis, personalPruefen, type Abwesenheit, type Personal } from '../../src/shared/abwesenheit';
 import type { AgentStatus } from './agent';
 import type { Einteilung } from '../../src/shared/einteilung';
-import { zeitkontoPruefen, type BerichtArchiv, type ZeitkontoDaten } from '../../src/shared/zeitkonto';
+import { entwurfPruefen, zeitkontoPruefen, type BerichtArchiv, type MonatsEntwurf, type ZeitkontoDaten } from '../../src/shared/zeitkonto';
 import type { Mitschrift, Papier } from '../../src/shared/telefon';
 import { telefonJetzt, type Kernzeiten, type TelEinsatz, type TelMuster, type TelSegment } from '../../src/shared/telefonplan';
 import { emailErsetzen } from '../../src/shared/emailUmzug';
@@ -211,6 +211,21 @@ export const personalLaden = async (): Promise<Personal[]> => personalPruefen(aw
 export const personalSpeichern = (p: Personal[]) => store().setJSON('abwesenheit-personal', p);
 export const zeitkontoLaden = async (): Promise<ZeitkontoDaten> => zeitkontoPruefen(await store().get('abwesenheit-zeitkonto', { type: 'json' }));
 export const zeitkontoSpeichern = (d: ZeitkontoDaten) => store().setJSON('abwesenheit-zeitkonto', d);
+/* Zeitkonto-Entwürfe: ein Blob je Mitarbeiter und Monat (kein Überschreiben der Abschlüsse beim automatischen Zwischenspeichern). */
+const entwurfSchluessel = (monat: string, email: string) => `abwesenheit-zeitkonto-entwurf/${monat}/${b64url(email)}`;
+export async function entwuerfeLaden(): Promise<MonatsEntwurf[]> {
+  const s = store();
+  const { blobs } = await s.list({ prefix: 'abwesenheit-zeitkonto-entwurf/' });
+  const l = await Promise.all(blobs.map((b) => s.get(b.key, { type: 'json' })));
+  return l.map(entwurfPruefen).filter((e): e is MonatsEntwurf => !!e);
+}
+export const entwurfSpeichern = (e: MonatsEntwurf) => store().setJSON(entwurfSchluessel(e.monat, e.email), e);
+export const entwurfLoeschen = (monat: string, email: string) => store().delete(entwurfSchluessel(monat, email));
+const BRIEFPAPIER = 'abwesenheit-zeitkonto-briefpapier';
+export const briefpapierLaden = () => store().get(BRIEFPAPIER, { type: 'arrayBuffer' });
+export const briefpapierDa = async () => !!(await store().getMetadata(BRIEFPAPIER));
+export const briefpapierSpeichern = (daten: ArrayBuffer, typ: string) => store().set(BRIEFPAPIER, daten, { metadata: { typ } });
+export const briefpapierLoeschen = () => store().delete(BRIEFPAPIER);
 const archivSchluessel = (b: Pick<BerichtArchiv, 'monat' | 'id'>) => `abwesenheit-bericht/${b.monat}/${b.id}`;
 export async function berichtArchivLaden(): Promise<BerichtArchiv[]> {
   const s = store();
@@ -405,6 +420,13 @@ export async function emailUmziehen(alt: string, neu: string): Promise<number> {
       }),
     );
     anzahl += teil.reduce<number>((x, y) => x + y, 0);
+  }
+  /* Entwürfe liegen unter einem E-Mail-Schlüssel: unter der neuen Adresse ablegen, alten Schlüssel entfernen. */
+  for (const e of await entwuerfeLaden()) {
+    if (e.email !== alt) continue;
+    await entwurfSpeichern({ ...e, email: neu });
+    await entwurfLoeschen(e.monat, alt);
+    anzahl++;
   }
   verzeichnisCache = null;
   return anzahl;
