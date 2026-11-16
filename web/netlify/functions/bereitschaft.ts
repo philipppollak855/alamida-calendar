@@ -4,7 +4,7 @@ import { darfPlanen, datumText, einsaetzeIn, einsatzFehler, plusTage, zusatztagF
 import { hatRolle, mitRolle, rolleVergeben } from '../../src/shared/rollen';
 import { sichtFuer } from '../../src/shared/rechte';
 import { darfTelefonplan } from '../../src/shared/telefonplan';
-import { angemeldet, bereitschaftLaden, einsatzLoeschen, einsatzSpeichern, json, zusatztageLaden, zusatztageSpeichern } from '../lib/server';
+import { angemeldet, bereitschaftLaden, einsatzLoeschen, einsatzSpeichern, json, zusatztagLoeschen, zusatztageLaden, zusatztagSpeichern } from '../lib/server';
 
 /**
  * Bereitschaft: GET Liste, POST eintragen, DELETE ?id= austragen. Jeder trägt sich selbst ein, Planer/Admins alle.
@@ -34,8 +34,9 @@ export default async (req: Request) => {
       const fehler = zusatztagFehler(datum, zusatz);
       if (fehler) return json({ fehler }, 400);
       if (datum < datumText(new Date())) return json({ fehler: 'Vergangene Tage können nicht angesetzt werden' }, 400);
-      zusatz = [...zusatz, { datum, ...(anlass ? { anlass } : {}) }];
-      await zusatztageSpeichern(zusatz);
+      const z = { datum, ...(anlass ? { anlass } : {}) };
+      await zusatztagSpeichern(z);
+      zusatz = [...zusatz, z];
     } else {
       const email = typeof b.email === 'string' && b.email.trim() ? b.email.trim().toLowerCase() : ich;
       if (email !== ich && !planer) return json({ fehler: 'Du darfst nur dich selbst eintragen' }, 403);
@@ -49,7 +50,8 @@ export default async (req: Request) => {
       await einsatzSpeichern(e);
       // Gleichzeitige Anfragen: nach dem Speichern gegen alle anderen Einträge erneut prüfen und bei Konflikt den eigenen
       // zurücknehmen. Im ungünstigsten Fall werden beide abgelehnt, aber nie mehr als erlaubt eingetragen.
-      liste = await bereitschaftLaden(ab);
+      // Auch gegen einen gleichzeitig entfernten Zusatztag.
+      [liste, zusatz] = await Promise.all([bereitschaftLaden(ab), zusatztageLaden()]);
       const konflikt = einsatzFehler(liste.filter((x) => x.id !== e.id), neu, rollen, zusatz);
       if (konflikt) {
         await einsatzLoeschen(e);
@@ -61,8 +63,15 @@ export default async (req: Request) => {
     if (!zusatz.some((z) => z.datum === zusatzLoeschen)) return json({ fehler: 'Tag nicht gefunden' }, 404);
     const tag = { von: `${zusatzLoeschen}T00:00`, bis: `${datumText(plusTage(new Date(`${zusatzLoeschen}T12:00`), 1))}T00:00` };
     if (einsaetzeIn(liste, tag).length) return json({ fehler: 'Bitte zuerst alle Eingeteilten austragen' }, 409);
+    const alt = zusatz.find((z) => z.datum === zusatzLoeschen)!;
+    await zusatztagLoeschen(zusatzLoeschen);
+    // Hat sich währenddessen jemand eingetragen, bleibt der Tag bestehen.
+    liste = await bereitschaftLaden(ab);
+    if (einsaetzeIn(liste, tag).length) {
+      await zusatztagSpeichern(alt);
+      return json({ fehler: 'Inzwischen hat sich jemand eingetragen – bitte zuerst austragen' }, 409);
+    }
     zusatz = zusatz.filter((z) => z.datum !== zusatzLoeschen);
-    await zusatztageSpeichern(zusatz);
   } else if (req.method === 'DELETE') {
     const id = new URL(req.url).searchParams.get('id');
     const e = liste.find((x) => x.id === id);

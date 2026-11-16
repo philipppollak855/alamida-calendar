@@ -141,12 +141,15 @@ export async function konfigSpeichern(k: Konfiguration): Promise<void> {
 const einsatzSchluessel = (e: Pick<Einsatz, 'id' | 'bis'>) => `bereitschaft/${e.bis.slice(0, 10)}/${e.id}`;
 
 /** Alle Einträge, die am Tag `ab` (JJJJ-MM-TT) oder später enden. */
-/** Zusätzlich angesetzte Bereitschaftstage (außerhalb von „bereitschaft/“, damit sie nicht als Einsatz gelesen werden). */
+/** Zusätzlich angesetzte Bereitschaftstage, ein Blob je Tag (außerhalb von „bereitschaft/“, damit sie nicht als Einsatz gelesen werden). */
 export async function zusatztageLaden(): Promise<Zusatztag[]> {
-  const l = (await store().get('bereitschaft-zusatztage', { type: 'json' })) as unknown;
-  return Array.isArray(l) ? l.filter((z): z is Zusatztag => !!z && typeof z.datum === 'string') : [];
+  const s = store();
+  const { blobs } = await s.list({ prefix: 'bereitschaft-zusatz/' });
+  const l = await Promise.all(blobs.map((b) => s.get(b.key, { type: 'json' }) as Promise<Zusatztag | null>));
+  return l.filter((z): z is Zusatztag => !!z && typeof z.datum === 'string').sort((a, b) => a.datum.localeCompare(b.datum));
 }
-export const zusatztageSpeichern = (l: Zusatztag[]) => store().setJSON('bereitschaft-zusatztage', [...l].sort((a, b) => a.datum.localeCompare(b.datum)));
+export const zusatztagSpeichern = (z: Zusatztag) => store().setJSON(`bereitschaft-zusatz/${z.datum}`, z);
+export const zusatztagLoeschen = (datum: string) => store().delete(`bereitschaft-zusatz/${datum}`);
 
 export async function bereitschaftLaden(ab: string): Promise<Einsatz[]> {
   const s = store();
