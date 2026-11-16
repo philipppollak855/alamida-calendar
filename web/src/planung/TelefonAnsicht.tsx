@@ -569,6 +569,26 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
     ...(m.abholung?.kuehlraum ? [`❄ ${m.abholung.kuehlraum}`] : []),
     ...(m.polizei ? ['🚓 Polizei'] : []),
   ];
+  const nachtragen = (feld: 'hausarzt' | 'geburtsdatum', wert: string) => {
+    const v = wert.trim();
+    if (v && v !== (m[feld] ?? '')) void tun(() => mitschriftAendern(m.id, senden({ ...ausMitschrift(m), [feld]: v })));
+  };
+  const fehltFeld = (label: string, feld: 'hausarzt' | 'geburtsdatum', typ: 'text' | 'date') =>
+    m.art === 'sterbefall' && !m[feld] ? (
+      <form
+        className="tel-zeile tel-nachtrag"
+        onSubmit={(e) => {
+          e.preventDefault();
+          nachtragen(feld, (e.currentTarget.elements.namedItem('wert') as HTMLInputElement).value);
+        }}
+      >
+        <span className="klein">⚠ {label}</span>
+        <input name="wert" type={typ} className="feld" placeholder="gleich hier nachtragen" aria-label={label} />
+        <button className="knopf" disabled={laeuft} title="Speichern">
+          ✓
+        </button>
+      </form>
+    ) : null;
   const zeile = (label: string, wert?: React.ReactNode) =>
     wert ? (
       <div className="tel-zeile">
@@ -646,8 +666,10 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
               {m.art === 'sterbefall' ? (
                 <>
                   {zeile('Geboren', m.geburtsdatum?.split('-').reverse().join('.'))}
+                  {fehltFeld('Geburtsdatum fehlt', 'geburtsdatum', 'date')}
                   {zeile('Verstorben in', [ort ? `${ort.symbol} ${ort.label}` : '', m.ort, m.ortNotiz].filter(Boolean).join(' – '))}
                   {zeile('Hausarzt', m.hausarzt)}
+                  {fehltFeld('Hausarzt fehlt', 'hausarzt', 'text')}
                   {m.polizei && zeile('Polizei', '🚓 Polizeieinsatz')}
                 </>
               ) : (
@@ -872,7 +894,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
                 ↗ Teilen
               </button>
               {(daten.darfTelefon || (daten.darfAbholen && m.art === 'sterbefall')) && (
-                <button className="knopf" onClick={() => setBearbeiten(ausMitschrift(m))}>
+                <button className="knopf" disabled={laeuft} onClick={() => setBearbeiten(ausMitschrift(m))}>
                   ✎ Bearbeiten
                 </button>
               )}
