@@ -186,32 +186,37 @@ export type Block =
   | { art: 'fall'; schluessel: string; name: string; sterbefallId?: string; termine: Termin[] }
   | { art: 'sammel'; schluessel: string; kategorie: Kategorie; name: string; termine: Termin[] };
 
-/** Kremationen und Überführungen eines Tages stehen gesammelt (ab 2) in einer Karte. */
-export const SAMMEL_KATEGORIEN: Kategorie[] = ['Kremation', 'Ueberfuehrung'];
-const MEHRZAHL: Partial<Record<Kategorie, string>> = { Kremation: 'Kremationen', Ueberfuehrung: 'Überführungen' };
+/** Kremationen, Überführungen, Abholungen und Gespräche eines Tages stehen gesammelt (ab 2) in einer Karte. */
+export const SAMMEL_KATEGORIEN: Kategorie[] = ['Kremation', 'Ueberfuehrung', 'Abholung', 'Trauergespraech', 'Vorsorge'];
+const MEHRZAHL: Partial<Record<Kategorie, string>> = { Kremation: 'Kremationen', Ueberfuehrung: 'Überführungen', Abholung: 'Abholungen' };
+/** Trauergespräche und Vorsorgen bilden gemeinsam die Sammelkarte „Gespräche“. */
+const sammelGruppe = (k: Kategorie) => (k === 'Trauergespraech' || k === 'Vorsorge' ? 'Gespraeche' : k);
 
 export function bloecke(termine: Termin[]): Block[] {
   const liste = sortiert(termine);
-  const sammel = new Map<Kategorie, Termin[]>();
-  for (const k of SAMMEL_KATEGORIEN) {
-    const g = liste.filter((t) => t.kategorie === k);
+  const sammel = new Map<string, Termin[]>();
+  for (const k of new Set(SAMMEL_KATEGORIEN.map(sammelGruppe))) {
+    const g = liste.filter((t) => SAMMEL_KATEGORIEN.includes(t.kategorie) && sammelGruppe(t.kategorie) === k);
     if (g.length > 1) sammel.set(k, g);
   }
+  const sammelVon = (t: Termin) => (SAMMEL_KATEGORIEN.includes(t.kategorie) ? sammel.get(sammelGruppe(t.kategorie)) : undefined);
   const schluessel = (t: Termin) => t.sterbefallId ?? (t.verstorbener ? `name:${t.verstorbener.toLowerCase()}` : null);
   const gruppen = new Map<string, Termin[]>();
   for (const t of liste) {
     const k = schluessel(t);
-    if (k && !sammel.has(t.kategorie)) gruppen.set(k, [...(gruppen.get(k) ?? []), t]);
+    if (k && !sammelVon(t)) gruppen.set(k, [...(gruppen.get(k) ?? []), t]);
   }
   const r: Block[] = [];
   const fertig = new Set<string>();
   for (const t of liste) {
-    const s = sammel.get(t.kategorie);
+    const s = sammelVon(t);
     if (s) {
-      const sk = `sammel:${t.kategorie}`;
+      const g = sammelGruppe(t.kategorie);
+      const sk = `sammel:${g}`;
       if (!fertig.has(sk)) {
         fertig.add(sk);
-        r.push({ art: 'sammel', schluessel: sk, kategorie: t.kategorie, name: `${KATEGORIEN[t.kategorie].symbol} ${s.length} ${MEHRZAHL[t.kategorie] ?? KATEGORIEN[t.kategorie].label}`, termine: s });
+        const name = g === 'Gespraeche' ? `💬 ${s.length} Gespräche` : `${KATEGORIEN[t.kategorie].symbol} ${s.length} ${MEHRZAHL[t.kategorie] ?? KATEGORIEN[t.kategorie].label}`;
+        r.push({ art: 'sammel', schluessel: sk, kategorie: t.kategorie, name, termine: s });
       }
       continue;
     }
