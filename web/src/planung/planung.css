@@ -915,4 +915,5 @@ label.knopf.deaktiviert { opacity: 0.5; pointer-events: none; }
 .tel-ort-chips .pille { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .tel-nachtrag { align-items: center; background: color-mix(in srgb, #f59e0b 12%, transparent); border-radius: 8px; padding: 0.25rem 0.4rem; }
-.tel-nachtrag .feld { min-width: 0; padding: 0.35rem 0.5rem; }
+.tel-nachtrag .feld { min-width: 0; flex: 1; padding: 0.35rem 0.5rem; }
+.tel-nachtrag .knopf { padding: 0.3rem 0.6rem; }

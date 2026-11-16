@@ -575,17 +575,19 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
   };
   const fehltFeld = (label: string, feld: 'hausarzt' | 'geburtsdatum', typ: 'text' | 'date') =>
     m.art === 'sterbefall' && !m[feld] ? (
-      <label className="tel-zeile tel-nachtrag">
+      <form
+        className="tel-zeile tel-nachtrag"
+        onSubmit={(e) => {
+          e.preventDefault();
+          nachtragen(feld, (e.currentTarget.elements.namedItem('wert') as HTMLInputElement).value);
+        }}
+      >
         <span className="klein">⚠ {label}</span>
-        <input
-          type={typ}
-          className="feld"
-          placeholder="gleich hier nachtragen"
-          disabled={laeuft}
-          onBlur={(e) => nachtragen(feld, e.currentTarget.value)}
-          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-        />
-      </label>
+        <input name="wert" type={typ} className="feld" placeholder="gleich hier nachtragen" aria-label={label} />
+        <button className="knopf" disabled={laeuft} title="Speichern">
+          ✓
+        </button>
+      </form>
     ) : null;
   const zeile = (label: string, wert?: React.ReactNode) =>
     wert ? (
@@ -892,7 +894,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
                 ↗ Teilen
               </button>
               {(daten.darfTelefon || (daten.darfAbholen && m.art === 'sterbefall')) && (
-                <button className="knopf" onClick={() => setBearbeiten(ausMitschrift(m))}>
+                <button className="knopf" disabled={laeuft} onClick={() => setBearbeiten(ausMitschrift(m))}>
                   ✎ Bearbeiten
                 </button>
               )}
