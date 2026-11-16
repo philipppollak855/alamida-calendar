@@ -513,6 +513,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
   const [neueAufnahme, setNeueAufnahme] = useState<Blob | null>(null);
   const [fehlt, setFehlt] = useState<string[] | null>(null);
   const [kuehlListe, setKuehlListe] = useState<string | null>(null);
+  const [reiter, setReiter] = useState<'fall' | 'akte'>('fall');
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   useEffect(() => () => void (audio && URL.revokeObjectURL(audio)), [audio]);
@@ -545,6 +546,18 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
   const ort = ORT_ARTEN.find((o) => o.id === m.ortArt);
   const verknuepft = daten.mitschriften.filter((x) => x.fall === m.id);
   const fall = m.fall ? daten.mitschriften.find((x) => x.id === m.fall) : undefined;
+  const cockpit = m.art === 'sterbefall' && !bearbeiten;
+  const schritte = [
+    { text: 'Aufgenommen', fertig: true, wann: zeitText(m.zeit) },
+    { text: 'Bereitschaft', fertig: !!m.uebergabe, wann: m.uebergabe ? zeitText(m.uebergabe.am) : undefined },
+    { text: 'Abgeholt', fertig: !!m.abholung, wann: m.abholung ? zeitText(m.abholung.am) : undefined },
+  ];
+  const hinweise = [
+    ...(m.hausarzt ? [] : ['⚠ Hausarzt fehlt']),
+    ...(m.abholung && !m.abholung.kuehlraum ? ['⚠ Kühlraum fehlt'] : []),
+    ...(m.abholung?.kuehlraum ? [`❄ ${m.abholung.kuehlraum}`] : []),
+    ...(m.polizei ? ['🚓 Polizei'] : []),
+  ];
   const zeile = (label: string, wert?: React.ReactNode) =>
     wert ? (
       <div className="tel-zeile">
@@ -555,7 +568,13 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
 
   return (
     <div className="modal-hintergrund" onClick={schliessen}>
-      <div className="modal ab-modal tel-detail" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div
+        className={`modal ab-modal tel-detail ${cockpit ? 'tel-cockpit' : ''} ${abholung ? 'mit-abholung' : ''}`}
+        data-reiter={reiter}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
         <div className="modal-kopf" style={{ background: m.art === 'sterbefall' ? '#4b5563' : '#2563eb' }}>
           <div>
             <div className="modal-kategorie">
@@ -570,6 +589,34 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
             ✕
           </button>
         </div>
+        {cockpit && (
+          <div className="tel-cockpit-leiste">
+            <ol className="tel-schritte" aria-label="Ablauf">
+              {schritte.map((x) => (
+                <li key={x.text} className={x.fertig ? 'fertig' : ''} title={x.wann}>
+                  <span>{x.fertig ? '✓' : '○'}</span> {x.text}
+                </li>
+              ))}
+            </ol>
+            {hinweise.length > 0 && (
+              <div className="tel-hinweise">
+                {hinweise.map((h) => (
+                  <span key={h} className="pille tel-hinweis">
+                    {h}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="tel-reiter" role="tablist">
+              <button role="tab" aria-selected={reiter === 'fall'} className={reiter === 'fall' ? 'aktiv' : ''} onClick={() => setReiter('fall')}>
+                ✝ Fall
+              </button>
+              <button role="tab" aria-selected={reiter === 'akte'} className={reiter === 'akte' ? 'aktiv' : ''} onClick={() => setReiter('akte')}>
+                📄 Papiere{m.papiere?.length ? ` (${m.papiere.length})` : ''} · 🎙
+              </button>
+            </div>
+          </div>
+        )}
         <div className="modal-inhalt">
           {bearbeiten ? (
             <div className="ab-formular">
@@ -584,7 +631,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
               </div>
             </div>
           ) : (
-            <div className="modal-block">
+            <div className="modal-block tel-b-fall tel-b-daten">
               {m.art === 'sterbefall' ? (
                 <>
                   {zeile('Geboren', m.geburtsdatum?.split('-').reverse().join('.'))}
@@ -608,7 +655,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
             </div>
           )}
 
-          <div className="modal-block">
+          <div className="modal-block tel-b-akte">
             <h4>Mitschnitt</h4>
             {m.aufnahme ? (
               <div className="tel-aufnahme">
@@ -646,7 +693,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
           </div>
 
           {m.art === 'sterbefall' && (
-            <div className="modal-block">
+            <div className="modal-block tel-b-akte">
               <h4>📄 Sterbepapiere {m.papiere?.length ? `(${m.papiere.length})` : ''}</h4>
               {m.papiere?.length ? (
                 <ul className="tel-papiere">
@@ -699,7 +746,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
           )}
 
           {abholung && (
-            <div className="modal-block ab-formular">
+            <div className="modal-block ab-formular tel-b-fall tel-b-abholung">
               <h4>Abholung abschließen</h4>
               <label className="ab-feld">
                 Eingekühlt in (Kühlraum)
@@ -792,16 +839,16 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
             </div>
           )}
 
-          {fehler && <div className="banner fehler">{fehler}</div>}
+          {fehler && <div className="banner fehler tel-b-voll">{fehler}</div>}
           {!bearbeiten && !abholung && (
-            <div className="ab-modal-knoepfe">
+            <div className="ab-modal-knoepfe tel-aktionen">
               {m.art === 'sterbefall' && m.status === 'offen' && daten.darfTelefon && (
                 <button className="knopf primaer" disabled={laeuft} onClick={() => void tun(() => mitschriftAktion(m.id, 'uebergeben'))} title={`Bereitschaft jetzt: ${personText(daten.bereitschaft) || 'niemand eingeteilt'}`}>
                   🚐 An Bereitschaft übergeben
                 </button>
               )}
               {m.art === 'sterbefall' && istOffen(m) && daten.darfAbholen && (
-                <button className={`knopf ${m.status === 'uebergeben' ? 'primaer' : ''}`} onClick={() => setAbholung({ kuehlraum: '', notiz: '', verstorbener: '', geburtsdatum: '', ort: '', hausarzt: '' })}>
+                <button className={`knopf ${m.status === 'uebergeben' ? 'primaer' : ''}`} onClick={() => { setReiter('fall'); setAbholung({ kuehlraum: '', notiz: '', verstorbener: '', geburtsdatum: '', ort: '', hausarzt: '' }); }}>
                   ❄ Abholung abschließen
                 </button>
               )}
