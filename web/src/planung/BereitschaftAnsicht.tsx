@@ -341,7 +341,7 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
           noEventsInRange: 'Keine Dienste',
           showMore: (n: number) => `+${n} weitere`,
         }}
-        style={{ height: schmal ? 'calc(100dvh - 210px)' : 'calc(100dvh - 240px)', minHeight: schmal ? 380 : 480 }}
+        style={{ height: schmal ? 'calc(100dvh - 210px)' : 'max(640px, calc(100dvh - 220px))', minHeight: schmal ? 460 : 640 }}
       />
       <div className="bs-legende klein">
         <span><i className="bs-punkt bs-p-dienst" /> Wochenende / Feiertag</span>
