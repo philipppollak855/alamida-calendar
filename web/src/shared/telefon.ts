@@ -56,8 +56,20 @@ export interface Mitschrift {
   uebergabe?: { am: number; von: string; an: { email: string; name?: string }[] };
   abholung?: { am: number; von: string; kuehlraum: string; notiz?: string };
   aufnahme?: Aufnahme;
+  /** Sterbepapiere fürs Büro (Dateien getrennt im Blob-Store). */
+  papiere?: Papier[];
   geaendert?: { am: number; von: string };
 }
+
+export interface Papier {
+  id: string;
+  name: string;
+  typ: string;
+  groesse: number;
+  am: number;
+  von: string;
+}
+export const PAPIER_MAX_ANZAHL = 20;
 
 export const AUFNAHME_MAX_BYTES = 5_500_000;
 export const AUFNAHME_TYPEN = ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/x-m4a', 'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/aac'];

@@ -6,7 +6,7 @@ import { heuteWien, laufendBis, personalPruefen, type Abwesenheit, type Personal
 import type { AgentStatus } from './agent';
 import type { Einteilung } from '../../src/shared/einteilung';
 import { zeitkontoPruefen, type BerichtArchiv, type ZeitkontoDaten } from '../../src/shared/zeitkonto';
-import type { Mitschrift } from '../../src/shared/telefon';
+import type { Mitschrift, Papier } from '../../src/shared/telefon';
 import { telefonJetzt, type Kernzeiten, type TelEinsatz, type TelMuster, type TelSegment } from '../../src/shared/telefonplan';
 import { emailErsetzen } from '../../src/shared/emailUmzug';
 
@@ -229,6 +229,23 @@ export async function mitschriftenLaden(): Promise<Mitschrift[]> {
   const l = await Promise.all(blobs.map((b) => s.get(b.key, { type: 'json' }) as Promise<Mitschrift | null>));
   return l.filter((m): m is Mitschrift => !!m?.id).sort((a, b) => b.zeit - a.zeit);
 }
+/** Sterbepapiere: Angaben je Datei als eigener Blob (kein Überschreiben bei gleichzeitigen Uploads), gruppiert nach Fall. */
+const papierInfoSchluessel = (fall: string, id: string) => `telefon/papierinfo/${fall}/${id}`;
+export async function papiereLaden(): Promise<Map<string, Papier[]>> {
+  const s = store();
+  const { blobs } = await s.list({ prefix: 'telefon/papierinfo/' });
+  const l = await Promise.all(blobs.map(async (b) => ({ fall: b.key.split('/')[2], p: (await s.get(b.key, { type: 'json' })) as Papier | null })));
+  const m = new Map<string, Papier[]>();
+  for (const { fall, p } of l) if (fall && p?.id) m.set(fall, [...(m.get(fall) ?? []), p]);
+  for (const v of m.values()) v.sort((a, b) => a.am - b.am);
+  return m;
+}
+export const papierInfoSpeichern = (fall: string, p: Papier) => store().setJSON(papierInfoSchluessel(fall, p.id), p);
+export const papierInfoLoeschen = (fall: string, id: string) => store().delete(papierInfoSchluessel(fall, id));
+const papierSchluessel = (id: string) => `telefon/papier/${id}`;
+export const papierSpeichern = (id: string, daten: ArrayBuffer, typ: string) => store().set(papierSchluessel(id), daten, { metadata: { typ } });
+export const papierLaden = (id: string) => store().get(papierSchluessel(id), { type: 'arrayBuffer' });
+export const papierLoeschen = (id: string) => store().delete(papierSchluessel(id));
 export const mitschriftSpeichern = (m: Mitschrift) => store().setJSON(telSchluessel(m.id), m);
 export const mitschriftLoeschen = (id: string) => store().delete(telSchluessel(id));
 /** Angelegte Kühlräume für die Schnellauswahl beim Abschließen einer Abholung. */
