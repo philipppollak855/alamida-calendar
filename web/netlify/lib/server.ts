@@ -421,6 +421,13 @@ export async function emailUmziehen(alt: string, neu: string): Promise<number> {
     );
     anzahl += teil.reduce<number>((x, y) => x + y, 0);
   }
+  /* Entwürfe liegen unter einem E-Mail-Schlüssel: unter der neuen Adresse ablegen, alten Schlüssel entfernen. */
+  for (const e of await entwuerfeLaden()) {
+    if (e.email !== alt) continue;
+    await entwurfSpeichern({ ...e, email: neu });
+    await entwurfLoeschen(e.monat, alt);
+    anzahl++;
+  }
   verzeichnisCache = null;
   return anzahl;
 }

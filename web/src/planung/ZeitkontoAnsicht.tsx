@@ -89,6 +89,7 @@ export default function ZeitkontoAnsicht({ d }: { d: AbwesenheitDaten }) {
   const aktuell = useRef({ entwurf, monat });
   aktuell.current = { entwurf, monat };
   const geladenFuer = useRef('');
+  const laufendeSicherung = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     if (d.darfVerwalten) berichtArchivLaden().then(setArchiv).catch(() => setArchiv([]));
@@ -121,7 +122,8 @@ export default function ZeitkontoAnsicht({ d }: { d: AbwesenheitDaten }) {
       werte: Object.fromEntries(Object.entries(e[email] ?? {}).filter(([, v]) => v != null && v.trim() !== '').map(([k, v]) => [k, zahl(v!)])),
     }));
     setSicherung({ art: 'laeuft' });
-    return zeitkontoEntwurf(liste)
+    const vorher = laufendeSicherung.current;
+    return (laufendeSicherung.current = vorher.then(() => zeitkontoEntwurf(liste))
       .then((x) => {
         setZk((alt) => (alt ? { ...alt, entwuerfe: x.entwuerfe } : x));
         setSicherung({ art: 'ok', zeit: Date.now() });
@@ -129,7 +131,7 @@ export default function ZeitkontoAnsicht({ d }: { d: AbwesenheitDaten }) {
       .catch(() => {
         for (const x of emails) geaendert.current.add(x);
         setSicherung({ art: 'fehler' });
-      });
+      }));
   }, []);
 
   useEffect(() => {
@@ -179,7 +181,10 @@ export default function ZeitkontoAnsicht({ d }: { d: AbwesenheitDaten }) {
   const speichern = (liste: Personal[], t: string) => {
     setLaeuft(true);
     for (const p of liste) geaendert.current.delete(p.email);
-    zeitkontoSpeichern(liste.map(eintragVon))
+    const eintraege = liste.map(eintragVon);
+    /* Erst nach laufenden Zwischenspeicherungen abschließen, sonst legt eine späte Sicherung den Entwurf wieder an. */
+    laufendeSicherung.current
+      .then(() => zeitkontoSpeichern(eintraege))
       .then((x) => {
         setZk(x);
         const rest = { ...aktuell.current.entwurf };
