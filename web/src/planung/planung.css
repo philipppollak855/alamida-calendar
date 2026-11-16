@@ -917,3 +917,18 @@ label.knopf.deaktiviert { opacity: 0.5; pointer-events: none; }
 .tel-nachtrag { align-items: center; background: color-mix(in srgb, #f59e0b 12%, transparent); border-radius: 8px; padding: 0.25rem 0.4rem; }
 .tel-nachtrag .feld { min-width: 0; flex: 1; padding: 0.35rem 0.5rem; }
 .tel-nachtrag .knopf { padding: 0.3rem 0.6rem; }
+
+/* Personalakte */
+.ab-akte { max-width: 920px; width: min(96vw, 920px); }
+.ab-akte .modal-inhalt { display: flex; flex-direction: column; gap: 0.6rem; max-height: 78vh; overflow: auto; }
+.ab-akte h3 { margin: 0.6rem 0 0; font-size: 1rem; }
+.ab-akte-filter { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.ab-akte-filter label { display: flex; gap: 0.3rem; align-items: center; }
+.ab-akte-summen { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ab-akte-summen > span { border: 1px solid var(--rand); border-left-width: 4px; border-radius: 10px; padding: 0.3rem 0.6rem; }
+.ab-akte-tabelle { overflow-x: auto; }
+.ab-akte-tabelle table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.ab-akte-tabelle th, .ab-akte-tabelle td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--rand); text-align: right; white-space: nowrap; }
+.ab-akte-tabelle th:first-child, .ab-akte-tabelle td:first-child, .ab-akte-tabelle td:nth-child(2) { text-align: left; }
+.ab-akte-tabelle tr.offen td { opacity: 0.7; font-style: italic; }
+.ab-akte-tabelle tfoot th { border-top: 2px solid var(--rand); }

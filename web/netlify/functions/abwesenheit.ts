@@ -132,15 +132,21 @@ export default async (req: Request) => {
     for (const p of neuP) map.set(p.email, p);
     personal = [...map.values()];
     await personalSpeichern(personal);
-    const emails = new Set(neuP.map((p) => p.email));
+    const emails = new Set(personal.map((p) => p.email));
     const schluessel = (x: Pick<Abwesenheit, 'email' | 'art' | 'von' | 'bis'>) => `${x.email}|${x.art}|${x.von}|${x.bis}`;
     const vorhanden = new Set(liste.map(schluessel));
     const neue: Abwesenheit[] = [];
     for (const r of Array.isArray(b.abwesenheiten) ? (b.abwesenheiten as Record<string, unknown>[]) : []) {
-      const e = { email: text(r?.email, 200).toLowerCase(), art: r?.art as AbwArt, von: text(r?.von, 10), bis: text(r?.bis, 10) };
+      const e = {
+        email: text(r?.email, 200).toLowerCase(),
+        art: r?.art as AbwArt,
+        von: text(r?.von, 10),
+        bis: text(r?.bis, 10),
+        ...(typeof r?.stunden === 'number' ? { stunden: r.stunden } : {}),
+      };
       if (!emails.has(e.email) || abwesenheitFehler(e) || vorhanden.has(schluessel(e))) continue;
       vorhanden.add(schluessel(e));
-      neue.push({ id: neueId(), ...e, status: e.art === 'krank' ? 'gemeldet' : 'genehmigt', notiz: 'Import aus altem Programm', eingetragenVon: ich, erstellt: Date.now() });
+      neue.push({ id: neueId(), ...e, status: r?.status === 'beantragt' ? 'beantragt' : e.art === 'krank' ? 'gemeldet' : 'genehmigt', notiz: text(r?.notiz, 200) || 'Import aus altem Programm', eingetragenVon: ich, erstellt: Date.now() });
     }
     if (neue.length > 5000) return json({ fehler: 'Zu viele Einträge auf einmal' }, 400);
     for (let i = 0; i < neue.length; i += 50) await Promise.all(neue.slice(i, i + 50).map(abwesenheitSpeichern));
