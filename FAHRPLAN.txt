@@ -121,7 +121,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 ### M-A Stabilität und Fehler
 - [x] M1 Einzelne Abholungs-/Überführungstermine gehen verloren -> Agent löscht Fahrten nur noch nach 90 s, nie am selben Tag und nie, wenn gar keine Überführungszeile lesbar war
 - [ ] M2 Vorsorgen werden nicht richtig erkannt/synchronisiert
-- [ ] M3 Telefondienst: „Anliegen gehört zu Sterbefall“ zeigt keine Fälle; Autovervollständigung aller historischen Fälle (aktive zuerst) oder frei beschreibbar
+- [x] M3 Telefondienst: „Anliegen gehört zu Sterbefall“ -> Eingabefeld mit Vorschlägen aus allen Kalender-Sterbefällen (gut 1 Jahr, aktive zuerst) und Telefondienst-Fällen, freie Beschreibung möglich (fallName)
 - [x] M4 Kontrast im dunklen Design (z. B. Art-Knöpfe bei Urlaub / Krank)
 - [x] M5 Überlauf Kachel Pflegefreistellung mobil
 - [x] M6 Kopf-Navigation (Reiter) mobil wischbar

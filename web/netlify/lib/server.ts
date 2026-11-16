@@ -85,7 +85,7 @@ export function json(daten: unknown, status = 200, headers: Record<string, strin
   });
 }
 
-const store = () => getStore({ name: 'alamida', consistency: 'strong' });
+export const store = () => getStore({ name: 'alamida', consistency: 'strong' });
 
 /** Nur die im Kalender gespeicherte Konfiguration (ohne Hub-Verzeichnis). */
 export async function konfigLokal(): Promise<Konfiguration> {

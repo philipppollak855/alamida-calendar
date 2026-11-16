@@ -1,6 +1,7 @@
 import type { Config } from '@netlify/functions';
 import { randomBytes } from 'node:crypto';
-import { ortszeit } from '../../src/shared/heute';
+import { ortszeit, sterbefallAus } from '../../src/shared/heute';
+import { alleKalender } from '../lib/kalender';
 import { sichtFuer } from '../../src/shared/rechte';
 import {
   AUFNAHME_MAX_BYTES,
@@ -10,6 +11,8 @@ import {
   darfTelefon,
   eingabePruefen,
   fallFuerMich,
+  faelleAus,
+  type FallWahl,
   istOffen,
   nachtragen,
   type Mitschrift,
@@ -20,7 +23,10 @@ import {
   aufnahmeLoeschen,
   aufnahmeSpeichern,
   bereitschaftLaden,
+  env,
+  googleGet,
   json,
+  store,
   mitschriftenLaden,
   mitschriftLoeschen,
   mitschriftSpeichern,
@@ -35,6 +41,43 @@ const text = (v: unknown, max = 300) => (typeof v === 'string' ? v.trim().slice(
  * PUT ?id=: bearbeiten, DELETE ?id=: löschen (Admin). POST ?aktion=uebergeben|abholung|erledigt&id=.
  * ?aktion=aufnahme&id=: Mitschnitt hochladen (POST, Datei als Body), abrufen (GET), entfernen (DELETE).
  */
+/** Sterbefälle aus allen Kalendern (gut 1 Jahr zurück, 4 Monate voraus) für die Fallauswahl; 10 Minuten zwischengespeichert. */
+async function faelleLaden(konfig: Parameters<typeof alleKalender>[0]): Promise<FallWahl[]> {
+  const s = store();
+  const cache = (await s.get('telefon/faelle-cache', { type: 'json' }).catch(() => null)) as { bis: number; faelle: FallWahl[] } | null;
+  if (cache && cache.bis > Date.now()) return cache.faelle;
+  const kalender = await alleKalender(konfig, env('CALENDAR_IDS'));
+  const events: { fall?: string; name?: string; tag: string }[] = [];
+  await Promise.allSettled(
+    kalender.map(async (k) => {
+      let pageToken: string | undefined;
+      do {
+        const r = await googleGet<{
+          items?: { start?: { date?: string; dateTime?: string }; description?: string; extendedProperties?: { private?: Record<string, string> } }[];
+          nextPageToken?: string;
+        }>(`/calendars/${encodeURIComponent(k.id)}/events`, {
+          timeMin: new Date(Date.now() - 400 * 86_400_000).toISOString(),
+          timeMax: new Date(Date.now() + 120 * 86_400_000).toISOString(),
+          singleEvents: 'true',
+          maxResults: '2500',
+          fields: 'items(start,description,extendedProperties),nextPageToken',
+          ...(pageToken ? { pageToken } : {}),
+        });
+        for (const e of r.items ?? []) {
+          const sf = sterbefallAus(e);
+          const tag = e.start?.date ?? (e.start?.dateTime ? ortszeit(new Date(e.start.dateTime)).slice(0, 10) : '');
+          // Vorsorgen (V…) sind keine Sterbefälle.
+          if (tag && sf.verstorbener && !sf.sterbefallId?.startsWith('V')) events.push({ fall: sf.sterbefallId, name: sf.verstorbener, tag });
+        }
+        pageToken = r.nextPageToken;
+      } while (pageToken);
+    }),
+  );
+  const faelle = faelleAus(events, ortszeit(new Date()).slice(0, 10)).slice(0, 500);
+  await s.setJSON('telefon/faelle-cache', { bis: Date.now() + 10 * 60_000, faelle }).catch(() => undefined);
+  return faelle;
+}
+
 export default async (req: Request) => {
   const a = await angemeldet(req);
   if (!a) return json({ fehler: 'nicht angemeldet' }, 401);
@@ -115,7 +158,7 @@ export default async (req: Request) => {
     const { felder, fehler } = eingabePruefen({ ...b, art: m.art });
     if (fehler) return json({ fehler }, 400);
     const neu = { ...m, ...felder, geaendert: { am: Date.now(), von: ich } } as Mitschrift;
-    for (const k of ['geburtsdatum', 'ortNotiz', 'hausarzt', 'polizei', 'fall'] as const) if (felder[k] === undefined) delete neu[k];
+    for (const k of ['geburtsdatum', 'ortNotiz', 'hausarzt', 'polizei', 'fall', 'fallName'] as const) if (felder[k] === undefined) delete neu[k];
     await speichern(neu);
   } else if (req.method === 'POST' && m && aktion === 'uebergeben') {
     if (!telefon) return verboten();
@@ -148,6 +191,7 @@ export default async (req: Request) => {
       darfAbholen: abholen,
       admin: a!.rechte.admin,
       bereitschaft: await bereitschaftJetzt(),
+      faelle: telefon ? await faelleLaden(a!.konfig).catch(() => []) : [],
       kuehlraeume: [...new Set(liste.flatMap((x) => (x.abholung ? [x.abholung.kuehlraum] : [])))].slice(0, 12),
       ich: { email: ich, name: a!.sitzung.name },
       telefonJetzt: await telefonJetztLaden().catch(() => null),
