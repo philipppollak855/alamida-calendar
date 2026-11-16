@@ -184,7 +184,7 @@ public sealed class CalendarTrayApplicationContext : ApplicationContext
 
             var freigegeben = _loeschSchutz.Pruefen(fallId,
                 entfernt.Select(e => new LoeschSchutz.Fehlend(e.Key, e.Value.Start)).ToList(),
-                snapshot.VorhandeneTerminArten, DateTime.Now, sofort).ToHashSet();
+                snapshot.VorhandeneTerminArten, DateTime.Now, sofort, neueIds).ToHashSet();
             entfernt = entfernt.Where(e => freigegeben.Contains(e.Key)).ToList();
 
             if (geaendert.Count == 0 && entfernt.Count == 0) return;

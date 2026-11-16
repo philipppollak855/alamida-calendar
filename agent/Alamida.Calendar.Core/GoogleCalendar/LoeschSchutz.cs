@@ -10,6 +10,11 @@ public sealed class LoeschSchutz
 {
     public static readonly TimeSpan Wartezeit = TimeSpan.FromSeconds(20);
 
+    /// <summary>Fahrten (Abholung/Überführung/Kremation aus den Überführungszeilen) brauchen länger, bevor sie gelöscht werden.</summary>
+    public static readonly TimeSpan WartezeitFahrten = TimeSpan.FromSeconds(90);
+
+    public static bool IstFahrt(string schluessel) => Art(schluessel).StartsWith("schritt", StringComparison.Ordinal);
+
     private readonly Dictionary<string, DateTime> _fehltSeit = new(StringComparer.Ordinal);
 
     public sealed record Fehlend(string Schluessel, DateTime? Start);
@@ -20,9 +25,12 @@ public sealed class LoeschSchutz
         return i < 0 ? schluessel : schluessel[(i + 1)..];
     }
 
+    /// <param name="bleibende">Schlüssel, die der aktuelle Snapshot liefert. Enthält er keine einzige Fahrt mehr, obwohl vorher welche da waren,
+    /// war die Überführungstabelle nicht lesbar (z. B. Liste gescrollt, Zeilen noch nicht geladen) – dann wird keine Fahrt gelöscht.</param>
     public List<string> Pruefen(string fallId, IReadOnlyCollection<Fehlend> fehlend,
-        IReadOnlySet<string>? vorhandeneArten, DateTime jetzt, bool sofort = false)
+        IReadOnlySet<string>? vorhandeneArten, DateTime jetzt, bool sofort = false, IReadOnlyCollection<string>? bleibende = null)
     {
+        var keineFahrtGelesen = bleibende != null && !bleibende.Any(IstFahrt);
         var praefix = fallId + "|";
         var aktuell = fehlend.Select(f => f.Schluessel).ToHashSet(StringComparer.Ordinal);
         foreach (var k in _fehltSeit.Keys.Where(k => k.StartsWith(praefix, StringComparison.Ordinal) && !aktuell.Contains(k)).ToList())
@@ -33,7 +41,9 @@ public sealed class LoeschSchutz
         {
             var sichtbar = vorhandeneArten != null && vorhandeneArten.Contains(Art(f.Schluessel));
             var vergangen = f.Start is { } s && s.Date < jetzt.Date;
-            if (!sichtbar || vergangen)
+            var fahrt = IstFahrt(f.Schluessel);
+            var heute = f.Start is { } h && h.Date == jetzt.Date;
+            if (!sichtbar || vergangen || (fahrt && (keineFahrtGelesen || heute)))
             {
                 _fehltSeit.Remove(f.Schluessel);
                 continue;
@@ -42,7 +52,7 @@ public sealed class LoeschSchutz
             {
                 _fehltSeit[f.Schluessel] = seit = jetzt;
             }
-            if (sofort || jetzt - seit >= Wartezeit) loeschen.Add(f.Schluessel);
+            if ((sofort && !fahrt) || jetzt - seit >= (fahrt ? WartezeitFahrten : Wartezeit)) loeschen.Add(f.Schluessel);
         }
         foreach (var k in loeschen) _fehltSeit.Remove(k);
         return loeschen;

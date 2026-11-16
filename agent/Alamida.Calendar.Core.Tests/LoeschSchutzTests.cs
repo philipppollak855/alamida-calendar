@@ -53,4 +53,35 @@ public class LoeschSchutzTests
         Assert.Contains("schritt1", a);
         Assert.DoesNotContain("schritt2", a);
     }
+
+    [Fact]
+    public void Fahrt_ErstNachLaengererWartezeit()
+    {
+        var l = new LoeschSchutz();
+        var sichtbar = new HashSet<string> { "schritt2" };
+        string[] bleibt = ["1|schritt1"];
+        Assert.Empty(l.Pruefen("1", [F("1|schritt2")], sichtbar, Jetzt, bleibende: bleibt));
+        Assert.Empty(l.Pruefen("1", [F("1|schritt2")], sichtbar, Jetzt.AddSeconds(30), sofort: true, bleibende: bleibt));
+        Assert.Equal(["1|schritt2"], l.Pruefen("1", [F("1|schritt2")], sichtbar, Jetzt.AddSeconds(95), bleibende: bleibt));
+    }
+
+    [Fact]
+    public void Fahrt_AlleZeilenLeer_GiltAlsNichtGelesen()
+    {
+        var l = new LoeschSchutz();
+        var sichtbar = new HashSet<string> { "schritt1", "schritt2" };
+        string[] bleibt = ["1|trauerfeier"];
+        l.Pruefen("1", [F("1|schritt1"), F("1|schritt2")], sichtbar, Jetzt, bleibende: bleibt);
+        Assert.Empty(l.Pruefen("1", [F("1|schritt1"), F("1|schritt2")], sichtbar, Jetzt.AddMinutes(5), bleibende: bleibt));
+    }
+
+    [Fact]
+    public void Fahrt_Heute_WirdNieAutomatischGeloescht()
+    {
+        var l = new LoeschSchutz();
+        var sichtbar = new HashSet<string> { "schritt2" };
+        string[] bleibt = ["1|schritt1"];
+        l.Pruefen("1", [F("1|schritt2", Jetzt.AddHours(3))], sichtbar, Jetzt, bleibende: bleibt);
+        Assert.Empty(l.Pruefen("1", [F("1|schritt2", Jetzt.AddHours(3))], sichtbar, Jetzt.AddMinutes(5), bleibende: bleibt));
+    }
 }
