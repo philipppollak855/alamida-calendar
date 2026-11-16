@@ -6,7 +6,7 @@ import { endOfMonth, format, getDay, parse, startOfMonth, startOfWeek } from 'da
 import { de } from 'date-fns/locale';
 import { geblaettert, useWischen } from './wischen';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { bereitschaftAustragen, bereitschaftEintragen, bereitschaftLaden, type BereitschaftDaten } from './api';
+import { bereitschaftAustragen, bereitschaftEintragen, bereitschaftLaden, zusatztagAnsetzen, zusatztagEntfernen, type BereitschaftDaten } from './api';
 import {
   MAX_GLEICHZEITIG,
   ausText,
@@ -16,6 +16,7 @@ import {
   besetzung,
   uebersichtZeitraum,
   plusTage,
+  spanneText,
   zeitText,
   type Dienst,
   type Einsatz,
@@ -123,7 +124,8 @@ function DienstKarte({ d, daten, onDaten, ab }: KartenProps) {
   const titel =
     d.art === 'wochenende'
       ? `Wochenende ${format(ausText(d.von), 'd.M.')} – ${format(plusTage(ende, -1), 'd.M.yyyy')}`
-      : `${format(ausText(d.von), 'EEEE d.M.yyyy', { locale: de })}`;
+      : `${d.art === 'zusatz' ? 'Zusatztag · ' : ''}${format(ausText(d.von), 'EEEE d.M.yyyy', { locale: de })}`;
+  const offeneLuecken = b.luecken.filter((l) => l.bis > jetzt);
 
   return (
     <article className={`glas dienst ${aktuell ? 'aktuell' : ''} ${vorbei ? 'vorbei' : ''}`}>
@@ -131,6 +133,16 @@ function DienstKarte({ d, daten, onDaten, ab }: KartenProps) {
         <div>
           <strong>{titel}</strong>
           {d.feiertage.length > 0 && <div className="dienst-feiertag">🎌 {d.feiertage.join(', ')}</div>}
+          {d.anlass && <div className="dienst-feiertag">📌 {d.anlass}</div>}
+          {!daten.nurEigene && liste.length > 0 && offeneLuecken.length > 0 && (
+            <ul className="dienst-luecken">
+              {offeneLuecken.map((l) => (
+                <li key={l.von}>
+                  {l.fehlt} fehlt: {spanneText(l.von, l.bis)}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         {!daten.nurEigene && <span className={`dienst-status ${b.vollstaendig ? 'besetzt' : liste.length ? 'teil' : 'offen'}`} title={`Vollständig ab ${b.noetig} Personen`}>
           {aktuell ? 'jetzt · ' : ''}
@@ -163,6 +175,11 @@ function DienstKarte({ d, daten, onDaten, ab }: KartenProps) {
             {daten.darfPlanen ? '+ Einteilen …' : ichDabei ? '+ Weitere Zeit …' : 'Nur bestimmte Zeit …'}
           </button>}
           {!darfIch && !daten.darfPlanen && <span className="klein">Eintragen nur mit der Rolle „Bereitschaft“ (Hub).</span>}
+          {d.art === 'zusatz' && daten.darfPlanen && !liste.length && (
+            <button className="knopf" disabled={laeuft} onClick={() => void tun(() => zusatztagEntfernen(d.von.slice(0, 10), ab))}>
+              Zusatztag entfernen
+            </button>
+          )}
         </div>
       )}
       {offen && (
@@ -259,13 +276,56 @@ function DienstModal({ d, onSchliessen, ...props }: Omit<KartenProps, 'd'> & { d
   );
 }
 
-function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: BereitschaftDaten; datum: Date; setDatum: (d: Date) => void; onWahl: (d: Dienst) => void }) {
+function ZusatzModal({ tag, ab, onDaten, onFertig, onSchliessen }: { tag: Date; ab?: string; onDaten: (d: BereitschaftDaten) => void; onFertig: (d: Dienst) => void; onSchliessen: () => void }) {
+  const [anlass, setAnlass] = useState('');
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [laeuft, setLaeuft] = useState(false);
+  const datum = datumText(tag);
+  return (
+    <div className="modal-hintergrund" onClick={onSchliessen}>
+      <div className="modal bs-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <button className="bs-schliessen" onClick={onSchliessen} aria-label="Schließen">✕</button>
+        <form
+          className="glas dienst bs-zusatz-form"
+          onSubmit={async (ev) => {
+            ev.preventDefault();
+            setLaeuft(true);
+            setFehler(null);
+            try {
+              const neu = await zusatztagAnsetzen({ datum, ...(anlass.trim() ? { anlass: anlass.trim() } : {}) }, ab);
+              onDaten(neu);
+              const d = dienste(tag, tag, neu.zusatz).find((x) => x.id === `zt-${datum}`);
+              if (d) onFertig(d);
+              else onSchliessen();
+            } catch (e) {
+              setFehler((e as Error).message);
+            } finally {
+              setLaeuft(false);
+            }
+          }}
+        >
+          <h3>Bereitschaft ansetzen</h3>
+          <p className="klein">{format(tag, 'EEEE, d. MMMM yyyy', { locale: de })} wird ein zusätzlicher Bereitschaftstag (0–24 Uhr).</p>
+          <input className="feld" autoFocus maxLength={80} placeholder="Anlass (optional), z. B. Zwickeltag" value={anlass} onChange={(e) => setAnlass(e.target.value)} />
+          <div className="dienst-aktionen">
+            <button className="knopf primaer" type="submit" disabled={laeuft}>Ansetzen</button>
+            <button className="knopf" type="button" onClick={onSchliessen}>Abbrechen</button>
+          </div>
+          {fehler && <p className="dienst-fehler">{fehler}</p>}
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function PlanungKalender({ daten, datum, setDatum, onWahl, onDaten, ab }: { daten: BereitschaftDaten; datum: Date; setDatum: (d: Date) => void; onWahl: (d: Dienst) => void; onDaten: (d: BereitschaftDaten) => void; ab?: string }) {
   const [ansicht, setAnsicht] = useState<View>(Views.MONTH);
+  const [neuerTag, setNeuerTag] = useState<Date | null>(null);
   const schmal = useSchmal();
   const kurz = schmal && ansicht === Views.MONTH;
   const dritter = useMemo(() => new Set(daten.dritter ?? []), [daten.dritter]);
   const { liste, eintraege, tage } = useMemo(() => {
-    const liste = dienste(plusTage(startOfMonth(datum), -14), plusTage(endOfMonth(datum), 14));
+    const liste = dienste(plusTage(startOfMonth(datum), -14), plusTage(endOfMonth(datum), 14), daten.zusatz);
     const eintraege: KalEintrag[] = [];
     const jetzt = zeitText(new Date());
     const tage = new Map<string, Dienst>();
@@ -274,21 +334,25 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
       const belegt = einsaetzeIn(daten.eintraege, d);
       if (!belegt.length && d.bis > jetzt && !daten.nurEigene) eintraege.push({ id: `offen-${d.id}`, titel: kurz ? '+' : '+ offen', start: ausText(d.von), ende: ausText(d.bis), ganz: true, dienst: d, farbe: 'var(--warn)', offen: true });
       const b = besetzung(daten.eintraege, d, dritter);
+      const offeneLuecken = belegt.length && d.bis > jetzt && !daten.nurEigene ? b.luecken.filter((l) => l.bis > jetzt) : [];
       // Handy-Monat: ein Eintrag je Tag mit allen Kürzeln (auch bei 3 Personen, kein „+2 weitere“); gleiche Folgetage zusammengefasst.
       if (kurz && belegt.length) {
-        const fehlt = !b.vollstaendig && d.bis > jetzt && !daten.nurEigene ? b.noetig - b.personen : 0;
         let vorher: KalEintrag | null = null;
         for (let t = ausText(d.von); t < ausText(d.bis); t = plusTage(t, 1)) {
           const tagVon = minText(`${datumText(t)}T00:00`, d.von) === d.von ? `${datumText(t)}T00:00` : d.von;
           const tagBis = minText(`${datumText(plusTage(t, 1))}T00:00`, d.bis);
           const da = belegt.filter((e) => e.von < tagBis && e.bis > tagVon);
+          const tagLuecken = offeneLuecken.filter((l) => l.von < tagBis && l.bis > tagVon);
+          const fehlt = Math.max(0, ...tagLuecken.map((l) => l.fehlt));
           if (!da.length && !fehlt) {
             vorher = null;
             continue;
           }
           const ganz = (e: { von: string; bis: string }) => e.von <= tagVon && e.bis >= tagBis;
           const titel = [...da.map((e) => `${e.email === daten.ich.email ? '★' : ''}${kuerzel(e)}${ganz(e) ? '' : '◔'}`), ...(fehlt ? [`+${fehlt}`] : [])].join(' ');
-          const lang = da.map((e) => `${anzeigeName(e)}${ganz(e) ? '' : ` ${e.von.slice(11)}–${e.bis.slice(11)}`}`).join(', ') + (fehlt ? ` · ${fehlt} fehlt` : '');
+          const lang =
+            da.map((e) => `${anzeigeName(e)}${ganz(e) ? '' : ` ${e.von.slice(11)}–${e.bis.slice(11)}`}`).join(', ') +
+            (fehlt ? ` · fehlt: ${tagLuecken.map((l) => `${l.fehlt} ${spanneText(l.von < tagVon ? tagVon : l.von, l.bis > tagBis ? tagBis : l.bis)}`).join(', ')}` : '');
           if (vorher && vorher.titel === titel && vorher.lang === lang) {
             vorher.ende = plusTage(t, 1);
             continue;
@@ -308,8 +372,18 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
         }
         continue;
       }
-      if (belegt.length && !b.vollstaendig && d.bis > jetzt && !daten.nurEigene)
-        eintraege.push({ id: `teil-${d.id}`, titel: kurz ? `+${b.noetig - b.personen}` : `+ ${b.noetig - b.personen} fehlt`, start: ausText(d.von), ende: ausText(d.bis), ganz: true, dienst: d, farbe: 'var(--warn)', offen: true });
+      for (const l of offeneLuecken)
+        eintraege.push({
+          id: `teil-${d.id}-${l.von}`,
+          titel: `+ ${l.fehlt} fehlt${ganzerTag(l) ? '' : ` ${l.von.slice(11)}–${l.bis.slice(11) === '00:00' ? '24:00' : l.bis.slice(11)}`}`,
+          lang: `Unbesetzt ${spanneText(l.von, l.bis)} – ${l.fehlt} fehlt · klicken zum Einteilen`,
+          start: ausText(l.von),
+          ende: ausText(l.bis),
+          ganz: ganzerTag(l),
+          dienst: d,
+          farbe: 'var(--warn)',
+          offen: true,
+        });
       for (const e of belegt)
         eintraege.push({
           id: `${d.id}-${e.id}`,
@@ -335,7 +409,7 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
         culture="de"
         events={eintraege}
         titleAccessor={(t: KalEintrag) => t.titel}
-        tooltipAccessor={(t: KalEintrag) => (t.offen ? (t.id.startsWith('teil-') ? 'Noch nicht vollständig (mind. 2 Personen) – klicken zum Einteilen' : 'Noch niemand eingeteilt – klicken zum Einteilen') : (t.lang ?? t.titel))}
+        tooltipAccessor={(t: KalEintrag) => t.lang ?? (t.offen ? 'Noch niemand eingeteilt – klicken zum Einteilen' : t.titel)}
         className={kurz ? 'bs-kurz' : ''}
         startAccessor="start"
         endAccessor="ende"
@@ -351,6 +425,7 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
         onSelectSlot={({ start }: { start: Date }) => {
           const d = tage.get(datumText(start));
           if (d) onWahl(d);
+          else if (daten.darfPlanen && datumText(start) >= datumText(new Date())) setNeuerTag(start);
         }}
         dayPropGetter={(tag: Date) => {
           const t = datumText(tag);
@@ -384,10 +459,23 @@ function PlanungKalender({ daten, datum, setDatum, onWahl }: { daten: Bereitscha
       <div className="bs-legende klein">
         <span><i className="bs-punkt bs-p-dienst" /> Wochenende / Feiertag</span>
         <span><i className="bs-punkt bs-p-feiertag" /> Feiertag</span>
-        <span><i className="bs-punkt bs-p-offen" /> noch offen</span>
+        <span><i className="bs-punkt bs-p-offen" /> noch offen / unbesetzte Zeit</span>
         {kurz && <span>Kürzel = Initialen · ◔ = Teilzeit</span>}
         <span>★ ich · Klick auf einen Tag oder Eintrag zum {daten.darfPlanen ? 'Einteilen' : 'Eintragen'}</span>
+        {daten.darfPlanen && <span>Klick auf einen anderen Tag: zusätzliche Bereitschaft ansetzen</span>}
       </div>
+      {neuerTag && (
+        <ZusatzModal
+          tag={neuerTag}
+          ab={ab}
+          onDaten={onDaten}
+          onSchliessen={() => setNeuerTag(null)}
+          onFertig={(d) => {
+            setNeuerTag(null);
+            onWahl(d);
+          }}
+        />
+      )}
     </section>
   );
 }
@@ -397,18 +485,18 @@ function Uebersicht({ daten, jahr, setJahr, onWahl }: { daten: BereitschaftDaten
   const heute = new Date();
   const [monat, setMonat] = useState<number | null>(null);
   const dritter = useMemo(() => new Set(daten.dritter ?? []), [daten.dritter]);
-  const kommend = useMemo(() => dienste(heute, plusTage(heute, 56)).filter((d) => d.bis > jetzt), [jetzt.slice(0, 10)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const kommend = useMemo(() => dienste(heute, plusTage(heute, 56), daten.zusatz).filter((d) => d.bis > jetzt), [jetzt.slice(0, 10), daten.zusatz]); // eslint-disable-line react-hooks/exhaustive-deps
   const offen = kommend.filter((d) => !besetzung(daten.eintraege, d, dritter).vollstaendig);
   const zrAb = monat === null ? new Date(jahr, 0, 1) : new Date(jahr, monat, 1);
   const zrBis = monat === null ? new Date(jahr + 1, 0, 1) : new Date(jahr, monat + 1, 1);
   const zrText = monat === null ? String(jahr) : format(zrAb, 'MMMM yyyy', { locale: de });
   const jahresDienste = useMemo(
-    () => dienste(zrAb, plusTage(zrBis, -1)).filter((d) => d.von >= zeitText(zrAb) && d.von < zeitText(zrBis)),
-    [jahr, monat], // eslint-disable-line react-hooks/exhaustive-deps
+    () => dienste(zrAb, plusTage(zrBis, -1), daten.zusatz).filter((d) => d.von >= zeitText(zrAb) && d.von < zeitText(zrBis)),
+    [jahr, monat, daten.zusatz], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const besetzt = jahresDienste.filter((d) => besetzung(daten.eintraege, d, dritter).vollstaendig).length;
   const personen = useMemo(() => {
-    const stat = uebersichtZeitraum(daten.eintraege, zrAb, zrBis, jetzt);
+    const stat = uebersichtZeitraum(daten.eintraege, zrAb, zrBis, jetzt, daten.zusatz);
     const bekannt = new Set(stat.map((p) => p.email));
     const ohne = [...daten.personen, daten.ich]
       .filter((p) => !bekannt.has(p.email) && (bekannt.add(p.email), true))
@@ -429,7 +517,7 @@ function Uebersicht({ daten, jahr, setJahr, onWahl }: { daten: BereitschaftDaten
         <div className="kachel glas">
           <div className="kachel-label">Vollständig besetzt {zrText}</div>
           <div className="kachel-wert">{besetzt}<small> / {jahresDienste.length}</small></div>
-          <div className="kachel-sub">Wochenenden & Feiertage</div>
+          <div className="kachel-sub">Wochenenden, Feiertage, Zusatztage</div>
         </div>
         <div className="kachel glas">
           <div className="kachel-label">Mein nächster Dienst</div>
@@ -516,9 +604,10 @@ function Uebersicht({ daten, jahr, setJahr, onWahl }: { daten: BereitschaftDaten
                   <span className="klein">
                     {(() => {
                       const b = besetzung(daten.eintraege, d, dritter);
-                      return b.personen ? `${b.personen}/${b.noetig} Personen` : 'niemand';
+                      const l = b.luecken.filter((x) => x.bis > jetzt);
+                      return b.personen ? `fehlt: ${l.map((x) => `${x.fehlt} ${spanneText(x.von, x.bis)}`).join(', ')}` : 'niemand';
                     })()}{' '}
-                    · {d.feiertage.length ? `🎌 ${d.feiertage.join(', ')}` : 'Fr – So'} · {daten.darfPlanen ? 'einteilen' : 'eintragen'} →
+                    · {d.feiertage.length ? `🎌 ${d.feiertage.join(', ')}` : d.art === 'zusatz' ? `📌 ${d.anlass ?? 'Zusatztag'}` : 'Fr – So'} · {daten.darfPlanen ? 'einteilen' : 'eintragen'} →
                   </span>
                 </button>
               </li>
@@ -542,8 +631,8 @@ export default function BereitschaftAnsicht({ aktiv }: { aktiv: boolean }) {
   const [nurMeine, setNurMeine] = useState(false);
   const liste = useMemo(() => {
     const heute = new Date();
-    return dienste(heute, plusTage(heute, wochen * 7));
-  }, [wochen]);
+    return dienste(heute, plusTage(heute, wochen * 7), daten?.zusatz);
+  }, [wochen, daten?.zusatz]);
   const schliessen = useCallback(() => setGewaehlt(null), []);
   useEffect(() => {
     if (!daten) return;
@@ -563,7 +652,7 @@ export default function BereitschaftAnsicht({ aktiv }: { aktiv: boolean }) {
           <p className="klein">
             {modus === 'telefon'
               ? 'Genau eine Person gleichzeitig · Muster und freie Einträge'
-              : `Wochenenden (Fr–So) und Feiertage · 2 bis ${MAX_GLEICHZEITIG} Personen · ${daten?.darfPlanen ? 'du darfst alle einteilen' : 'trag dich selbst ein oder aus'}`}
+              : `Wochenenden (Fr–So), Feiertage und Zusatztage · 2 bis ${MAX_GLEICHZEITIG} Personen · ${daten?.darfPlanen ? 'du darfst alle einteilen' : 'trag dich selbst ein oder aus'}`}
           </p>
         </div>
         <div className="tag-nav-knoepfe bs-umschalter" role="tablist">
@@ -582,7 +671,7 @@ export default function BereitschaftAnsicht({ aktiv }: { aktiv: boolean }) {
       {fehler && <div className="banner fehler">{fehler}</div>}
 
       {modus === 'telefon' && <TelefonplanAnsicht />}
-      {modus === 'planung' && daten && <PlanungKalender daten={daten} datum={datum} setDatum={setDatum} onWahl={setGewaehlt} />}
+      {modus === 'planung' && daten && <PlanungKalender daten={daten} datum={datum} setDatum={setDatum} onWahl={setGewaehlt} onDaten={setDaten} ab={ab} />}
       {modus === 'uebersicht' && daten && <Uebersicht daten={daten} jahr={jahr} setJahr={setJahr} onWahl={setGewaehlt} />}
       {modus === 'liste' && daten && (
         <section className="ansicht liste bs-liste">
