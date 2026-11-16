@@ -1,13 +1,13 @@
 import type { Config } from '@netlify/functions';
 import { darfVerwalten, wartet } from '../../src/shared/abwesenheit';
-import { abwesendHeute, bereitschaftHeute, heuteText, termineHeute, type HeuteHinweis } from '../../src/shared/heute';
+import { abwesendHeute, bereitschaftHeute, heuteText, ortszeit, termineHeute, type HeuteHinweis } from '../../src/shared/heute';
 import { darfKalender, darfSehen, sichtFuer } from '../../src/shared/rechte';
 import { KATEGORIEN, kategorieAus, type GoogleEvent } from '../../src/planung/planungLogic';
 import { alleKalender } from '../lib/kalender';
 import { darfAbholen, darfTelefon, fallFuerMich, titel } from '../../src/shared/telefon';
 import { belegung, darfTelefonplan } from '../../src/shared/telefonplan';
 import { ausText, darfPlanen, plusTage } from '../../src/shared/bereitschaft';
-import { abwesenheitenLaden, angemeldetOderHub, bereitschaftLaden, einteilungenLaden, env, googleGet, json, mitschriftenLaden, personalLaden, telMusterLaden, telPlanLaden } from '../lib/server';
+import { abwesenheitenLaden, angemeldetOderHub, bereitschaftLaden, einteilungenLaden, env, googleGet, json, mitschriftenLaden, personalLaden, telefonJetztLaden, telMusterLaden, telPlanLaden } from '../lib/server';
 
 /** Tagesübersicht für das Dashboard im Hub: heutige Termine, Bereitschaft, Abwesenheiten – gefiltert nach den Rechten der Person. */
 export default async (req: Request) => {
@@ -66,7 +66,13 @@ export default async (req: Request) => {
 
   const personen = a.konfig.benutzer.map((b) => ({ email: b.email.toLowerCase(), rollen: b.rollen }));
   const telefon = darfTelefon(a.rechte, personen);
-  if (darfAbholen(a.rechte, personen)) {
+  // „Telefondienst nur während Bereitschaft“: außerhalb des eigenen Dienstes auch keine Fälle auf der Startseite.
+  const jetzt = ortszeit(new Date());
+  const imDienst =
+    !sicht.telefonNurBereitschaft ||
+    einsaetze.some((e) => e.email === ich && e.von <= jetzt && e.bis > jetzt) ||
+    (await telefonJetztLaden().catch(() => null))?.email === ich;
+  if (darfAbholen(a.rechte, personen) && imDienst) {
     const tel = await mitschriftenLaden().catch(() => []);
     for (const m of tel.filter((x) => x.status === 'uebergeben' && fallFuerMich(x, ich, telefon)).slice(0, 5))
       hinweise.push({ text: `🚐 Abholung offen: ${titel(m)}${m.ort ? ` – ${m.ort}` : ''}`, ziel: `${origin}/telefon?id=${encodeURIComponent(m.id)}` });
