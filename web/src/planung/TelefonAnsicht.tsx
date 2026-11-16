@@ -80,6 +80,7 @@ const ausMitschrift = (m: Mitschrift): Entwurf => ({
   nummer: m.nummer,
   notiz: m.notiz,
   verstorbener: m.verstorbener ?? '',
+  nameUnbekannt: m.art === 'sterbefall' && !m.verstorbener,
   geburtsdatum: m.geburtsdatum ?? '',
   ortArt: m.ortArt ?? 'zuhause',
   ort: m.ort ?? '',
