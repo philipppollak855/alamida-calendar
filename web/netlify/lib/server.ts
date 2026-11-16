@@ -231,6 +231,12 @@ export async function mitschriftenLaden(): Promise<Mitschrift[]> {
 }
 export const mitschriftSpeichern = (m: Mitschrift) => store().setJSON(telSchluessel(m.id), m);
 export const mitschriftLoeschen = (id: string) => store().delete(telSchluessel(id));
+/** Angelegte Kühlräume für die Schnellauswahl beim Abschließen einer Abholung. */
+export async function kuehlraeumeLaden(): Promise<string[]> {
+  const l = (await store().get('telefon/kuehlraeume', { type: 'json' })) as unknown;
+  return Array.isArray(l) ? l.filter((x): x is string => typeof x === 'string' && !!x.trim()) : [];
+}
+export const kuehlraeumeSpeichern = (l: string[]) => store().setJSON('telefon/kuehlraeume', l);
 const aufnahmeSchluessel = (id: string) => `telefon/aufnahme/${id}`;
 export const aufnahmeSpeichern = (id: string, daten: ArrayBuffer, typ: string) => store().set(aufnahmeSchluessel(id), daten, { metadata: { typ } });
 export const aufnahmeLaden = (id: string) => store().get(aufnahmeSchluessel(id), { type: 'arrayBuffer' });

@@ -317,6 +317,8 @@ export interface TelefonDaten {
   admin: boolean;
   bereitschaft: { email: string; name?: string }[];
   kuehlraeume: string[];
+  /** Vom Admin angelegte Kühlräume (Schnellauswahl). */
+  kuehlraeumeFest?: string[];
   faelle?: { name: string; zuletzt: string; aktiv: boolean }[];
   ich: { email: string; name?: string };
   telefonJetzt?: TelSegment | null;
@@ -329,6 +331,7 @@ export const mitschriftAnlegen = (d: Record<string, unknown>) => holen<TelefonDa
 export const mitschriftAendern = (id: string, d: Record<string, unknown>) => holen<TelefonDaten>(telAdresse({ id }), jsonInit('PUT', d));
 export const mitschriftAktion = (id: string, aktion: 'uebergeben' | 'abholung' | 'erledigt', d: Record<string, unknown> = {}) =>
   holen<TelefonDaten>(telAdresse({ id, aktion }), jsonInit('POST', d));
+export const kuehlraeumeFestlegen = (liste: string[]) => holen<TelefonDaten>(telAdresse({ aktion: 'kuehlraeume' }), jsonInit('POST', { liste }));
 export const mitschriftEntfernen = (id: string) => holen<TelefonDaten>(telAdresse({ id }), { method: 'DELETE' });
 export const aufnahmeHochladen = (id: string, datei: Blob) =>
   holen<TelefonDaten>(telAdresse({ id, aktion: 'aufnahme' }), { method: 'POST', headers: { 'content-type': datei.type.split(';')[0] }, body: datei });
