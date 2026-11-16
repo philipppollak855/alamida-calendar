@@ -3,10 +3,13 @@ import { randomBytes } from 'node:crypto';
 import { ortszeit, sterbefallAus } from '../../src/shared/heute';
 import { alleKalender } from '../lib/kalender';
 import { sichtFuer } from '../../src/shared/rechte';
+import { BELEG_MAX_BYTES, BELEG_TYPEN, belegDateiname, belegSignaturPasst } from '../../src/shared/abwesenheit';
 import {
   AUFNAHME_MAX_BYTES,
   AUFNAHME_TYPEN,
   aufnahmeSignaturPasst,
+  PAPIER_MAX_ANZAHL,
+  type Papier,
   darfAbholen,
   darfTelefon,
   eingabePruefen,
@@ -20,6 +23,12 @@ import {
 import {
   angemeldet,
   aufnahmeLaden,
+  papiereLaden,
+  papierInfoLoeschen,
+  papierInfoSpeichern,
+  papierLaden,
+  papierLoeschen,
+  papierSpeichern,
   aufnahmeLoeschen,
   aufnahmeSpeichern,
   bereitschaftLaden,
@@ -42,6 +51,7 @@ const text = (v: unknown, max = 300) => (typeof v === 'string' ? v.trim().slice(
  * Telefondienst. GET: Mitschriften (Telefon: alle; Bereitschaft: übergebene Sterbefälle). POST: neu (optional gleich übergeben),
  * PUT ?id=: bearbeiten, DELETE ?id=: löschen (Admin). POST ?aktion=uebergeben|abholung|erledigt&id=.
  * ?aktion=aufnahme&id=: Mitschnitt hochladen (POST, Datei als Body), abrufen (GET), entfernen (DELETE).
+ * ?aktion=papier&id=…(&papier=…): Sterbepapiere hochladen (POST, Datei als Body, Name in x-dateiname), abrufen (GET), entfernen (DELETE).
  */
 /** Sterbefälle aus allen Kalendern (gut 1 Jahr zurück, 4 Monate voraus) für die Fallauswahl; 10 Minuten zwischengespeichert. */
 async function faelleLaden(konfig: Parameters<typeof alleKalender>[0]): Promise<FallWahl[]> {
@@ -104,11 +114,16 @@ export default async (req: Request) => {
       return json({ fehler: 'Der Telefondienst ist für dich nur während deiner Bereitschaft oder Telefonbereitschaft sichtbar.', nurBereitschaft: true }, 403);
   }
 
-  let liste = await mitschriftenLaden();
+  const [roh, papiere] = await Promise.all([mitschriftenLaden(), papiereLaden()]);
+  let liste: Mitschrift[] = roh.map((x) => {
+    const { papiere: _alt, ...rein } = x;
+    return papiere.has(x.id) ? { ...rein, papiere: papiere.get(x.id) } : rein;
+  });
   const m = id ? liste.find((x) => x.id === id) : undefined;
   if (id && (!m || !sichtbar(m))) return json({ fehler: 'Mitschrift nicht gefunden' }, 404);
   const speichern = async (neu: Mitschrift) => {
-    await mitschriftSpeichern(neu);
+    const { papiere: _p, ...ohnePapiere } = neu;
+    await mitschriftSpeichern(ohnePapiere);
     liste = liste.some((x) => x.id === neu.id) ? liste.map((x) => (x.id === neu.id ? neu : x)) : [neu, ...liste];
   };
 
@@ -119,7 +134,47 @@ export default async (req: Request) => {
     return [...new Map(aktiv.map((e) => [e.email, { email: e.email, ...((nameVon(e.email) ?? e.name) ? { name: nameVon(e.email) ?? e.name } : {}) }])).values()];
   }
 
-  if (aktion === 'aufnahme' && m) {
+  if (aktion === 'papier' && m) {
+    const info = m.papiere?.find((x) => x.id === url.searchParams.get('papier'));
+    if (req.method === 'GET') {
+      const datei = info && (await papierLaden(info.id));
+      if (!info || !datei) return json({ fehler: 'Datei nicht gefunden' }, 404);
+      return new Response(datei, {
+        headers: {
+          'content-type': info.typ,
+          'content-disposition': `inline; filename*=UTF-8''${encodeURIComponent(info.name)}`,
+          'cache-control': 'private, no-store',
+          'x-content-type-options': 'nosniff',
+        },
+      });
+    }
+    if (m.art !== 'sterbefall') return json({ fehler: 'Sterbepapiere gibt es nur bei Sterbefällen' }, 400);
+    if (req.method === 'POST') {
+      if ((m.papiere?.length ?? 0) >= PAPIER_MAX_ANZAHL) return json({ fehler: `Höchstens ${PAPIER_MAX_ANZAHL} Dateien je Fall` }, 400);
+      const typ = (req.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
+      if (!BELEG_TYPEN.includes(typ)) return json({ fehler: 'Bitte ein PDF oder Foto (JPG, PNG, WebP, HEIC) senden' }, 400);
+      const daten = await req.arrayBuffer();
+      if (!daten.byteLength) return json({ fehler: 'Die Datei ist leer' }, 400);
+      if (daten.byteLength > BELEG_MAX_BYTES) return json({ fehler: 'Die Datei ist zu groß (höchstens 4,5 MB)' }, 400);
+      if (!belegSignaturPasst(new Uint8Array(daten.slice(0, 16)), typ)) return json({ fehler: 'Der Inhalt passt nicht zum Dateityp' }, 400);
+      let roh = '';
+      try {
+        roh = decodeURIComponent(req.headers.get('x-dateiname') ?? '').slice(0, 200);
+      } catch {
+        roh = '';
+      }
+      const neu = { id: neueId(), name: belegDateiname(roh || 'Sterbepapier', typ), typ, groesse: daten.byteLength, am: Date.now(), von: ich };
+      await papierSpeichern(neu.id, daten, typ);
+      await papierInfoSpeichern(m.id, neu);
+      liste = liste.map((x) => (x.id === m.id ? { ...x, papiere: [...(x.papiere ?? []), neu] } : x));
+    } else if (req.method === 'DELETE') {
+      if (!info) return json({ fehler: 'Datei nicht gefunden' }, 404);
+      if (!a.rechte.admin && info.von !== ich) return json({ fehler: 'Löschen dürfen nur Admins oder wer die Datei hochgeladen hat' }, 403);
+      await papierLoeschen(info.id);
+      await papierInfoLoeschen(m.id, info.id);
+      liste = liste.map((x) => (x.id === m.id ? { ...x, papiere: (x.papiere ?? []).filter((p) => p.id !== info.id) } : x));
+    }
+  } else if (aktion === 'aufnahme' && m) {
     if (req.method === 'GET') {
       const datei = m.aufnahme && (await aufnahmeLaden(m.aufnahme.id));
       if (!m.aufnahme || !datei) return json({ fehler: 'Keine Aufnahme vorhanden' }, 404);
@@ -155,7 +210,8 @@ export default async (req: Request) => {
     await speichern(neu);
     return antwort(neu.id);
   } else if (req.method === 'PUT' && m) {
-    if (!telefon) return verboten();
+    // Sterbefälle darf auch die Bereitschaft nachbearbeiten (sie sieht nur die ihr übergebenen Fälle).
+    if (!telefon && !(abholen && m.art === 'sterbefall')) return verboten();
     const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const { felder, fehler } = eingabePruefen({ ...b, art: m.art });
     if (fehler) return json({ fehler }, 400);
@@ -186,6 +242,7 @@ export default async (req: Request) => {
   } else if (req.method === 'DELETE' && m) {
     if (!a.rechte.admin) return verboten();
     if (m.aufnahme) await aufnahmeLoeschen(m.aufnahme.id);
+    await Promise.all((m.papiere ?? []).flatMap((x) => [papierLoeschen(x.id), papierInfoLoeschen(m.id, x.id)]));
     await mitschriftLoeschen(m.id);
     liste = liste.filter((x) => x.id !== m.id);
   } else if (req.method !== 'GET') return json({ fehler: 'Unbekannte Aktion' }, 400);

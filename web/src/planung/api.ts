@@ -336,13 +336,18 @@ export const mitschriftEntfernen = (id: string) => holen<TelefonDaten>(telAdress
 export const aufnahmeHochladen = (id: string, datei: Blob) =>
   holen<TelefonDaten>(telAdresse({ id, aktion: 'aufnahme' }), { method: 'POST', headers: { 'content-type': datei.type.split(';')[0] }, body: datei });
 export const aufnahmeEntfernen = (id: string) => holen<TelefonDaten>(telAdresse({ id, aktion: 'aufnahme' }), { method: 'DELETE' });
-export async function aufnahmeDatei(id: string): Promise<Blob> {
+export const papierHochladen = (id: string, datei: Blob, name: string) =>
+  holen<TelefonDaten>(telAdresse({ id, aktion: 'papier' }), { method: 'POST', headers: { 'content-type': datei.type.split(';')[0], 'x-dateiname': encodeURIComponent(name) }, body: datei });
+export const papierEntfernen = (id: string, papier: string) => holen<TelefonDaten>(telAdresse({ id, aktion: 'papier', papier }), { method: 'DELETE' });
+export const papierDatei = (id: string, papier: string) => telDatei(telAdresse({ id, aktion: 'papier', papier }));
+export const aufnahmeDatei = (id: string) => telDatei(telAdresse({ id, aktion: 'aufnahme' }));
+async function telDatei(adresse: string): Promise<Blob> {
   const headers = new Headers();
   const hub = hubSitzung();
   if (hub) headers.set('authorization', `Bearer ${hub}`);
   let res: Response;
   try {
-    res = await fetch(telAdresse({ id, aktion: 'aufnahme' }), { credentials: 'same-origin', headers });
+    res = await fetch(adresse, { credentials: 'same-origin', headers });
   } catch {
     throw new OfflineFehler();
   }

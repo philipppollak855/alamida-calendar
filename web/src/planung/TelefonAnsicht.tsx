@@ -20,10 +20,15 @@ import {
   kuehlraeumeFestlegen, mitschriftAktion,
   mitschriftAnlegen,
   mitschriftEntfernen,
+  papierDatei,
+  papierEntfernen,
+  papierHochladen,
   telefonLaden,
   type TelefonDaten,
 } from './api';
-import { herunterladen } from './beleg';
+import { belegVorbereiten, herunterladen } from './beleg';
+import { BELEG_TYPEN } from '../shared/abwesenheit';
+import { PAPIER_MAX_ANZAHL } from '../shared/telefon';
 
 type Modus = 'neu' | 'offen' | 'archiv';
 
@@ -490,7 +495,7 @@ function Karte({ m, oeffnen }: { m: Mitschrift; oeffnen: () => void }) {
       <span className="tel-symbol">{symbol(m)}</span>
       <span className="tel-karte-text">
         <b>
-          {titel(m)} {m.polizei && '🚓'} {m.aufnahme && '🎙'}
+          {titel(m)} {m.polizei && '🚓'} {m.aufnahme && '🎙'} {!!m.papiere?.length && `📄${m.papiere.length}`}
         </b>
         <span className="klein">
           {zeitText(m.zeit)} · {m.art === 'sterbefall' ? [m.ort, m.anrufer].filter(Boolean).join(' · ') : [m.anrufer, m.nummer].filter(Boolean).join(' · ')}
@@ -640,6 +645,59 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
             )}
           </div>
 
+          {m.art === 'sterbefall' && (
+            <div className="modal-block">
+              <h4>📄 Sterbepapiere {m.papiere?.length ? `(${m.papiere.length})` : ''}</h4>
+              {m.papiere?.length ? (
+                <ul className="tel-papiere">
+                  {m.papiere.map((p) => (
+                    <li key={p.id}>
+                      <button className="knopf klein" onClick={() => void papierDatei(m.id, p.id).then((b) => herunterladen(b, p.name), (e: Error) => setFehler(e.message))} title="Herunterladen">
+                        ⬇ {p.name}
+                      </button>
+                      <span className="klein">
+                        {Math.max(1, Math.round(p.groesse / 1024))} KB · {zeitText(p.am)}
+                      </span>
+                      {(daten.admin || p.von === daten.ich.email.toLowerCase()) && (
+                        <button className="knopf klein gefahr" disabled={laeuft} onClick={() => confirm(`„${p.name}“ löschen?`) && void tun(() => papierEntfernen(m.id, p.id))}>
+                          ✕
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="klein">Noch keine Papiere.</p>
+              )}
+              {(m.papiere?.length ?? 0) < PAPIER_MAX_ANZAHL && (
+                <label className={`knopf ${laeuft ? 'deaktiviert' : ''}`}>
+                  📎 Papiere hochladen (Foto oder PDF, mehrere möglich)
+                  <input
+                    type="file"
+                    hidden
+                    multiple
+                    disabled={laeuft}
+                    accept={BELEG_TYPEN.join(',')}
+                    onChange={(ev) => {
+                      const dateien = [...(ev.target.files ?? [])].slice(0, PAPIER_MAX_ANZAHL - (m.papiere?.length ?? 0));
+                      ev.target.value = '';
+                      if (!dateien.length) return;
+                      void tun(async () => {
+                        let d: TelefonDaten | null = null;
+                        for (const f of dateien) {
+                          const { datei, name } = await belegVorbereiten(f);
+                          d = await papierHochladen(m.id, datei, name);
+                          setDaten(d);
+                        }
+                        return d!;
+                      });
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+          )}
+
           {abholung && (
             <div className="modal-block ab-formular">
               <h4>Abholung abschließen</h4>
@@ -755,7 +813,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
               <button className="knopf" onClick={() => void teilen()}>
                 ↗ Teilen
               </button>
-              {daten.darfTelefon && (
+              {(daten.darfTelefon || (daten.darfAbholen && m.art === 'sterbefall')) && (
                 <button className="knopf" onClick={() => setBearbeiten(ausMitschrift(m))}>
                   ✎ Bearbeiten
                 </button>
