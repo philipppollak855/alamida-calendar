@@ -687,6 +687,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
                         for (const f of dateien) {
                           const { datei, name } = await belegVorbereiten(f);
                           d = await papierHochladen(m.id, datei, name);
+                          setDaten(d);
                         }
                         return d!;
                       });
