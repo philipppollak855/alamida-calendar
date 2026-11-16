@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { istTextur, textur, type Textur } from './texturen';
 
 /** Hell/Dunkel, app-übergreifend: der Hub gibt das Design per #theme=… und postMessage vor, Änderungen gehen an den Hub zurück. */
 export type Theme = 'dunkel' | 'hell';
@@ -82,21 +83,30 @@ const STIMMUNG_VARS = new Set([
 interface StimmungDaten {
   basis: Theme;
   farben: Record<string, string>;
+  /** Textur-Name; die Textur selbst (SVG) wird hier erzeugt, nicht übertragen. */
+  oberflaeche?: Textur;
 }
 
 export function stimmungPruefen(x: unknown): StimmungDaten | null {
-  const o = x as { basis?: unknown; farben?: unknown } | null;
+  const o = x as { basis?: unknown; farben?: unknown; oberflaeche?: unknown } | null;
   if (!o || !gueltig(o.basis) || !o.farben || typeof o.farben !== 'object') return null;
   const farben: Record<string, string> = {};
   for (const [k, v] of Object.entries(o.farben as Record<string, unknown>))
     if (STIMMUNG_VARS.has(k) && typeof v === 'string' && v.length <= 1000 && /^[#(),.%\w\s-]+$/.test(v)) farben[k] = v;
-  return Object.keys(farben).length ? { basis: o.basis, farben } : null;
+  if (!Object.keys(farben).length) return null;
+  return istTextur(o.oberflaeche) ? { basis: o.basis, farben, oberflaeche: o.oberflaeche } : { basis: o.basis, farben };
 }
 
 export function stimmungCss(s: StimmungDaten | null): string {
   if (!s) return '';
   const w = `html .planung.planung.theme-${s.basis}`;
-  const vars = Object.entries(s.farben)
+  const farben = { ...s.farben };
+  if (s.oberflaeche) {
+    const t = textur({ art: s.oberflaeche, basis: s.basis, akzent: farben['--akzent'] ?? '', akzent2: farben['--akzent-2'] ?? '' });
+    farben['--bg-verlauf'] = farben['--bg-verlauf'] ? `${t.seite}, ${farben['--bg-verlauf']}` : t.seite;
+    farben['--flaeche-textur'] = t.flaeche;
+  }
+  const vars = Object.entries(farben)
     .map(([k, v]) => `${k}: ${v};`)
     .join(' ');
   return [
