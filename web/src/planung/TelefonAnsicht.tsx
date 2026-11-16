@@ -212,8 +212,9 @@ function Felder({ e, setE, daten, neu, bloecke }: { e: Entwurf; setE: (e: Entwur
   }, [telFaelle, daten.faelle]);
   const fallText = e.fallName || (e.fall ? titel(telFaelle.find((x) => x.id === e.fall) ?? ({ art: 'sterbefall' } as Mitschrift)) : '');
   const fallWaehlen = (name: string) => {
-    const m = telFaelle.find((x) => titel(x).toLowerCase() === name.trim().toLowerCase());
-    setE({ ...e, fallName: name, fall: m?.id ?? '' });
+    // Nur eindeutig benannte Telefondienst-Fälle verknüpfen; gleichnamige bleiben als Text, sonst landet das Anliegen evtl. beim falschen Fall.
+    const treffer = telFaelle.filter((x) => x.verstorbener && titel(x).toLowerCase() === name.trim().toLowerCase());
+    setE({ ...e, fallName: name, fall: treffer.length === 1 ? treffer[0].id : '' });
   };
   const teile: Record<Block, React.ReactNode> = {
     zeit: (
