@@ -28,6 +28,8 @@
   grid-template-columns: 236px 1fr;
   -webkit-font-smoothing: antialiased;
 }
+.planung.menue-im-hub { grid-template-columns: 1fr; }
+.planung.menue-im-hub > .seitenleiste { display: none; }
 .planung.theme-hell {
   --bg: #f6f3ec;
   --bg-verlauf: radial-gradient(1200px 600px at 10% -10%, rgba(196, 154, 74, 0.16), transparent 60%),

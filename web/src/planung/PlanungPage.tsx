@@ -1,3 +1,4 @@
+import { useHubMenue } from './hubMenue';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, isSameDay } from 'date-fns';
@@ -401,6 +402,11 @@ export default function PlanungPage() {
     fahrten: fahrtenListe.length,
     hinweise: hinweise.length,
   };
+  const menueImHub = useHubMenue(
+    mobil ? [] : tabs.map((x) => ({ id: x.id, label: x.label, icon: x.icon, ...(zaehler[x.id] ? { zahl: zaehler[x.id], warn: x.id === 'hinweise' } : {}) })),
+    tab,
+    (id) => setTab(id as Tab),
+  );
 
   const paletteEintraege = (q: string): PaletteEintrag[] => {
     const befehle: PaletteEintrag[] = [
@@ -538,7 +544,7 @@ export default function PlanungPage() {
   }
 
   return (
-    <div className={`planung theme-${theme}`}>
+    <div className={`planung theme-${theme} ${menueImHub ? 'menue-im-hub' : ''}`}>
       <aside className="seitenleiste">
         <div className="marke">
           <div className="marke-logo">A</div>

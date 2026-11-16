@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 /** Hell/Dunkel, app-übergreifend: der Hub gibt das Design per #theme=… und postMessage vor, Änderungen gehen an den Hub zurück. */
 export type Theme = 'dunkel' | 'hell';
 const LS_THEME = 'alamida.theme';
-const HUB_HERKUNFT = 'https://bestattung-stranz-hub.netlify.app';
+export const HUB_HERKUNFT = 'https://bestattung-stranz-hub.netlify.app';
 const gueltig = (x: unknown): x is Theme => x === 'hell' || x === 'dunkel';
 
 export function startTheme(): Theme {
