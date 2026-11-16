@@ -17,7 +17,7 @@ import {
   aufnahmeEntfernen,
   aufnahmeHochladen,
   mitschriftAendern,
-  kuehlraeumeFestlegen, mitschriftAktion,
+  kuehlraeumeFestlegen, aerzteFestlegen, mitschriftAktion,
   mitschriftAnlegen,
   mitschriftEntfernen,
   papierDatei,
@@ -28,9 +28,9 @@ import {
 } from './api';
 import { belegVorbereiten, herunterladen } from './beleg';
 import { BELEG_TYPEN } from '../shared/abwesenheit';
-import { PAPIER_MAX_ANZAHL, ortVorschlaege } from '../shared/telefon';
+import { PAPIER_MAX_ANZAHL, aerzteAusText, aerzteFuer, aerzteZuText, ortVorschlaege, type Arzt } from '../shared/telefon';
 
-type Modus = 'neu' | 'offen' | 'archiv';
+type Modus = 'neu' | 'offen' | 'archiv' | 'aerzte';
 
 interface Entwurf {
   art: MitschriftArt;
@@ -177,19 +177,6 @@ type Block = 'zeit' | 'person' | 'ort' | 'extra' | 'anrufer' | 'anliegen' | 'not
 const ALLE: Record<MitschriftArt, Block[]> = {
   sterbefall: ['zeit', 'person', 'ort', 'extra', 'anrufer', 'notiz'],
   anliegen: ['zeit', 'anrufer', 'anliegen', 'notiz'],
-};
-const SCHRITTE: Record<MitschriftArt, { titel: string; kurz: string; bloecke: Block[] }[]> = {
-  sterbefall: [
-    { titel: 'Wer ist verstorben?', kurz: 'Person', bloecke: ['person'] },
-    { titel: 'Wo verstorben?', kurz: 'Ort', bloecke: ['ort'] },
-    { titel: 'Wer ruft an?', kurz: 'Anrufer', bloecke: ['anrufer', 'extra'] },
-    { titel: 'Notiz und speichern', kurz: 'Fertig', bloecke: ['notiz', 'zeit'] },
-  ],
-  anliegen: [
-    { titel: 'Wer ruft an?', kurz: 'Anrufer', bloecke: ['anrufer'] },
-    { titel: 'Worum geht es?', kurz: 'Anliegen', bloecke: ['anliegen'] },
-    { titel: 'Notiz und speichern', kurz: 'Fertig', bloecke: ['notiz', 'zeit'] },
-  ],
 };
 
 function useSchmal(px = 760) {
@@ -338,6 +325,94 @@ function Felder({ e, setE, daten, neu, bloecke }: { e: Entwurf; setE: (e: Entwur
   return <>{(bloecke ?? ALLE[e.art]).filter((b) => ALLE[e.art].includes(b)).map((b) => teile[b])}</>;
 }
 
+function BereitschaftWahl({ l }: { l: TelefonDaten['bereitschaft'] }) {
+  const mit = l.filter((x) => x.telefon);
+  if (!mit.length) return null;
+  return (
+    <div className="tel-direktwahl">
+      {mit.map((x) => (
+        <a key={x.email} className="knopf klein" href={`tel:${x.telefon!.replace(/[^\d+]/g, '')}`} onClick={(ev) => ev.stopPropagation()}>
+          📞 {(x.name || x.email).split(' ')[0]}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+const telLink = (n: string) => `tel:${n.replace(/[^\d+]/g, '')}`;
+
+function ArztKachel({ a }: { a: Arzt }) {
+  return (
+    <a className="tel-kachel breit signal" href={telLink(a.telefon)}>
+      <span className="tel-k-icon">🩺</span>
+      <span className="tel-k-text">
+        <small>Zuständiger Arzt · {a.telefon}</small>
+        <b>{a.name}</b>
+      </span>
+      <span className="tel-k-pfeil">📞</span>
+    </a>
+  );
+}
+
+function Aerzte({ daten, setDaten }: { daten: TelefonDaten; setDaten: (d: TelefonDaten) => void }) {
+  const [suche, setSuche] = useState('');
+  const [text, setText] = useState<string | null>(null);
+  const [fehler, setFehler] = useState('');
+  const l = daten.aerzte ?? [];
+  const q = suche.trim().toLowerCase();
+  const treffer = q ? l.filter((a) => a.name.toLowerCase().includes(q) || a.gebiet.some((g) => g.toLowerCase().includes(q) || q.includes(g.toLowerCase()))) : l;
+  return (
+    <div className="tel-aerzte">
+      <input className="feld" type="search" placeholder="Arzt oder Gemeinde suchen …" value={suche} onChange={(e) => setSuche(e.target.value)} />
+      <div className="tel-kacheln">
+        {treffer.map((a) => (
+          <a key={a.name + a.telefon} className="tel-kachel breit" href={telLink(a.telefon)}>
+            <span className="tel-k-icon">🩺</span>
+            <span className="tel-k-text">
+              <b>{a.name}</b>
+              <small>{a.gebiet.join(', ') || '—'}</small>
+            </span>
+            <span className="tel-k-pfeil">📞</span>
+          </a>
+        ))}
+        {!treffer.length && <p className="leer">{l.length ? 'Kein Treffer' : 'Noch keine Ärzte eingetragen'}</p>}
+      </div>
+      {daten.admin &&
+        (text === null ? (
+          <button type="button" className="knopf klein" onClick={() => setText(aerzteZuText(l))}>
+            ✎ Ärzteliste bearbeiten
+          </button>
+        ) : (
+          <div className="glas admin-block">
+            <p className="klein">Eine Zeile je Arzt: Name; Telefon; Gemeinde, Gemeinde …</p>
+            <textarea className="feld" rows={8} value={text} placeholder="Dr. Muster; 02662 12345; Gloggnitz, Schottwien" onChange={(e) => setText(e.target.value)} />
+            {fehler && <div className="banner fehler">{fehler}</div>}
+            <div className="ab-modal-knoepfe">
+              <button
+                type="button"
+                className="knopf primaer"
+                onClick={() =>
+                  void aerzteFestlegen(aerzteAusText(text))
+                    .then((d) => {
+                      setDaten(d);
+                      setText(null);
+                      setFehler('');
+                    })
+                    .catch((x: Error) => setFehler(x.message))
+                }
+              >
+                Speichern
+              </button>
+              <button type="button" className="knopf" onClick={() => setText(null)}>
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        ))}
+    </div>
+  );
+}
+
 function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; setDaten: (d: TelefonDaten) => void; gespeichert: (id?: string) => void }) {
   const [e, setERoh] = useState<Entwurf>(() => {
     try {
@@ -351,9 +426,8 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
   const [datei, setDatei] = useState<Blob | null>(null);
   const [laeuft, setLaeuft] = useState(false);
   const [meldung, setMeldung] = useState<{ ok: boolean; text: string } | null>(null);
-  const [schritt, setSchritt] = useState(0);
+  const [blatt, setBlatt] = useState<{ titel: string; bloecke: Block[] } | null>(null);
   const schmal = useSchmal();
-  const formRef = useRef<HTMLFormElement>(null);
   const rahmen = useRef<HTMLDivElement>(null);
   // Assistent füllt am Handy genau den restlichen Bildschirm (auch bei offener Tastatur) – kein Seitenscrollen.
   useLayoutEffect(() => {
@@ -382,17 +456,13 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
       /* egal */
     }
   }, [e]);
-  const schritte = SCHRITTE[e.art];
-  const s = Math.min(schritt, schritte.length - 1);
 
   const artWahl = (a: MitschriftArt) => {
     setE({ ...e, art: a });
-    setSchritt(0);
   };
   const leeren = () => {
     setE(leer(e.art));
     setDatei(null);
-    setSchritt(0);
   };
 
   const los = async (uebergeben: boolean) => {
@@ -411,8 +481,7 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
       setDaten(d);
       setERoh(leer(e.art));
       setDatei(null);
-      setSchritt(0);
-      localStorage.removeItem(ENTWURF);
+        localStorage.removeItem(ENTWURF);
       const an = uebergeben ? (d.bereitschaft.length ? ` und an ${personText(d.bereitschaft)} übergeben` : ' und an die Bereitschaft übergeben (gerade ist niemand eingeteilt)') : '';
       setMeldung({ ok: !hinweis, text: `Gespeichert${an}.${hinweis}` });
       if (!hinweis) gespeichert(uebergeben ? undefined : d.neu);
@@ -446,74 +515,88 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
     </>
   );
   const meldungZeile = meldung && <div className={`banner ${meldung.ok ? '' : 'fehler'}`}>{meldung.text}</div>;
-  const kurzwert = (kurz: string): [string, string] => {
-    if (kurz === 'Person') return ['✝', e.nameUnbekannt ? 'unbekannt' : e.verstorbener];
-    if (kurz === 'Ort') return [ORT_ARTEN.find((o) => o.id === e.ortArt)?.symbol ?? '📍', e.ort];
-    if (kurz === 'Anrufer') return ['📞', e.anrufer || e.nummer];
-    if (kurz === 'Anliegen') return ['💬', e.anliegen];
-    return ['✓', e.notiz ? 'mit Notiz' : ''];
-  };
-
-  if (schmal)
+  if (schmal) {
+    const ortArt = ORT_ARTEN.find((o) => o.id === e.ortArt);
+    const fehltPerson = e.art === 'sterbefall' && !e.verstorbener && !e.ort && !e.nameUnbekannt;
+    const fehltAnrufer = !e.anrufer && !e.nummer;
+    const kachel = (icon: string, klein: string, wert: React.ReactNode, b: { titel: string; bloecke: Block[] }, extra = '') => (
+      <button type="button" className={`tel-kachel ${wert ? '' : 'leer'} ${extra}`} onClick={() => setBlatt(b)}>
+        <span className="tel-k-icon">{icon}</span>
+        <span className="tel-k-text">
+          <small>{klein}</small>
+          <b>{wert || 'antippen'}</b>
+        </span>
+        <span className="tel-k-pfeil">{wert ? '›' : '＋'}</span>
+      </button>
+    );
     return (
-      <div className="tel-assistent" ref={rahmen}>
-        <div className="tel-assistent-kopf">
-          {artKnoepfe}
-          <Aufnehmen datei={datei} setDatei={setDatei} kompakt />
-          <button type="button" className="knopf klein tel-leeren" onClick={leeren} title="Alles leeren" aria-label="Alles leeren">
-            ↺
-          </button>
+      <div className="tel-assistent tel-aufnahme-cockpit" ref={rahmen}>
+        <div className="tel-held">
+          <div className="tel-held-kopf">
+            <span className="tel-held-icon">📞</span>
+            <span>
+              <b>Neuer Anruf · {e.zeit.slice(11, 16)}</b>
+              <small>🚐 Bereitschaft: {daten.bereitschaft.length ? personText(daten.bereitschaft) : 'niemand eingeteilt'}</small>
+            </span>
+          </div>
+          <BereitschaftWahl l={daten.bereitschaft} />
+          <div className="tel-held-werkzeug">
+            {artKnoepfe}
+            <Aufnehmen datei={datei} setDatei={setDatei} kompakt />
+            <button type="button" className="knopf klein tel-leeren" onClick={leeren} title="Alles leeren" aria-label="Alles leeren">
+              ↺
+            </button>
+          </div>
         </div>
-        <div className="tel-chips" style={{ gridTemplateColumns: `repeat(${schritte.length}, minmax(0, 1fr))` }}>
-          {schritte.map((x, i) => {
-            const [sym, wert] = kurzwert(x.kurz);
-            return (
-              <button key={x.kurz} type="button" className={`tel-chip ${i === s ? 'an' : ''} ${wert ? 'fertig' : ''}`} onClick={() => setSchritt(i)}>
-                <small>
-                  {i + 1} · {x.kurz}
-                </small>
-                <b>{wert ? `${sym} ${wert}` : '—'}</b>
-              </button>
-            );
-          })}
-        </div>
-        <form
-          ref={formRef}
-          className="glas tel-schritt ab-formular"
-          onSubmit={(ev) => {
-            ev.preventDefault();
-            if (s < schritte.length - 1) setSchritt(s + 1);
-          }}
-        >
-          <h3>{schritte[s].titel}</h3>
-          <Felder e={e} setE={setE} daten={daten} neu bloecke={schritte[s].bloecke} />
-          {s === schritte.length - 1 && e.art === 'sterbefall' && (
-            <div className="tel-held-mini">
-              🚐 Bereitschaft jetzt: <b>{daten.bereitschaft.length ? personText(daten.bereitschaft) : 'niemand eingeteilt'}</b>
-            </div>
-          )}
-          <button type="submit" hidden />
-        </form>
-        {meldungZeile}
-        <div className="tel-schritt-fuss">
-          <button type="button" className="knopf tel-zurueck" disabled={s === 0} onClick={() => setSchritt(s - 1)} aria-label="Zurück">
-            ←
-          </button>
-          {s < schritte.length - 1 ? (
+        <div className="tel-kacheln">
+          {e.art === 'sterbefall' ? (
             <>
-              <button type="button" className="knopf tel-gleich" disabled={laeuft} onClick={() => void los(false)} title="Ohne weitere Angaben speichern">
-                💾
+              {kachel('✝', 'Verstorben', e.nameUnbekannt ? 'derzeit unbekannt' : [e.verstorbener, e.geburtsdatum && `* ${e.geburtsdatum.split('-').reverse().join('.')}`].filter(Boolean).join(' · '), { titel: 'Wer ist verstorben?', bloecke: ['person'] }, `breit ${fehltPerson ? 'warn' : ''}`)}
+              {kachel(ortArt?.symbol ?? '📍', ortArt?.label ?? 'Sterbeort', [e.ort, e.ortNotiz].filter(Boolean).join(' · '), { titel: 'Wo verstorben?', bloecke: ['ort'] }, `breit ${fehltPerson ? 'warn' : ''}`)}
+              {aerzteFuer(e.ort, daten.aerzte ?? []).slice(0, 2).map((a) => <ArztKachel key={a.name} a={a} />)}
+              {kachel('📞', 'Anrufer', [e.anrufer, e.nummer].filter(Boolean).join(' · '), { titel: 'Wer ruft an?', bloecke: ['anrufer'] }, `breit ${fehltAnrufer ? 'warn' : ''}`)}
+              <button type="button" className={`tel-kachel ${e.polizei ? 'signal' : 'leer'}`} aria-pressed={e.polizei} onClick={() => setE({ ...e, polizei: !e.polizei })}>
+                <span className="tel-k-icon">🚓</span>
+                <span className="tel-k-text">
+                  <small>Polizei</small>
+                  <b>{e.polizei ? 'ja, vor Ort' : 'nein'}</b>
+                </span>
               </button>
-              <button type="button" className="knopf primaer" onClick={() => setSchritt(s + 1)}>
-                Weiter: {schritte[s + 1].kurz} →
-              </button>
+              {kachel('🩺', 'Hausarzt', e.hausarzt, { titel: 'Hausarzt', bloecke: ['extra'] })}
             </>
           ) : (
-            speichernKnoepfe
+            <>
+              {kachel('📞', 'Anrufer', [e.anrufer, e.nummer].filter(Boolean).join(' · '), { titel: 'Wer ruft an?', bloecke: ['anrufer'] }, `breit ${fehltAnrufer ? 'warn' : ''}`)}
+              {kachel('💬', 'Anliegen', e.anliegen, { titel: 'Worum geht es?', bloecke: ['anliegen'] }, `breit ${e.anliegen ? '' : 'warn'}`)}
+            </>
           )}
+          {kachel('📝', 'Notiz · Anruf um', [e.notiz, e.zeit.slice(11, 16)].filter(Boolean).join(' · '), { titel: 'Notiz und Uhrzeit', bloecke: ['notiz', 'zeit'] }, 'breit')}
         </div>
+        {meldungZeile}
+        <div className="tel-schritt-fuss">{speichernKnoepfe}</div>
+        {blatt && (
+          <div className="modal-hintergrund tel-blatt-hintergrund" onClick={() => setBlatt(null)}>
+            <form
+              className="modal tel-blatt ab-formular"
+              role="dialog"
+              aria-modal="true"
+              onClick={(ev) => ev.stopPropagation()}
+              onSubmit={(ev) => {
+                ev.preventDefault();
+                setBlatt(null);
+              }}
+            >
+              <h3>{blatt.titel}</h3>
+              <Felder e={e} setE={setE} daten={daten} neu bloecke={blatt.bloecke} />
+              <button type="submit" className="knopf primaer">
+                ✓ Fertig
+              </button>
+            </form>
+          </div>
+        )}
       </div>
     );
+  }
 
   return (
     <div className="glas admin-block ab-formular tel-formular">
@@ -799,6 +882,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
                     <small>{phase.sub}</small>
                   </span>
                 </div>
+                {!m.abholung && <BereitschaftWahl l={daten.bereitschaft} />}
                 {m.status === 'offen' && daten.darfTelefon ? (
                   <button className="knopf primaer" disabled={laeuft} onClick={() => void tun(() => mitschriftAktion(m.id, 'uebergeben'))}>
                     🚐 An Bereitschaft übergeben
@@ -824,6 +908,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
                 ) : (
                   <div className="tel-kachel breit warn">{kachel('⚠', 'fehlt', 'Sterbeort – über „Mehr“ → Bearbeiten')}</div>
                 )}
+                {!m.abholung && aerzteFuer(m.ort, daten.aerzte ?? []).slice(0, 2).map((a) => <ArztKachel key={a.name} a={a} />)}
                 {m.nummer ? (
                   <a className="tel-kachel" href={`tel:${m.nummer.replace(/[^\d+]/g, '')}`}>
                     {kachel('📞', 'Anrufer', m.anrufer || m.nummer)}
@@ -1225,6 +1310,7 @@ export default function TelefonAnsicht() {
     ...(daten.darfTelefon ? ([['neu', '＋ Neu']] as [Modus, string][]) : []),
     ['offen', `${daten.darfTelefon ? 'Offen' : 'Abholungen'} (${daten.darfTelefon ? offene.length : abholungen.length})`],
     ['archiv', '🗂 Archiv'],
+    ['aerzte', '🩺 Ärzte'],
   ];
 
   return (
@@ -1262,6 +1348,7 @@ export default function TelefonAnsicht() {
         </div>
       )}
       {m === 'archiv' && <Archiv daten={daten} oeffnen={setOffen} />}
+      {m === 'aerzte' && <Aerzte daten={daten} setDaten={setDaten} />}
       {detail && <Detail key={detail.id} m={detail} daten={daten} setDaten={setDaten} schliessen={() => setOffen(null)} />}
     </div>
   );

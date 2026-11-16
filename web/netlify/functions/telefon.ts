@@ -19,6 +19,7 @@ import {
   istOffen,
   nachtragen,
   type Mitschrift,
+  aerztePruefen,
 } from '../../src/shared/telefon';
 import {
   angemeldet,
@@ -34,6 +35,9 @@ import {
   bereitschaftLaden,
   env,
   hubPushAusloesen,
+  personalLaden,
+  aerzteLaden,
+  aerzteSpeichern,
   googleGet,
   json,
   kuehlraeumeLaden,
@@ -127,6 +131,15 @@ export default async (req: Request) => {
     await mitschriftSpeichern(ohnePapiere);
     liste = liste.some((x) => x.id === neu.id) ? liste.map((x) => (x.id === neu.id ? neu : x)) : [neu, ...liste];
   };
+
+  async function mitTelefon(l: { email: string; name?: string }[]) {
+    if (!l.length) return l;
+    const personal = await personalLaden().catch(() => []);
+    return l.map((x) => {
+      const tel = personal.find((p) => p.email === x.email.toLowerCase())?.telefon;
+      return tel ? { ...x, telefon: tel } : x;
+    });
+  }
 
   async function bereitschaftJetzt() {
     const jetzt = ortszeit(new Date());
@@ -233,6 +246,11 @@ export default async (req: Request) => {
     if (!kuehlraum && b.ueberspringen !== true) return json({ fehler: 'Bitte den Kühlraum eintragen' }, 400);
     const notiz = text(b.notiz, 1000);
     await speichern({ ...nachtragen(m, b), status: 'abgeschlossen', abholung: { am: Date.now(), von: ich, kuehlraum, ...(notiz ? { notiz } : {}) } });
+  } else if (req.method === 'POST' && aktion === 'aerzte') {
+    if (!a.rechte.admin) return verboten();
+    const b = (await req.json().catch(() => null)) as { liste?: unknown } | null;
+    if (!b || !Array.isArray(b.liste)) return json({ fehler: 'Ungültige Liste' }, 400);
+    await aerzteSpeichern(aerztePruefen(b.liste));
   } else if (req.method === 'POST' && aktion === 'kuehlraeume') {
     if (!a.rechte.admin) return verboten();
     const b = (await req.json().catch(() => null)) as { liste?: unknown } | null;
@@ -258,10 +276,11 @@ export default async (req: Request) => {
       darfTelefon: telefon,
       darfAbholen: abholen,
       admin: a!.rechte.admin,
-      bereitschaft: await bereitschaftJetzt(),
+      bereitschaft: await mitTelefon(await bereitschaftJetzt()),
       faelle: telefon ? await faelleLaden(a!.konfig).catch(() => []) : [],
       kuehlraeume: [...new Set(liste.flatMap((x) => (x.abholung?.kuehlraum ? [x.abholung.kuehlraum] : [])))].slice(0, 12),
       kuehlraeumeFest: await kuehlraeumeLaden().catch(() => []),
+      aerzte: await aerzteLaden().catch(() => []),
       ich: { email: ich, name: a!.sitzung.name },
       telefonJetzt: await telefonJetztLaden().catch(() => null),
       ...(neu ? { neu } : {}),

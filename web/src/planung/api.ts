@@ -4,7 +4,7 @@ import type { EinteilungPerson } from '../shared/einteilung';
 import type { NeuerTermin } from '../shared/neuerTermin';
 import type { AbwArt, Abwesenheit, Personal } from '../shared/abwesenheit';
 import type { BerichtArchiv, MonatsEintrag, MonatsEntwurf, ZeitkontoDaten, ZeitkontoEinstellungen } from '../shared/zeitkonto';
-import type { Mitschrift } from '../shared/telefon';
+import type { Arzt, Mitschrift } from '../shared/telefon';
 import type { Kernzeiten, TelEinsatz, TelMuster, TelSegment } from '../shared/telefonplan';
 import { ausGoogleEvent, personalZuordnen, type GoogleEvent, type Termin } from './planungLogic';
 import { cacheLeeren, cacheLesen, cacheSchreiben, istOffline, OfflineFehler } from './offlineCache';
@@ -339,10 +339,11 @@ export interface TelefonDaten {
   darfTelefon: boolean;
   darfAbholen: boolean;
   admin: boolean;
-  bereitschaft: { email: string; name?: string }[];
+  bereitschaft: { email: string; name?: string; telefon?: string }[];
   kuehlraeume: string[];
   /** Vom Admin angelegte Kühlräume (Schnellauswahl). */
   kuehlraeumeFest?: string[];
+  aerzte?: Arzt[];
   faelle?: { name: string; zuletzt: string; aktiv: boolean }[];
   ich: { email: string; name?: string };
   telefonJetzt?: TelSegment | null;
@@ -355,6 +356,7 @@ export const mitschriftAnlegen = (d: Record<string, unknown>) => holen<TelefonDa
 export const mitschriftAendern = (id: string, d: Record<string, unknown>) => holen<TelefonDaten>(telAdresse({ id }), jsonInit('PUT', d));
 export const mitschriftAktion = (id: string, aktion: 'uebergeben' | 'abholung' | 'erledigt', d: Record<string, unknown> = {}) =>
   holen<TelefonDaten>(telAdresse({ id, aktion }), jsonInit('POST', d));
+export const aerzteFestlegen = (liste: Arzt[]) => holen<TelefonDaten>(telAdresse({ aktion: 'aerzte' }), jsonInit('POST', { liste }));
 export const kuehlraeumeFestlegen = (liste: string[]) => holen<TelefonDaten>(telAdresse({ aktion: 'kuehlraeume' }), jsonInit('POST', { liste }));
 export const mitschriftEntfernen = (id: string) => holen<TelefonDaten>(telAdresse({ id }), { method: 'DELETE' });
 export const aufnahmeHochladen = (id: string, datei: Blob) =>
