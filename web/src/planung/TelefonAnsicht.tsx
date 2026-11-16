@@ -819,6 +819,7 @@ function Detail({ m, daten, setDaten, schliessen }: { m: Mitschrift; daten: Tele
                       </button>
                     ),
                   )}
+                {m.abholung?.notiz && <div className="tel-kachel breit notiz">{kachel('❄', 'Notiz zur Abholung', <span className="tel-umbruch">{m.abholung.notiz}</span>)}</div>}
                 {m.notiz && <div className="tel-kachel breit notiz">{kachel('📝', 'Notiz', <span className="tel-umbruch">{m.notiz}</span>)}</div>}
               </div>
             </div>
