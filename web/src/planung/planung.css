@@ -408,6 +408,10 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .dienst-zeiten { display: flex; gap: 0.6rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-2); }
 .dienst-zeiten label { display: inline-flex; align-items: center; gap: 0.4rem; }
 .dienst-fehler { margin: 0; color: var(--rot); font-size: 0.85rem; }
+.dienst-luecken { margin: 0.2rem 0 0; padding: 0; list-style: none; font-size: 0.82rem; color: var(--warn); }
+.dienst-luecken li::before { content: '⚠ '; }
+.bs-zusatz-form { display: grid; gap: 0.6rem; }
+.bs-zusatz-form h3 { margin: 0; }
 .bereitschaft-hinweis { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-2); }
 .bereitschaft-hinweis .pille { cursor: default; }
 /* Bereitschaft: Planung / Übersicht */

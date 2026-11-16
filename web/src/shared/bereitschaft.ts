@@ -5,21 +5,81 @@ import { hatRolle, rolleVergeben, type MitRollen } from './rollen';
 
 export const MIN_PERSONEN = 2;
 
-/** Ein Dienst ist vollständig mit mind. 2 Personen – 3, wenn jemand Eingeteiltes „braucht Dritten“ hat. */
-export function besetzung(eintraege: Einsatz[], d: { von: string; bis: string }, dritter: ReadonlySet<string>): { personen: number; noetig: number; vollstaendig: boolean } {
+/** Ein Dienst ist vollständig, wenn zu jeder Zeit mind. 2 Personen eingeteilt sind – 3, solange jemand mit „braucht Dritten“ Dienst hat. */
+export function besetzung(eintraege: Einsatz[], d: { von: string; bis: string }, dritter: ReadonlySet<string>): { personen: number; noetig: number; vollstaendig: boolean; luecken: Luecke[] } {
   const emails = new Set(einsaetzeIn(eintraege, d).map((e) => e.email));
   const noetig = [...emails].some((e) => dritter.has(e)) ? MAX_GLEICHZEITIG : MIN_PERSONEN;
-  return { personen: emails.size, noetig, vollstaendig: emails.size >= noetig };
+  const l = luecken(eintraege, d, dritter);
+  return { personen: emails.size, noetig, vollstaendig: l.length === 0, luecken: l };
+}
+
+/** Eine Zeitspanne, in der `fehlt` Personen zur vollständigen Besetzung fehlen. */
+export interface Luecke {
+  von: string;
+  bis: string;
+  fehlt: number;
+}
+
+/** Alle unterbesetzten Zeitspannen eines Dienstes, aneinandergrenzende mit gleicher Fehlzahl zusammengefasst. */
+export function luecken(eintraege: Einsatz[], d: { von: string; bis: string }, dritter: ReadonlySet<string>): Luecke[] {
+  const da = einsaetzeIn(eintraege, d);
+  const punkte = [...new Set([d.von, d.bis, ...da.flatMap((e) => [e.von, e.bis]).filter((p) => p > d.von && p < d.bis)])].sort();
+  const r: Luecke[] = [];
+  for (let i = 0; i < punkte.length - 1; i++) {
+    const von = punkte[i];
+    const bis = punkte[i + 1];
+    const jetzt = new Set(da.filter((e) => e.von <= von && e.bis >= bis).map((e) => e.email));
+    const noetig = [...jetzt].some((e) => dritter.has(e)) ? MAX_GLEICHZEITIG : MIN_PERSONEN;
+    const fehlt = noetig - jetzt.size;
+    if (fehlt <= 0) continue;
+    const letzte = r[r.length - 1];
+    if (letzte && letzte.bis === von && letzte.fehlt === fehlt) letzte.bis = bis;
+    else r.push({ von, bis, fehlt });
+  }
+  return r;
+}
+
+const WT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+const tagKurz = (d: Date) => `${WT[d.getDay()]} ${d.getDate()}.${d.getMonth() + 1}.`;
+
+/** Kurztext einer Zeitspanne, z. B. „Sa 6.6. 08:00–24:00“ oder „Fr 5.6. – So 7.6.“ (ganze Tage). */
+export function spanneText(von: string, bis: string): string {
+  const a = ausText(von);
+  const b = ausText(bis);
+  const zA = von.slice(11);
+  const zB = bis.slice(11);
+  const letzter = zB === '00:00' ? plusTage(b, -1) : b;
+  const gleicherTag = datumText(a) === datumText(letzter);
+  if (zA === '00:00' && zB === '00:00') return gleicherTag ? `${tagKurz(a)} ganztags` : `${tagKurz(a)} – ${tagKurz(letzter)}`;
+  const ende = zB === '00:00' ? '24:00' : zB;
+  return gleicherTag ? `${tagKurz(a)} ${zA}–${ende}` : `${tagKurz(a)} ${zA} – ${tagKurz(letzter)} ${ende}`;
 }
 
 export const MAX_GLEICHZEITIG = 3;
 
 export interface Dienst {
   id: string;
-  art: 'wochenende' | 'feiertag';
+  art: 'wochenende' | 'feiertag' | 'zusatz';
   von: string;
   bis: string;
   feiertage: string[];
+  /** Anlass eines zusätzlich angesetzten Tages. */
+  anlass?: string;
+}
+
+/** Von Planern zusätzlich angesetzter Bereitschaftstag (Mo–Do, kein Feiertag), ganztägig. */
+export interface Zusatztag {
+  datum: string;
+  anlass?: string;
+}
+
+/** Prüft einen neuen Zusatztag; liefert eine Fehlermeldung oder null. */
+export function zusatztagFehler(datum: string, vorhanden: readonly Zusatztag[]): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum) || datumText(ausText(`${datum}T00:00`)) !== datum) return 'Ungültiges Datum';
+  const t = ausText(`${datum}T00:00`);
+  if (dienste(t, t).some((d) => d.von <= `${datum}T00:00` && `${datum}T00:00` < d.bis)) return 'An diesem Tag gibt es bereits Bereitschaft';
+  if (vorhanden.some((z) => z.datum === datum)) return 'Dieser Tag ist bereits angesetzt';
+  return null;
 }
 
 export interface Einsatz {
@@ -74,8 +134,9 @@ export function feiertage(j: number): { datum: string; name: string }[] {
   ].sort((x, y) => x.datum.localeCompare(y.datum));
 }
 
-/** Alle Bereitschaftsdienste, die zwischen `ab` und `bis` (Tage) beginnen: Wochenenden Fr 0:00 – Mo 0:00, Feiertage Mo–Do ganztägig. */
-export function dienste(ab: Date, bis: Date): Dienst[] {
+/** Alle Bereitschaftsdienste, die zwischen `ab` und `bis` (Tage) beginnen: Wochenenden Fr 0:00 – Mo 0:00, Feiertage und Zusatztage Mo–Do ganztägig. */
+export function dienste(ab: Date, bis: Date, zusatz: readonly Zusatztag[] = []): Dienst[] {
+  const zt = new Map(zusatz.map((z) => [z.datum, z]));
   let tag = new Date(ab.getFullYear(), ab.getMonth(), ab.getDate());
   if (tag.getDay() === 6) tag = plusTage(tag, -1);
   if (tag.getDay() === 0) tag = plusTage(tag, -2);
@@ -89,6 +150,9 @@ export function dienste(ab: Date, bis: Date): Dienst[] {
       liste.push({ id: `we-${d}`, art: 'wochenende', von: `${d}T00:00`, bis: `${datumText(plusTage(tag, 3))}T00:00`, feiertage: namen });
     } else if (ft.has(d) && tag.getDay() >= 1 && tag.getDay() <= 4) {
       liste.push({ id: `ft-${d}`, art: 'feiertag', von: `${d}T00:00`, bis: `${datumText(plusTage(tag, 1))}T00:00`, feiertage: [ft.get(d)!] });
+    } else if (zt.has(d) && tag.getDay() >= 1 && tag.getDay() <= 4) {
+      const anlass = zt.get(d)!.anlass;
+      liste.push({ id: `zt-${d}`, art: 'zusatz', von: `${d}T00:00`, bis: `${datumText(plusTage(tag, 1))}T00:00`, feiertage: [], ...(anlass ? { anlass } : {}) });
     }
   }
   return liste;
@@ -112,13 +176,13 @@ const ZEIT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 export const gueltigeZeit = (s: string) => ZEIT.test(s) && zeitText(ausText(s)) === s;
 
 /** Prüft einen neuen Eintrag; liefert eine Fehlermeldung oder null. */
-export function einsatzFehler(eintraege: Einsatz[], neu: { email: string; von: string; bis: string }, personen?: MitRollen[]): string | null {
+export function einsatzFehler(eintraege: Einsatz[], neu: { email: string; von: string; bis: string }, personen?: MitRollen[], zusatz: readonly Zusatztag[] = []): string | null {
   if (personen && rolleVergeben(personen, 'bereitschaft') && !hatRolle(personen.find((p) => p.email === neu.email), 'bereitschaft'))
     return 'Nur Mitarbeiter mit der Rolle „Bereitschaft“ können eingeteilt werden';
   if (!gueltigeZeit(neu.von) || !gueltigeZeit(neu.bis) || neu.von >= neu.bis) return 'Ungültiger Zeitraum';
   const start = ausText(neu.von);
-  const dienst = dienste(plusTage(start, -3), plusTage(start, 3)).find((d) => d.von <= neu.von && neu.bis <= d.bis);
-  if (!dienst) return 'Bereitschaft gibt es nur an Wochenenden (Fr–So) und Feiertagen';
+  const dienst = dienste(plusTage(start, -3), plusTage(start, 3), zusatz).find((d) => d.von <= neu.von && neu.bis <= d.bis);
+  if (!dienst) return 'Bereitschaft gibt es nur an Wochenenden (Fr–So), Feiertagen und angesetzten Zusatztagen';
   if (eintraege.some((e) => e.email === neu.email && ueberschneidet(e, neu))) return 'In diesem Zeitraum bereits eingetragen';
   if (gleichzeitig(eintraege, neu) > MAX_GLEICHZEITIG) return `Höchstens ${MAX_GLEICHZEITIG} Personen gleichzeitig`;
   return null;
@@ -159,14 +223,14 @@ export function jahresUebersicht(eintraege: Einsatz[], jahr: number, jetzt: stri
 }
 
 /** Wie die Jahresübersicht, für einen beliebigen Zeitraum [ab, bis) – z. B. einen Monat. */
-export function uebersichtZeitraum(eintraege: Einsatz[], ab: Date, bis: Date, jetzt: string): PersonStatistik[] {
+export function uebersichtZeitraum(eintraege: Einsatz[], ab: Date, bis: Date, jetzt: string, zusatz: readonly Zusatztag[] = []): PersonStatistik[] {
   const jahrVon = zeitText(ab);
   const jahrBis = zeitText(bis);
-  const ds = dienste(ab, plusTage(bis, -1)).filter((d) => d.von >= jahrVon && d.von < jahrBis);
+  const ds = dienste(ab, plusTage(bis, -1), zusatz).filter((d) => d.von >= jahrVon && d.von < jahrBis);
   const ft = new Set<string>();
   for (let j = ab.getFullYear(); j <= bis.getFullYear(); j++) for (const f of feiertage(j)) ft.add(f.datum);
   const dienstTage = new Set<string>();
-  for (const d of dienste(plusTage(ab, -3), bis))
+  for (const d of dienste(plusTage(ab, -3), bis, zusatz))
     for (let t = ausText(d.von); zeitText(t) < d.bis; t = plusTage(t, 1)) if (zeitText(t) >= jahrVon && zeitText(t) < jahrBis) dienstTage.add(datumText(t));
   const m = new Map<string, { p: PersonStatistik; tage: Set<string>; eigene: Einsatz[] }>();
   for (const e of eintraege) {

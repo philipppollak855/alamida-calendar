@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { darfPlanen, dienste, einsatzFehler, feiertage, gleichzeitig, jahresUebersicht, ostersonntag, type Einsatz } from './bereitschaft';
+import { besetzung, darfPlanen, dienste, einsatzFehler, feiertage, gleichzeitig, jahresUebersicht, luecken, ostersonntag, spanneText, zusatztagFehler, type Einsatz } from './bereitschaft';
 import { STANDARD_KONFIG, rechteFuer } from './rechte';
 
 const e = (email: string, von: string, bis: string): Einsatz => ({ id: email + von, email, von, bis, eingetragenVon: email });
@@ -86,5 +86,47 @@ describe('jahresUebersicht', () => {
     expect(u.map((p) => p.email)).toEqual(['a@x.at', 'b@x.at']);
     expect(u[1]).toMatchObject({ einsaetze: 1, ganzeWochenenden: 0, tage: 1, feiertage: 0 });
     expect(u[1].naechster).toBeUndefined();
+  });
+});
+
+describe('Lücken in der Besetzung', () => {
+  const we = { von: '2026-06-05T00:00', bis: '2026-06-08T00:00' };
+  const e = (id: string, email: string, von: string, bis: string): Einsatz => ({ id, email, von, bis });
+  it('meldet die genaue Zeitspanne, in der jemand fehlt', () => {
+    const l = luecken([e('1', 'a', we.von, we.bis), e('2', 'b', '2026-06-05T00:00', '2026-06-06T08:00')], we, new Set());
+    expect(l).toEqual([{ von: '2026-06-06T08:00', bis: '2026-06-08T00:00', fehlt: 1 }]);
+    expect(besetzung([e('1', 'a', we.von, we.bis), e('2', 'b', '2026-06-05T00:00', '2026-06-06T08:00')], we, new Set()).vollstaendig).toBe(false);
+  });
+  it('zwei Personen nacheinander ergeben keine vollständige Besetzung', () => {
+    const l = luecken([e('1', 'a', we.von, '2026-06-06T12:00'), e('2', 'b', '2026-06-06T12:00', we.bis)], we, new Set());
+    expect(l).toEqual([{ von: we.von, bis: we.bis, fehlt: 1 }]);
+  });
+  it('mit „braucht Dritten“ fehlt nur, solange diese Person Dienst hat, eine dritte', () => {
+    const l = luecken([e('1', 'a', we.von, we.bis), e('2', 'c', we.von, we.bis), e('3', 'b', we.von, '2026-06-07T00:00')], we, new Set(['c']));
+    expect(l).toEqual([{ von: '2026-06-07T00:00', bis: we.bis, fehlt: 1 }]);
+    expect(luecken([e('1', 'a', we.von, we.bis), e('2', 'b', we.von, we.bis)], we, new Set())).toEqual([]);
+  });
+  it('Text der Zeitspanne', () => {
+    expect(spanneText('2026-06-06T08:00', '2026-06-08T00:00')).toBe('Sa 6.6. 08:00 – So 7.6. 24:00');
+    expect(spanneText('2026-06-06T08:00', '2026-06-07T00:00')).toBe('Sa 6.6. 08:00–24:00');
+    expect(spanneText('2026-06-05T00:00', '2026-06-08T00:00')).toBe('Fr 5.6. – So 7.6.');
+    expect(spanneText('2026-06-09T00:00', '2026-06-10T00:00')).toBe('Di 9.6. ganztags');
+  });
+});
+
+describe('Zusatztage', () => {
+  it('werden als ganztägiger Dienst geführt und erlauben Einträge', () => {
+    const z = [{ datum: '2026-06-09', anlass: 'Messe' }];
+    const d = dienste(new Date(2026, 5, 8), new Date(2026, 5, 11), z);
+    expect(d.find((x) => x.id === 'zt-2026-06-09')).toMatchObject({ art: 'zusatz', von: '2026-06-09T00:00', bis: '2026-06-10T00:00', anlass: 'Messe' });
+    expect(einsatzFehler([], { email: 'a', von: '2026-06-09T00:00', bis: '2026-06-10T00:00' })).not.toBeNull();
+    expect(einsatzFehler([], { email: 'a', von: '2026-06-09T00:00', bis: '2026-06-10T00:00' }, undefined, z)).toBeNull();
+  });
+  it('nicht an Tagen, die schon Bereitschaft haben, und nicht doppelt', () => {
+    expect(zusatztagFehler('2026-06-06', [])).toMatch(/bereits Bereitschaft/);
+    expect(zusatztagFehler('2026-06-04', [])).toMatch(/bereits Bereitschaft/); // Fronleichnam
+    expect(zusatztagFehler('2026-06-09', [{ datum: '2026-06-09' }])).toMatch(/bereits angesetzt/);
+    expect(zusatztagFehler('2026-02-30', [])).toBe('Ungültiges Datum');
+    expect(zusatztagFehler('2026-06-09', [])).toBeNull();
   });
 });

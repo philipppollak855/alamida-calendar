@@ -1,5 +1,5 @@
 import type { Konfiguration, KalenderEintrag, Rechte } from '../shared/rechte';
-import type { Einsatz } from '../shared/bereitschaft';
+import type { Einsatz, Zusatztag } from '../shared/bereitschaft';
 import type { EinteilungPerson } from '../shared/einteilung';
 import type { NeuerTermin } from '../shared/neuerTermin';
 import type { AbwArt, Abwesenheit, Personal } from '../shared/abwesenheit';
@@ -210,6 +210,8 @@ export interface BereitschaftDaten {
   /** Im Hub eingestellt: ich sehe nur meine eigenen Einträge. */
   nurEigene?: boolean;
   darfTelefonplan?: boolean;
+  /** Von Planern zusätzlich angesetzte Bereitschaftstage. */
+  zusatz?: Zusatztag[];
 }
 
 const mitVon = (pfad: string, von?: string) => (von ? `${pfad}${pfad.includes('?') ? '&' : '?'}von=${von}` : pfad);
@@ -218,6 +220,10 @@ export const bereitschaftEintragen = (e: { email?: string; von: string; bis: str
   holen<BereitschaftDaten>(mitVon('/api/bereitschaft', ab), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(e) });
 export const bereitschaftAustragen = (id: string, ab?: string) =>
   holen<BereitschaftDaten>(mitVon(`/api/bereitschaft?id=${encodeURIComponent(id)}`, ab), { method: 'DELETE' });
+export const zusatztagAnsetzen = (z: Zusatztag, ab?: string) =>
+  holen<BereitschaftDaten>(mitVon('/api/bereitschaft', ab), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ zusatztag: z }) });
+export const zusatztagEntfernen = (datum: string, ab?: string) =>
+  holen<BereitschaftDaten>(mitVon(`/api/bereitschaft?zusatztag=${encodeURIComponent(datum)}`, ab), { method: 'DELETE' });
 
 export interface AbwesenheitDaten {
   ich: { email: string; name?: string };
