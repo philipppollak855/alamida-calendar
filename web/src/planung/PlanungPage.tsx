@@ -732,6 +732,7 @@ export default function PlanungPage() {
               )}
               {spalten.map((g) => {
                 const liste = tagGruppen[g];
+                const sammelHier = tagSammel.filter((b) => b.art === 'sammel' && (KATEGORIEN[b.kategorie].gruppe ?? 'Sonstiges') === g);
                 const jetztIndex = istHeute ? liste.findIndex((t) => !t.ganztaegig && t.start > jetzt) : -1;
                 return (
                   <div key={g} className="spalte glas">
@@ -739,11 +740,10 @@ export default function PlanungPage() {
                       <span>
                         {GRUPPEN_ICON[g]} {g}
                       </span>
-                      <span className="anzahl">{liste.length + (g === 'Fahrten' ? tagSammel.reduce((n, b) => n + b.termine.length, 0) : 0)}</span>
+                      <span className="anzahl">{liste.length + sammelHier.reduce((n, b) => n + b.termine.length, 0)}</span>
                     </h3>
-                    {g === 'Fahrten' &&
-                      tagSammel.map((b) => b.art === 'sammel' && <FallKarte key={b.schluessel} name={b.name} termine={b.termine} onOeffnen={setOffen} mitName />)}
-                    {liste.length === 0 && !(g === 'Fahrten' && tagSammel.length) && <p className="leer">Keine Termine</p>}
+                    {sammelHier.map((b) => b.art === 'sammel' && <FallKarte key={b.schluessel} name={b.name} termine={b.termine} onOeffnen={setOffen} mitName />)}
+                    {liste.length === 0 && !sammelHier.length && <p className="leer">Keine Termine</p>}
                     {liste.map((t, n) => (
                       <div key={t.id} className="spalte-eintrag">
                         {n === jetztIndex && (

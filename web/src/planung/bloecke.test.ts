@@ -108,3 +108,16 @@ describe('bloecke: Kremationen und Überführungen gesammelt', () => {
     expect(r.map((b) => b.art)).toEqual(['fall']);
   });
 });
+
+describe('bloecke: Abholungen und Gespräche gesammelt', () => {
+  it('fasst Abholungen sowie Trauergespräche und Vorsorgen (gemeinsam) ab zwei zusammen', () => {
+    const r = bloecke([
+      t(ev('a1', 'Abholung', '2026-05-28T08:00:00+02:00', '1 | Anton Huber')),
+      t(ev('a2', 'Abholung', '2026-05-28T10:00:00+02:00', '2 | Maria Berger')),
+      t(ev('g1', 'Trauergespraech', '2026-05-28T11:00:00+02:00', '3 | Karl Lang')),
+      t(ev('v1', 'Vorsorge', '2026-05-28T14:00:00+02:00')),
+    ]);
+    const sammel = r.flatMap((b) => (b.art === 'sammel' ? [b.name] : []));
+    expect(sammel).toEqual(['🚐 2 Abholungen', '💬 2 Gespräche']);
+  });
+});

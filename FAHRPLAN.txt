@@ -140,7 +140,7 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [ ] M17 Hinweis „Personal nicht vollständig“ mit der fehlenden Zeitspanne
 - [ ] M18 Mobil: Kalender und Bereitschaftsplanung per waagrechtem Wischen blättern
 ### M-D Kalender
-- [ ] M19 Abholungen und Gespräche im Tagesplan gruppieren (wie Kremationen), vor allem mobil
+- [x] M19 Abholungen und Gespräche im Tagesplan gruppieren (wie Kremationen), vor allem mobil
 - [ ] M20 Hauptmaske Termin = gleiche Maske wie Einzeltermin für Personalplanung
 ### M-E Design
 - [ ] M21 Mindestens 20 Farbstimmungen (luxuriös, natürlich, technisch, professionell, kreativ, verspielt, bequem …), pro Nutzer gespeichert
