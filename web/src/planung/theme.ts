@@ -63,7 +63,22 @@ if (typeof window !== 'undefined' && window.parent !== window) {
 
 /** Farbstimmung aus dem Hub: CSS-Variablen für `.planung`, greift nur bei passendem Hell/Dunkel. */
 const LS_STIMMUNG = 'alamida.stimmung';
-const STIMMUNG_VARS = new Set(['--bg', '--bg-verlauf', '--flaeche-fest', '--akzent', '--akzent-2', '--akzent-text']);
+const STIMMUNG_VARS = new Set([
+  '--bg',
+  '--bg-verlauf',
+  '--flaeche',
+  '--flaeche-fest',
+  '--flaeche-textur',
+  '--akzent',
+  '--akzent-2',
+  '--akzent-text',
+  '--radius',
+  '--blur',
+  '--rand',
+  '--rand-stark',
+  '--schatten',
+  '--schrift-titel',
+]);
 interface StimmungDaten {
   basis: Theme;
   farben: Record<string, string>;
@@ -74,7 +89,7 @@ export function stimmungPruefen(x: unknown): StimmungDaten | null {
   if (!o || !gueltig(o.basis) || !o.farben || typeof o.farben !== 'object') return null;
   const farben: Record<string, string> = {};
   for (const [k, v] of Object.entries(o.farben as Record<string, unknown>))
-    if (STIMMUNG_VARS.has(k) && typeof v === 'string' && v.length <= 400 && /^[#(),.%\w\s-]+$/.test(v)) farben[k] = v;
+    if (STIMMUNG_VARS.has(k) && typeof v === 'string' && v.length <= 1000 && /^[#(),.%\w\s-]+$/.test(v)) farben[k] = v;
   return Object.keys(farben).length ? { basis: o.basis, farben } : null;
 }
 
@@ -87,6 +102,9 @@ export function stimmungCss(s: StimmungDaten | null): string {
   return [
     `${w} { ${vars} }`,
     `${w} .knopf.primaer { background: linear-gradient(135deg, var(--akzent-2), var(--akzent)); }`,
+    ...(s.farben['--schrift-titel']
+      ? [`${w} :is(h1, h2, h3, .kachel-wert, .kachel-titel, .marke-name, .wb-datum, .m-uhr, .rbc-toolbar-label) { font-family: var(--schrift-titel); }`]
+      : []),
     ...(s.farben['--bg'] ? [`body:has(.planung.theme-${s.basis}) { background: ${s.farben['--bg']}; }`] : []),
   ].join('\n');
 }
