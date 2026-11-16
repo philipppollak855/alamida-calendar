@@ -97,5 +97,33 @@ Vorgabe: alles vollautonom und produktionsreif. Status: [ ] offen, [x] erledigt.
 - [x] K31 E-Mail eines Mitarbeiters im Hub änderbar: Hub (Konfig, PIN, Einstellungen) und Kalender (/api/email-umzug: Urlaub, Zeitkonten, Bereitschaft, Telefonplan, Telefondienst, Einteilungen) übernehmen alles
 - [x] K32 Rollen als Rechte: Hub-Übersicht „Rollen × Apps“ (z. B. Telefon → Telefondienst, Bereitschaft → Bereitschaft); veraltete Hub-Fenster dürfen nicht mehr speichern (hatten Rollen-Freigaben gelöscht)
 
+## Block M (Nachricht 16.11.)
+### M-A Stabilität und Fehler
+- [ ] M1 Einzelne Abholungs-/Überführungstermine gehen verloren: Ursache finden, stabiler machen
+- [ ] M2 Vorsorgen werden nicht richtig erkannt/synchronisiert
+- [ ] M3 Telefondienst: „Anliegen gehört zu Sterbefall“ zeigt keine Fälle; Autovervollständigung aller historischen Fälle (aktive zuerst) oder frei beschreibbar
+- [ ] M4 Kontrast im dunklen Design (z. B. Art-Knöpfe bei Urlaub / Krank)
+- [ ] M5 Überlauf Kachel Pflegefreistellung mobil
+- [ ] M6 Kopf-Navigation (Reiter) mobil wischbar
+### M-B Telefondienst / Einsatzcockpit
+- [ ] M7 Krankenhaus/Pflegeheim: lernende Auswahl mit Autovervollständigung (auch bekannte Orte)
+- [ ] M8 Bereitschaft: Klick auf übergebene Daten öffnet Fallakte; Daten nachbearbeiten
+- [ ] M9 Kühlraum: Freieingabe + Schnellauswahl angelegter Kühlräume
+- [ ] M10 Sterbepapiere hoch-/herunterladen (mehrere) fürs Büro
+- [ ] M11 Abschließen fragt fehlenden Hausarzt/Kühlraum ab, überspringbar mit Warnung
+- [ ] M12 Geführtes, aufgeräumtes Einsatzcockpit ohne Scrollen, gut lesbar
+### M-C Bereitschaft
+- [ ] M13 Bereitschaft an beliebigen Tagen per Klick im Kalender ansetzen
+- [ ] M14 Popup „+ weitere“: Datum lesbar, Namen ausgeschrieben; im Tagesfeld Kürzel aller (auch bei 3 Personen)
+- [ ] M15 Übersicht vor Planung und als Startreiter
+- [ ] M16 Telefonbereitschaft: Kernzeiten je Wochentag und Feiertag festlegbar
+- [ ] M17 Hinweis „Personal nicht vollständig“ mit der fehlenden Zeitspanne
+- [ ] M18 Mobil: Kalender und Bereitschaftsplanung per waagrechtem Wischen blättern
+### M-D Kalender
+- [ ] M19 Abholungen und Gespräche im Tagesplan gruppieren (wie Kremationen), vor allem mobil
+- [ ] M20 Hauptmaske Termin = gleiche Maske wie Einzeltermin für Personalplanung
+### M-E Design
+- [ ] M21 Mindestens 20 Farbstimmungen (luxuriös, natürlich, technisch, professionell, kreativ, verspielt, bequem …), pro Nutzer gespeichert
+
 ## Nicht mehr
 - Urnenwald-PRs #41–#139: nicht weiter bearbeiten (Anweisung Nutzer)

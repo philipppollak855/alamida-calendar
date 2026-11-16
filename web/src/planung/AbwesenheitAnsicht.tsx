@@ -13,13 +13,11 @@ import {
   belegDatei,
   belegEntfernen,
   belegHochladen,
-  personalSpeichern,
   type AbwesenheitDaten,
 } from './api';
 import {
   ARTEN,
   ART_LISTE,
-  STANDARD_TAGE,
   altdatenLesen,
   arbeitstage,
   gueltigesDatum,
@@ -924,7 +922,6 @@ function Dashboard({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhe
   );
 }
 
-const WOCHENTAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 /** Konto-Auswahl: Mitarbeiter aus dem Hub (auch PIN-Konten ohne E-Mail), intern ohne E-Mail oder andere Adresse. */
 function KontoWahl({ wert, personen, leer, neu, onWahl }: { wert: string; personen: { email: string; name?: string }[]; leer: string; neu: () => string; onWahl: (email: string) => void }) {
@@ -955,143 +952,10 @@ function KontoWahl({ wert, personen, leer, neu, onWahl }: { wert: string; person
   );
 }
 
-/** Popup-Maske mit allen Stammdaten eines Mitarbeiters. */
-function StammdatenMaske({ d, p: start, neu, onSpeichern, onEntfernen, onSchliessen }: {
-  d: AbwesenheitDaten;
-  p: Personal & { vorher?: string };
-  neu: boolean;
-  onSpeichern: (p: Personal & { vorher?: string }) => Promise<void>;
-  onEntfernen: () => Promise<void>;
-  onSchliessen: () => void;
-}) {
-  const [p, setP] = useState(start);
-  const [laeuft, setLaeuft] = useState(false);
-  const aendern = (x: Partial<Personal>) => setP({ ...p, ...x });
-  const spt = stundenJeTag(p);
-  const k = p.eintritt ? urlaubskonto(p, d.eintraege, heute()) : null;
-  const fehler = !p.name.trim() ? 'Name fehlt' : !p.email ? 'Konto wählen oder „ohne E-Mail“ anlegen' : !p.eintritt ? 'Eintrittsdatum fehlt' : p.austritt && p.austritt < p.eintritt ? 'Austritt liegt vor dem Eintritt' : null;
-  const ausfuehren = (f: () => Promise<void>) => {
-    setLaeuft(true);
-    f().finally(() => setLaeuft(false));
-  };
-  return (
-    <div className="modal-hintergrund" onClick={onSchliessen}>
-      <div
-        className="modal ab-modal ab-stamm-maske"
-        role="dialog"
-        aria-modal="true"
-        onClick={(x) => x.stopPropagation()}
-        onKeyDown={(x) => {
-          if (x.key === 'Escape') onSchliessen();
-          if (x.key === 'Enter' && (x.ctrlKey || x.metaKey) && !fehler && !laeuft) ausfuehren(() => onSpeichern({ ...p, name: p.name.trim() }));
-        }}
-      >
-        <div className="modal-kopf" style={{ background: 'var(--akzent)' }}>
-          <div>
-            <div className="modal-kategorie">{neu ? 'Neuer Mitarbeiter' : 'Personal-Stammdaten'}</div>
-            <h2>{p.name || 'Ohne Namen'}</h2>
-            {k && <div className="modal-nr">Resturlaub {tage(k.restGeplant, k.stundenProTag)} ({restUnter(k)}) · {std(p.tage.reduce((x, y) => x + y, 0))}/Woche</div>}
-          </div>
-          <button className="modal-zu" onClick={onSchliessen} aria-label="Schließen">✕</button>
-        </div>
-        <div className="modal-inhalt">
-          <div className="modal-block">
-            <h4>Person & Konto</h4>
-            <div className="ab-maske-raster">
-              <label className="ab-feld">Name<input className="feld" value={p.name} autoFocus={neu} onChange={(e) => aendern({ name: e.target.value })} /></label>
-              <label className="ab-feld">Konto<KontoWahl wert={p.email} personen={d.personen} leer="Konto wählen …" neu={() => internesKonto(p.name, Date.now().toString(36))} onWahl={(email) => aendern({ email })} /></label>
-              <label className="ab-feld">Gruppe (Monatsbericht)<input className="feld" value={p.gruppe ?? ''} onChange={(e) => aendern({ gruppe: e.target.value || undefined })} /></label>
-            </div>
-          </div>
-          <div className="modal-block">
-            <h4>Beschäftigung</h4>
-            <div className="ab-maske-raster">
-              <label className="ab-feld">Eintritt<input className="feld" type="date" value={p.eintritt} onChange={(e) => aendern({ eintritt: e.target.value })} /></label>
-              <label className="ab-feld">Austritt<input className="feld" type="date" value={p.austritt ?? ''} onChange={(e) => aendern({ austritt: e.target.value || undefined })} /></label>
-            </div>
-            <div className="ab-feld">
-              <span>
-                Sollstunden je Wochentag · <b>{std(p.tage.reduce((x, y) => x + y, 0))}/Woche</b>
-              </span>
-              <div className="ab-vorlagen">
-                {[
-                  ['Vollzeit 40 h', [8, 8, 8, 8, 8, 0, 0]],
-                  ['30 h', [6, 6, 6, 6, 6, 0, 0]],
-                  ['20 h', [4, 4, 4, 4, 4, 0, 0]],
-                  ['38,5 h', [7.7, 7.7, 7.7, 7.7, 7.7, 0, 0]],
-                ].map(([l, t]) => (
-                  <button key={l as string} type="button" className={`pille ${JSON.stringify(p.tage) === JSON.stringify(t) ? 'an' : ''}`} onClick={() => aendern({ tage: t as number[] })}>
-                    {l as string}
-                  </button>
-                ))}
-              </div>
-              <div className="ab-tage">
-                {p.tage.map((h, j) => (
-                  <label key={j}>
-                    <small>{WOCHENTAGE[j]}</small>
-                    <input className="feld" type="number" min={0} max={24} step={0.5} value={h} onChange={(e) => aendern({ tage: p.tage.map((x, kk) => (kk === j ? Number(e.target.value) : x)) })} />
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="modal-block">
-            <h4>Urlaub</h4>
-            <div className="ab-maske-raster">
-              <label className="ab-feld">Anrechenbare Vordienstjahre<input className="feld" type="number" min={0} step={1} value={p.vordienstjahre ?? ''} onChange={(e) => aendern({ vordienstjahre: e.target.value ? Number(e.target.value) : undefined })} /></label>
-              <label className="ab-feld">Urlaubswochen (leer = gesetzlich)<input className="feld" type="number" min={0} step={0.2} value={p.urlaubswochen ?? ''} onChange={(e) => aendern({ urlaubswochen: e.target.value ? Number(e.target.value) : undefined })} /></label>
-              <label className="ab-feld">Resturlaub übernommen am<input className="feld" type="date" value={p.saldoAb ?? ''} onChange={(e) => aendern({ saldoAb: e.target.value || undefined })} /></label>
-              <label className="ab-feld">
-                Übernommener Resturlaub (Tage, inkl. laufendes Urlaubsjahr)
-                <input
-                  className="feld"
-                  type="number"
-                  step={0.5}
-                  value={p.urlaubStartSaldo != null && spt > 0 ? Math.round((p.urlaubStartSaldo / spt) * 100) / 100 : ''}
-                  onChange={(e) => aendern({ urlaubStartSaldo: e.target.value ? Math.round(Number(e.target.value) * spt * 100) / 100 : undefined })}
-                />
-              </label>
-            </div>
-            <label className="pille-wahl" title="Aus = Urlaub verfällt nie (wie im alten Programm)">
-              <input type="checkbox" checked={!p.ohneVerfall} onChange={(e) => aendern({ ohneVerfall: e.target.checked ? undefined : true })} /> Urlaub verfällt nach Gesetz (2 Jahre nach Ende des Urlaubsjahres) – zeigt „Verfällt in 3 Monaten“
-            </label>
-          </div>
-          <div className="modal-block">
-            <h4>Überstunden</h4>
-            <div className="ab-maske-raster">
-              <label className="ab-feld">Start-Saldo (h)<input className="feld" type="number" step={0.25} value={p.ueStartSaldo ?? ''} onChange={(e) => aendern({ ueStartSaldo: e.target.value ? Number(e.target.value) : undefined })} /></label>
-              <label className="ab-feld">Zählen ab Monat<input className="feld" type="month" value={p.ueAbMonat ?? ''} onChange={(e) => aendern({ ueAbMonat: e.target.value || undefined })} /></label>
-            </div>
-          </div>
-          <div className="ab-modal-knoepfe ab-stamm-fuss">
-            {fehler && <span className="klein ab-rot ab-stamm-fehler">{fehler}</span>}
-            <button className="knopf primaer" disabled={laeuft || !!fehler} onClick={() => ausfuehren(() => onSpeichern({ ...p, name: p.name.trim() }))}>Speichern</button>
-            <button className="knopf" onClick={onSchliessen}>Abbrechen</button>
-            {!neu && (
-              <button className="knopf gefahr" disabled={laeuft} onClick={() => confirm(`${p.name} aus den Stammdaten entfernen? Abwesenheiten bleiben erhalten.`) && ausfuehren(onEntfernen)}>
-                Entfernen
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: AbwesenheitDaten) => void }) {
-  const [liste, setListe] = useState<(Personal & { vorher?: string })[]>(() => d.personal.map((p) => ({ ...p, vorher: p.email })));
+  const liste = d.personal;
   const [imp, setImp] = useState<{ alt: AltMitarbeiter[]; zuordnung: Record<string, string>; roh: unknown } | null>(null);
   const [meldung, setMeldung] = useState<{ ok: boolean; text: string } | null>(null);
-  useEffect(() => setListe(d.personal.map((p) => ({ ...p, vorher: p.email }))), [d.personal]);
-  const [offen, setOffen] = useState<number | null>(null);
-  const speichern = (neu: (Personal & { vorher?: string })[], text: string) =>
-    personalSpeichern(neu)
-      .then((x) => {
-        setOffen(null);
-        fertig(x, text);
-      })
-      .catch((e: Error) => setMeldung({ ok: false, text: e.message }));
   const fehlend = d.personen.filter((p) => !liste.some((x) => x.email === p.email));
   const fertig = (x: AbwesenheitDaten, text: string) => {
     onDaten(x);
@@ -1141,12 +1005,16 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
         <p className="klein">
           Urlaubsanspruch nach Urlaubsgesetz: 5 Wochen je Arbeitsjahr ab Eintritt (ab 25 Dienstjahren inkl. Vordienstzeiten 6), im ersten halben Jahr aliquot, Verfall 2 Jahre nach Ende des Urlaubsjahres – pro Mitarbeiter abschaltbar („verfällt nach Gesetz“; beim Import aus dem alten Programm aus). Angezeigt in Arbeitstagen (bei Teilzeit umgerechnet mit den durchschnittlichen Stunden je Arbeitstag laut Wochenplan).
         </p>
+        <div className="banner">
+          Stammdaten pflegst du zentral im Hub: <b>Apps &amp; Rechte → Mitarbeiter → „👤 Personal“</b>. Dort stehen Konto, Gruppen, Rollen, Rechte und Personaldaten zusammen.
+          {fehlend.length > 0 && ` ${fehlend.length} Mitarbeiter haben noch keine Personaldaten.`}
+        </div>
         <div className="ab-stamm-liste">
-          {liste.map((p, i) => {
+          {liste.map((p) => {
             const k = p.eintritt ? urlaubskonto(p, d.eintraege, heute()) : null;
             const wochenStd = p.tage.reduce((x, y) => x + y, 0);
             return (
-              <button key={i} className={`ab-stamm-karte glas ${p.austritt && p.austritt < heute() ? 'aus' : ''}`} onClick={() => setOffen(i)}>
+              <div key={p.email} className={`ab-stamm-karte glas ${p.austritt && p.austritt < heute() ? 'aus' : ''}`}>
                 <b>{p.name || 'Ohne Namen'}</b>
                 <span className="klein">{istOhneEmail(p.email) ? 'ohne E-Mail' : p.email || 'kein Konto'}</span>
                 <span className="ab-stamm-werte">
@@ -1156,35 +1024,9 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
                   {!p.ohneVerfall && <span>verfällt nach Gesetz</span>}
                   {p.austritt && <span>Austritt {datum(p.austritt, 'dd.MM.yyyy')}</span>}
                 </span>
-              </button>
+              </div>
             );
           })}
-        </div>
-        {offen != null && liste[offen] && (
-          <StammdatenMaske
-            d={d}
-            p={liste[offen]}
-            neu={!liste[offen].name && !liste[offen].email}
-            onSpeichern={(x) => speichern(liste.map((p, j) => (j === offen ? x : p)), `${x.name} gespeichert.`)}
-            onEntfernen={() => speichern(liste.filter((_, j) => j !== offen), `${liste[offen].name || 'Mitarbeiter'} entfernt.`)}
-            onSchliessen={() => {
-              if (!liste[offen].name && !liste[offen].email) setListe(liste.filter((_, j) => j !== offen));
-              setOffen(null);
-            }}
-          />
-        )}
-        <datalist id="ab-emails">
-          {d.personen.map((p) => (
-            <option key={p.email} value={p.email}>{p.name}</option>
-          ))}
-        </datalist>
-        <div className="ab-zeile">
-          <button className="knopf primaer" onClick={() => { setListe([...liste, { email: '', name: '', eintritt: heute(), tage: [...STANDARD_TAGE] }]); setOffen(liste.length); }}>+ Mitarbeiter</button>
-          {fehlend.length > 0 && (
-            <button className="knopf" onClick={() => speichern([...liste, ...fehlend.map((p) => ({ email: p.email, name: p.name ?? kurz(p.email), eintritt: heute(), tage: [...STANDARD_TAGE] }))], `${fehlend.length} Mitarbeiter übernommen.`)}>
-              + {fehlend.length} aus der Rechteverwaltung
-            </button>
-          )}
         </div>
       </section>
 
