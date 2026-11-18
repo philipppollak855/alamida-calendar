@@ -140,7 +140,7 @@ export interface AkteWarnung {
 /** Ablaufende Nachweise, Probezeit und Befristung (≤ 60 Tage oder abgelaufen). */
 export function akteWarnungen(p: Personal, heute: string, vorlauf = 60): AkteWarnung[] {
   const a = p.akte;
-  if (!a || p.austritt) return [];
+  if (!a || (p.austritt && p.austritt < heute)) return [];
   const tageBis = (d: string) => Math.round((Date.parse(d) - Date.parse(heute)) / 86_400_000);
   const l: AkteWarnung[] = [];
   const pruefen = (was: string, bis: string | undefined, ablaufText: string, laeuftText: string, vergangenZeigen = true) => {
