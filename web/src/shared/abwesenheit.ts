@@ -57,6 +57,55 @@ export interface Nachweis {
   notiz?: string;
 }
 
+/** Ausgegebener Gegenstand (Schlüssel, Gerät, Fahrzeug, Kleidung …). */
+export interface Ausgabe {
+  art: string;
+  anzahl?: number;
+  /** Nummer, Kennzeichen, Seriennummer */
+  nr?: string;
+  /** JJJJ-MM-TT ausgegeben am */
+  am?: string;
+  /** JJJJ-MM-TT zurückgegeben am */
+  zurueck?: string;
+  notiz?: string;
+}
+
+/** Vorschläge für die Ausgabeliste: [Symbol, Bezeichnung]. */
+export const AUSGABE_VORSCHLAEGE: [string, string][] = [
+  ['🔑', 'Schlüssel Zentrale'],
+  ['🔑', 'Schlüssel Kühlraum'],
+  ['🔑', 'Schlüssel Aufbahrungshalle'],
+  ['🏷', 'Transponder / Zutrittskarte'],
+  ['📱', 'Diensthandy'],
+  ['💻', 'Laptop / Tablet'],
+  ['🚐', 'Dienstwagen'],
+  ['⛽', 'Tankkarte'],
+  ['💳', 'Firmenkarte'],
+  ['🧥', 'Sakko / Anzug'],
+  ['🧥', 'Mantel'],
+  ['👔', 'Hemd / Bluse'],
+  ['👞', 'Dienstschuhe'],
+  ['🧤', 'Schutzhandschuhe'],
+  ['🥼', 'Schutzkittel / Overall'],
+  ['😷', 'FFP-Masken'],
+  ['🥾', 'Sicherheitsschuhe'],
+  ['🦺', 'Warnweste'],
+  ['🧰', 'Werkzeug'],
+  ['☂', 'Schirm'],
+];
+export const ausgabeSymbol = (art: string) => AUSGABE_VORSCHLAEGE.find(([, n]) => n === art)?.[0] ?? '📦';
+
+/** Kleidergrößen: [Schlüssel, Bezeichnung]. */
+export const KLEIDUNG: [string, string][] = [
+  ['sakko', 'Sakko'],
+  ['hose', 'Hose'],
+  ['hemd', 'Hemd / Bluse'],
+  ['mantel', 'Mantel / Jacke'],
+  ['schuhe', 'Schuhe'],
+  ['handschuhe', 'Handschuhe'],
+  ['arbeit', 'Arbeitskleidung'],
+];
+
 export interface AkteDaten {
   bereiche?: Bereich[];
   funktion?: string;
@@ -71,7 +120,10 @@ export interface AkteDaten {
   notfallTelefon?: string;
   fuehrerschein?: string;
   nachweise?: Nachweis[];
-  /** Dienstkleidung, z. B. „Sakko 52, Hemd 41, Schuhe 43“ */
+  /** Größe je `KLEIDUNG`-Schlüssel */
+  kleidung?: Record<string, string>;
+  geraete?: Ausgabe[];
+  /** älteres Freitextfeld Dienstkleidung */
   groessen?: string;
   /** Ausgegebene Schlüssel, Karten, Diensthandy, Dienstwagen … */
   ausruestung?: string;
@@ -128,6 +180,25 @@ export function aktePruefen(x: unknown): AkteDaten | undefined {
     .filter((n) => n.art)
     .slice(0, 50);
   if (nachweise.length) a.nachweise = nachweise;
+  const kleidung: Record<string, string> = {};
+  const ko = o.kleidung && typeof o.kleidung === 'object' ? (o.kleidung as Record<string, unknown>) : {};
+  for (const [k] of KLEIDUNG) if (t(ko[k], 20)) kleidung[k] = t(ko[k], 20);
+  if (Object.keys(kleidung).length) a.kleidung = kleidung;
+  const datum = (v: unknown) => (gueltigesDatum(t(v)) ? t(v) : undefined);
+  const geraete = (Array.isArray(o.geraete) ? o.geraete : [])
+    .map((g: Record<string, unknown>) => {
+      const n = Math.round(Number(g?.anzahl));
+      const e: Ausgabe = { art: t(g?.art, 80) };
+      if (n > 1 && n < 1000) e.anzahl = n;
+      if (t(g?.nr, 60)) e.nr = t(g?.nr, 60);
+      if (datum(g?.am)) e.am = datum(g?.am);
+      if (datum(g?.zurueck)) e.zurueck = datum(g?.zurueck);
+      if (t(g?.notiz)) e.notiz = t(g?.notiz);
+      return e;
+    })
+    .filter((g) => g.art)
+    .slice(0, 100);
+  if (geraete.length) a.geraete = geraete;
   return Object.keys(a).length ? a : undefined;
 }
 
