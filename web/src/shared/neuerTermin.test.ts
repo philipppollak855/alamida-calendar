@@ -53,7 +53,8 @@ describe('neuer Termin', () => {
     expect(p.termin.checkliste).toEqual(['Boden', 'Fenster']);
     const e = googleEreignis(p.termin, { symbol: '📌', label: 'Sonstiges' }, { email: 'a@x.at' });
     expect(e.recurrence).toEqual(['RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,TH;UNTIL=20261231']);
-    expect(rrule({ art: 'monatlich', alle: 1, bis: '2027-01-01' }, false)).toBe('RRULE:FREQ=MONTHLY;UNTIL=20270101T235959Z');
+    expect(rrule({ art: 'monatlich', alle: 1, bis: '2027-01-01' }, false)).toBe('RRULE:FREQ=MONTHLY;UNTIL=20270101T225959Z');
+    expect(rrule({ art: 'taeglich', alle: 1, bis: '2027-07-01' }, false)).toBe('RRULE:FREQ=DAILY;UNTIL=20270701T215959Z');
     const priv = e.extendedProperties.private;
     expect(terminSichtbar(r({ email: 'c@x.at' }), priv)).toBe(false);
     expect(terminSichtbar(r({ email: 'c@x.at', gruppen: ['team'] }), priv)).toBe(true);

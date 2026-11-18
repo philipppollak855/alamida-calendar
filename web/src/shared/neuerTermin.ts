@@ -39,8 +39,16 @@ export function rrule(w: Wiederholung, ganztaegig: boolean): string {
   const t = [`FREQ=${FREQ[w.art]}`];
   if (w.alle > 1) t.push(`INTERVAL=${w.alle}`);
   if (w.art === 'woechentlich' && w.tage?.length) t.push(`BYDAY=${w.tage.map((x) => WT[x]).join(',')}`);
-  if (w.bis) t.push(`UNTIL=${w.bis.replace(/-/g, '')}${ganztaegig ? '' : 'T235959Z'}`);
+  if (w.bis) t.push(`UNTIL=${ganztaegig ? w.bis.replace(/-/g, '') : tagesendeWienUtc(w.bis)}`);
   return `RRULE:${t.join(';')}`;
+}
+
+/** Letzte Sekunde des Tages in Wien als UTC-Zeitstempel (RRULE UNTIL), z. B. 2027-01-01 → 20270101T225959Z. */
+export function tagesendeWienUtc(datum: string): string {
+  const [j, m, t] = datum.split('-').map(Number);
+  const utcMitternacht = Date.UTC(j, m - 1, t + 1);
+  const stunde = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Vienna', hour: '2-digit', hourCycle: 'h23' }).format(utcMitternacht));
+  return new Date(utcMitternacht - stunde * 3_600_000 - 1000).toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
 }
 
 const liste = (v?: string) => (v ?? '').split(/[,\n]/).map((x) => x.trim()).filter(Boolean);
