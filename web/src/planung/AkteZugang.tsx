@@ -110,7 +110,7 @@ export function AkteZugang({ email }: { email: string }) {
             void aendern({ pin }).then((ok) => ok && setPin(''));
           }}
         >
-          <input className="feld" inputMode="numeric" autoComplete="off" pattern="\d{4,8}" maxLength={8} placeholder="4–8 Ziffern" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} />
+          <input className="feld" type="password" inputMode="numeric" autoComplete="off" pattern="\d{4,8}" maxLength={8} placeholder="4–8 Ziffern" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} />
           <button className="knopf klein primaer" disabled={laeuft || pin.length < 4}>
             {z.pin ? 'PIN ändern' : 'PIN setzen'}
           </button>
