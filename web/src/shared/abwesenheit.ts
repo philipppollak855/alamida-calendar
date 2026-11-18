@@ -102,6 +102,7 @@ export const KLEIDUNG: [string, string][] = [
   ['hemd', 'Hemd / Bluse'],
   ['mantel', 'Mantel / Jacke'],
   ['schuhe', 'Schuhe'],
+  ['kopf', 'Kappe / Hut'],
   ['handschuhe', 'Handschuhe'],
   ['arbeit', 'Arbeitskleidung'],
 ];

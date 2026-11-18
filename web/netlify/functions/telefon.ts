@@ -148,6 +148,16 @@ export default async (req: Request) => {
     return [...new Map(aktiv.map((e) => [e.email, { email: e.email, ...((nameVon(e.email) ?? e.name) ? { name: nameVon(e.email) ?? e.name } : {}) }])).values()];
   }
 
+  /** Wenn gerade niemand Bereitschaft hat: die nächste eingeteilte Schicht (zum Vorab-Anrufen). */
+  async function bereitschaftNaechste() {
+    const jetzt = ortszeit(new Date());
+    const l = (await bereitschaftLaden(jetzt.slice(0, 10)).catch(() => [])).filter((e) => e.von > jetzt);
+    if (!l.length) return undefined;
+    const ab = l[0].von;
+    const personen = [...new Map(l.filter((e) => e.von === ab).map((e) => [e.email, { email: e.email, ...((nameVon(e.email) ?? e.name) ? { name: nameVon(e.email) ?? e.name } : {}) }])).values()];
+    return { ab, personen: await mitTelefon(personen) };
+  }
+
   if (aktion === 'papier' && m) {
     const info = m.papiere?.find((x) => x.id === url.searchParams.get('papier'));
     if (req.method === 'GET') {
@@ -276,7 +286,10 @@ export default async (req: Request) => {
       darfTelefon: telefon,
       darfAbholen: abholen,
       admin: a!.rechte.admin,
-      bereitschaft: await mitTelefon(await bereitschaftJetzt()),
+      ...(await (async () => {
+        const jetzt = await mitTelefon(await bereitschaftJetzt());
+        return { bereitschaft: jetzt, ...(jetzt.length ? {} : { bereitschaftNaechste: await bereitschaftNaechste() }) };
+      })()),
       faelle: telefon ? await faelleLaden(a!.konfig).catch(() => []) : [],
       kuehlraeume: [...new Set(liste.flatMap((x) => (x.abholung?.kuehlraum ? [x.abholung.kuehlraum] : [])))].slice(0, 12),
       kuehlraeumeFest: await kuehlraeumeLaden().catch(() => []),

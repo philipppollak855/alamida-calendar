@@ -6,6 +6,8 @@ export interface Sicht {
   termine?: 'eigene';
   bereitschaft?: 'eigene';
   telefonNurBereitschaft?: true;
+  /** Kalender: nur diese Kategorien (zusätzlich zu den Gruppenrechten). */
+  kategorien?: string[];
 }
 
 function sichtPruefen(x: unknown): Sicht | undefined {
@@ -16,6 +18,8 @@ function sichtPruefen(x: unknown): Sicht | undefined {
     ...(o.bereitschaft === 'eigene' ? { bereitschaft: 'eigene' as const } : {}),
     ...(o.telefonNurBereitschaft === true ? { telefonNurBereitschaft: true as const } : {}),
   };
+  const kat = Array.isArray(o.kategorien) ? [...new Set(o.kategorien.filter((k): k is string => typeof k === 'string' && (KATEGORIE_SCHLUESSEL as readonly string[]).includes(k)))] : [];
+  if (kat.length) s.kategorien = kat;
   return Object.keys(s).length ? s : undefined;
 }
 
@@ -151,12 +155,14 @@ export function rechteFuer(email: string, konfig: Konfiguration, adminEmails: st
   if (admin) {
     return { email: e, admin, freigeschaltet: true, gruppen: gruppen.map((g) => g.id), kategorien: [ALLE], kalender: [ALLE] };
   }
+  const ausGruppen = vereinige(gruppen.map((g) => g.kategorien));
+  const nur = benutzer?.sicht?.kategorien;
   return {
     email: e,
     admin: false,
     freigeschaltet: gruppen.length > 0,
     gruppen: gruppen.map((g) => g.id),
-    kategorien: vereinige(gruppen.map((g) => g.kategorien)),
+    kategorien: nur?.length ? (ausGruppen.includes(ALLE) ? nur : ausGruppen.filter((k) => nur.includes(k))) : ausGruppen,
     kalender: vereinige(gruppen.map((g) => g.kalender)),
   };
 }

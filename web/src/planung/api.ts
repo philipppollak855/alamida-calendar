@@ -349,6 +349,8 @@ export interface TelefonDaten {
   darfAbholen: boolean;
   admin: boolean;
   bereitschaft: { email: string; name?: string; telefon?: string }[];
+  /** Nur wenn gerade niemand Bereitschaft hat: nächste Schicht ab `ab` (JJJJ-MM-TTTHH:MM). */
+  bereitschaftNaechste?: { ab: string; personen: { email: string; name?: string; telefon?: string }[] };
   kuehlraeume: string[];
   /** Vom Admin angelegte Kühlräume (Schnellauswahl). */
   kuehlraeumeFest?: string[];

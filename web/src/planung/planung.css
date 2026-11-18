@@ -1122,6 +1122,15 @@ label.knopf.deaktiviert { opacity: 0.5; pointer-events: none; }
   .tel-blatt > .knopf { min-height: 52px; font-size: 1.05rem; font-weight: 700; }
 }
 .tel-direktwahl { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+html.tel-voll, html.tel-voll body { overflow: hidden; scrollbar-width: none; }
+html.tel-voll::-webkit-scrollbar, html.tel-voll body::-webkit-scrollbar { display: none; }
+.tel-direktwahl .ohne-nummer { opacity: 0.6; font-weight: 500; cursor: default; }
+@media (max-width: 760px) {
+  .tel-aufnahme-cockpit .tel-held-werkzeug .knopf { width: auto; min-height: 40px; font-size: 0.9rem; font-weight: 600; padding: 0.4rem 0.6rem; flex: none; }
+  .tel-aufnahme-cockpit .tel-held-werkzeug .tel-aufnahme { flex-wrap: nowrap; min-width: 0; }
+  .tel-aufnahme-cockpit .tel-held-werkzeug .pille { max-width: 6rem; overflow: hidden; }
+  .tel-aufnahme-cockpit .tel-direktwahl .knopf { width: auto; min-height: 44px; font-size: 1rem; }
+}
 .tel-direktwahl .knopf { flex: 1 1 0; min-height: 40px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 600; }
 .tel-aerzte { display: grid; gap: 0.6rem; }
 .tel-aerzte .tel-kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.45rem; }
