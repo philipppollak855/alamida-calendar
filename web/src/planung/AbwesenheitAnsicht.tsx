@@ -40,7 +40,7 @@ import { ausText, datumText, plusTage } from '../shared/bereitschaft';
 import { useBereitschaft } from './BereitschaftAnsicht';
 import { belegVorbereiten, drucken, herunterladen } from './beleg';
 import ZeitkontoAnsicht from './ZeitkontoAnsicht';
-import { AkteHinweise, AkteStammblatt } from './AkteStammblatt';
+import { AkteHinweise, AkteKopf, AkteReiter, type AkteTab } from './AkteStammblatt';
 import { altEintraegeLesen, berichtZeile, gueltigerMonat, kalenderTage, monatPlus, monatText, runden, zahlText, type BerichtZeile, type ZeitkontoDaten } from '../shared/zeitkonto';
 import { berichtLesen, nameZuordnen, tageZuAbwesenheiten, type BerichtZeile as ImportBerichtZeile, type ImportAbwesenheit } from '../shared/altImport';
 import { excelLesen, pdfZeilen } from './altImport';
@@ -1078,107 +1078,132 @@ function PersonalAkte({ d, p, onDaten, schliessen }: { d: AbwesenheitDaten; p: P
   }, [zk, ok, z, p, d.eintraege]);
   const summe = (k: 'neu' | 'ausbezahlt' | 'kr' | 'ur' | 'so') => zahlText(monate.reduce((a, m) => a + m[k], 0));
   const proTag = stundenJeTag(p);
+  const tabs: [string, string, string][] = [
+    ['uebersicht', '◎', 'Übersicht'],
+    ['beschaeftigung', '💼', 'Beschäftigung'],
+    ['kontakt', '☎', 'Kontakt'],
+    ['nachweise', '🎓', 'Nachweise'],
+    ['ausruestung', '👔', 'Ausrüstung'],
+    ['zeit', '⏱', 'Zeitkonto'],
+    ['abw', '🌴', 'Abwesenheiten'],
+    ...(d.darfVerwalten ? ([['verw', '⚙', 'Verwaltung']] as [string, string, string][]) : []),
+  ];
+  const [tab, setTab] = useState('uebersicht');
   return (
     <div className="modal-hintergrund" onClick={schliessen}>
       <div className="modal ab-modal ab-akte" role="dialog" aria-modal="true" onClick={(x) => x.stopPropagation()}>
-        <div className="modal-kopf">
-          <div>
-            <div className="modal-kategorie">Personalakte</div>
-            <h2>{p.name || p.email}</h2>
-            <div className="modal-nr">
-              {[p.gruppe, istOhneEmail(p.email) ? 'ohne E-Mail' : p.email, p.eintritt && `seit ${datum(p.eintritt, 'dd.MM.yyyy')}`, `${std(p.tage.reduce((a, b) => a + b, 0))}/Woche`, p.austritt && `Austritt ${datum(p.austritt, 'dd.MM.yyyy')}`]
-                .filter(Boolean)
-                .join(' · ')}
-            </div>
-          </div>
-          <button className="modal-zu" onClick={schliessen} aria-label="Schließen">✕</button>
-        </div>
-        <div className="modal-inhalt">
-          {gueltigesDatum(p.eintritt) && <KontoKacheln p={p} eintraege={d.eintraege} />}
-          <AkteStammblatt p={p} darf={d.darfVerwalten} onDaten={onDaten} />
-          <div className="ab-akte-filter">
-            {ZEITRAEUME.map(([x, l]) => (
-              <button key={x} className="knopf klein" onClick={() => setZ(zeitraumVorlage(x, p))}>
-                {l}
-              </button>
-            ))}
-            <label>
-              von <input className="feld" type="date" value={z.von} onChange={(e) => setZ({ ...z, von: e.target.value })} />
-            </label>
-            <label>
-              bis <input className="feld" type="date" value={z.bis} onChange={(e) => setZ({ ...z, bis: e.target.value })} />
-            </label>
-          </div>
-          <h3>Abwesenheiten im Zeitraum</h3>
-          <div className="ab-akte-summen">
-            {summen.length ? (
-              summen.map(({ art, h }) => (
-                <span key={art} style={{ borderColor: ARTEN[art].farbe }}>
-                  {ARTEN[art].symbol} {ARTEN[art].label} <b>{art === 'za' ? std(h) : tage(h, proTag)}</b>
-                </span>
-              ))
-            ) : (
-              <span className="klein">Keine</span>
-            )}
-          </div>
-          <h3>Stunden / Zeitkonto</h3>
-          {!zk ? (
-            <p className="klein">Lädt …</p>
-          ) : monate.length ? (
-            <div className="ab-akte-tabelle">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Monat</th>
-                    <th>Ü-Übertrag</th>
-                    <th>Ü-Neu</th>
-                    <th>Ü-Ausz.</th>
-                    <th>Ü-Saldo</th>
-                    <th>Kr.</th>
-                    <th>Ur.</th>
-                    <th>So.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {monate.map((m) => (
-                    <tr key={m.monat} className={m.abgeschlossen ? '' : 'offen'} title={m.abgeschlossen ? 'abgeschlossen' : 'noch nicht abgeschlossen'}>
-                      <td>
-                        {monatText(m.monat)}
-                        {m.abgeschlossen ? '' : ' ·'}
-                      </td>
-                      <td>{zahlText(m.uebertrag)}</td>
-                      <td>{zahlText(m.neu)}</td>
-                      <td>{zahlText(m.ausbezahlt)}</td>
-                      <td>
-                        <b>{zahlText(m.saldo)}</b>
-                      </td>
-                      <td>{zahlText(m.kr)}</td>
-                      <td>{zahlText(m.ur)}</td>
-                      <td>{zahlText(m.so)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <th>Summe</th>
-                    <th />
-                    <th>{summe('neu')}</th>
-                    <th>{summe('ausbezahlt')}</th>
-                    <th>{zahlText(monate[0].saldo)}</th>
-                    <th>{summe('kr')}</th>
-                    <th>{summe('ur')}</th>
-                    <th>{summe('so')}</th>
-                  </tr>
-                </tfoot>
-              </table>
-              <p className="klein">· = Monat noch nicht abgeschlossen. Kr./Ur./So. in Tagen laut Monatsbericht.</p>
-            </div>
+        <AkteKopf p={p} mail={!istOhneEmail(p.email)} schliessen={schliessen} />
+        <nav className="akte-tabs" role="tablist">
+          {tabs.map(([id, i, l]) => (
+            <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? 'an' : ''} onClick={() => setTab(id)}>
+              <span>{i}</span> {l}
+            </button>
+          ))}
+        </nav>
+        <div className="modal-inhalt akte-inhalt" key={tab}>
+          {tab === 'zeit' || tab === 'abw' ? (
+            <>
+              <div className="ab-akte-filter">
+                {ZEITRAEUME.map(([x, l]) => (
+                  <button key={x} className="knopf klein" onClick={() => setZ(zeitraumVorlage(x, p))}>
+                    {l}
+                  </button>
+                ))}
+                <label>
+                  von <input className="feld" type="date" value={z.von} onChange={(e) => setZ({ ...z, von: e.target.value })} />
+                </label>
+                <label>
+                  bis <input className="feld" type="date" value={z.bis} onChange={(e) => setZ({ ...z, bis: e.target.value })} />
+                </label>
+              </div>
+              {tab === 'abw' ? (
+                <>
+                  <h3>Abwesenheiten im Zeitraum</h3>
+                  <div className="ab-akte-summen">
+                    {summen.length ? (
+                      summen.map(({ art, h }) => (
+                        <span key={art} style={{ borderColor: ARTEN[art].farbe }}>
+                          {ARTEN[art].symbol} {ARTEN[art].label} <b>{art === 'za' ? std(h) : tage(h, proTag)}</b>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="klein">Keine</span>
+                    )}
+                  </div>
+                  <h3>Alle Einträge ({eintraege.length})</h3>
+                  <EintragListe d={d} eintraege={eintraege} onDaten={onDaten} />
+                </>
+              ) : (
+                <>
+                  <h3>Stunden / Zeitkonto</h3>
+                  {!zk ? (
+                    <p className="klein">Lädt …</p>
+                  ) : monate.length ? (
+                    <div className="ab-akte-tabelle">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Monat</th>
+                            <th>Ü-Übertrag</th>
+                            <th>Ü-Neu</th>
+                            <th>Ü-Ausz.</th>
+                            <th>Ü-Saldo</th>
+                            <th>Kr.</th>
+                            <th>Ur.</th>
+                            <th>So.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {monate.map((m) => (
+                            <tr key={m.monat} className={m.abgeschlossen ? '' : 'offen'} title={m.abgeschlossen ? 'abgeschlossen' : 'noch nicht abgeschlossen'}>
+                              <td>
+                                {monatText(m.monat)}
+                                {m.abgeschlossen ? '' : ' ·'}
+                              </td>
+                              <td>{zahlText(m.uebertrag)}</td>
+                              <td>{zahlText(m.neu)}</td>
+                              <td>{zahlText(m.ausbezahlt)}</td>
+                              <td>
+                                <b>{zahlText(m.saldo)}</b>
+                              </td>
+                              <td>{zahlText(m.kr)}</td>
+                              <td>{zahlText(m.ur)}</td>
+                              <td>{zahlText(m.so)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <th>Summe</th>
+                            <th />
+                            <th>{summe('neu')}</th>
+                            <th>{summe('ausbezahlt')}</th>
+                            <th>{zahlText(monate[0].saldo)}</th>
+                            <th>{summe('kr')}</th>
+                            <th>{summe('ur')}</th>
+                            <th>{summe('so')}</th>
+                          </tr>
+                        </tfoot>
+                      </table>
+                      <p className="klein">· = Monat noch nicht abgeschlossen. Kr./Ur./So. in Tagen laut Monatsbericht.</p>
+                    </div>
+                  ) : (
+                    <p className="klein">Keine Monate im Zeitraum</p>
+                  )}
+                </>
+              )}
+            </>
+          ) : tab === 'verw' ? (
+            <AkteKorrektur p={p} onDaten={onDaten} />
           ) : (
-            <p className="klein">Keine Monate im Zeitraum</p>
+            <AkteReiter
+              tab={tab as AkteTab}
+              p={p}
+              darf={d.darfVerwalten}
+              onDaten={onDaten}
+              konto={gueltigesDatum(p.eintritt) ? <KontoKacheln p={p} eintraege={d.eintraege} /> : undefined}
+            />
           )}
-          {d.darfVerwalten && <AkteKorrektur p={p} onDaten={onDaten} />}
-          <h3>Alle Einträge ({eintraege.length})</h3>
-          <EintragListe d={d} eintraege={eintraege} onDaten={onDaten} />
         </div>
       </div>
     </div>
