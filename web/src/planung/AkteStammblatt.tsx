@@ -93,7 +93,15 @@ const af = (k: keyof AkteDaten, label: string, typ: Feld['typ'] = 'text', zeige?
   set: (p, v) => ({ ...p, akte: { ...p.akte, [k]: v } }),
 });
 
-const speichern = (alt: Personal, neu: Personal, onDaten: (x: AbwesenheitDaten) => void) => personAendern(alt.email, { telefon: neu.telefon, akte: neu.akte }).then(onDaten);
+/** Speichert nur die geänderten Felder auf den frisch geladenen Stand, damit parallele Bearbeitungen erhalten bleiben. */
+const speichern = (alt: Personal, neu: Personal, onDaten: (x: AbwesenheitDaten) => void) =>
+  personAendern(alt.email, (frisch) => {
+    const akte = { ...frisch.akte } as Record<string, unknown>;
+    const a = (alt.akte ?? {}) as Record<string, unknown>;
+    const n = (neu.akte ?? {}) as Record<string, unknown>;
+    for (const k of new Set([...Object.keys(a), ...Object.keys(n)])) if (JSON.stringify(a[k]) !== JSON.stringify(n[k])) akte[k] = n[k];
+    return { ...(alt.telefon !== neu.telefon ? { telefon: neu.telefon } : {}), akte: akte as AkteDaten };
+  }).then(onDaten);
 
 /** Kachel, die sich mit ✎ direkt an Ort und Stelle bearbeiten lässt. */
 function EditKarte({
