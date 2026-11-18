@@ -424,7 +424,7 @@ function Aerzte({ daten, setDaten }: { daten: TelefonDaten; setDaten: (d: Telefo
   );
 }
 
-function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; setDaten: (d: TelefonDaten) => void; gespeichert: (id?: string) => void }) {
+function NeuFormular({ daten, setDaten, gespeichert, sichtbar }: { daten: TelefonDaten; setDaten: (d: TelefonDaten) => void; gespeichert: (id?: string) => void; sichtbar: boolean }) {
   const [e, setERoh] = useState<Entwurf>(() => {
     try {
       const g = JSON.parse(localStorage.getItem(ENTWURF) ?? 'null') as Entwurf | null;
@@ -443,7 +443,7 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
   // Assistent füllt am Handy genau den restlichen Bildschirm (auch bei offener Tastatur) – kein Seitenscrollen.
   useLayoutEffect(() => {
     const el = rahmen.current;
-    if (!schmal || !el) return;
+    if (!schmal || !sichtbar || !el) return;
     const anpassen = () => {
       const h = (window.visualViewport?.height ?? window.innerHeight) - el.getBoundingClientRect().top - 6;
       el.style.height = `${Math.max(320, Math.floor(h))}px`;
@@ -457,7 +457,7 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
       window.visualViewport?.removeEventListener('resize', anpassen);
       window.removeEventListener('resize', anpassen);
     };
-  }, [schmal]);
+  }, [schmal, sichtbar]);
   const setE = (x: Entwurf) => {
     setERoh(x);
     setMeldung(null);
@@ -1355,7 +1355,7 @@ export default function TelefonAnsicht() {
       {fehler && <div className="banner fehler">{fehler}</div>}
       {daten.darfTelefon && (
         <div hidden={m !== 'neu'}>
-          <NeuFormular daten={daten} setDaten={setDaten} gespeichert={(id) => id && setOffen(id)} />
+          <NeuFormular sichtbar={m === 'neu'} daten={daten} setDaten={setDaten} gespeichert={(id) => id && setOffen(id)} />
         </div>
       )}
       {m === 'offen' && (
