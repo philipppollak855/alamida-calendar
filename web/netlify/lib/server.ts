@@ -109,6 +109,9 @@ export async function hubPushAusloesen(): Promise<void> {
   );
 }
 let verzeichnisCache: { v: Verzeichnis; bis: number } | null = null;
+export const verzeichnisVergessen = () => {
+  verzeichnisCache = null;
+};
 
 /**
  * Mitarbeiter & Gruppen aus dem Hub (eine Quelle). Server zu Server mit HUB_VERZEICHNIS_SCHLUESSEL, 60 s im Speicher;

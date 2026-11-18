@@ -3,7 +3,7 @@ import { darfKalender, darfSehen, sichtFuer } from '../../src/shared/rechte';
 import { terminMeins } from '../../src/shared/heute';
 import { terminSichtbar } from '../../src/shared/neuerTermin';
 import { kategorieAus, type GoogleEvent } from '../../src/planung/planungLogic';
-import { angemeldet, einteilungenLaden, env, googleGet, json } from '../lib/server';
+import { angemeldet, einteilungenLaden, env, googleGet, json, personalLaden } from '../lib/server';
 import { alleKalender } from '../lib/kalender';
 
 export default async (req: Request) => {
@@ -43,9 +43,25 @@ export default async (req: Request) => {
       };
     }),
   );
+  // Geburtstage aus der Personalakte, jedes Jahr ganztägig (nicht in Google gespeichert).
+  const geburtstage: GoogleEvent[] = [];
+  if (!nurEigene) {
+    for (const p of await personalLaden().catch(() => [])) {
+      const g = p.akte?.geburtsdatum;
+      if (!g) continue;
+      for (let j = von.getUTCFullYear(); j <= bis.getUTCFullYear(); j++) {
+        const tag0 = `${j}${g.slice(4)}`;
+        if (Number.isNaN(Date.parse(tag0)) || new Date(tag0).getUTCMonth() + 1 !== Number(g.slice(5, 7))) continue;
+        const t1 = new Date(Date.parse(tag0) + tag).toISOString().slice(0, 10);
+        geburtstage.push({ id: `geb-${encodeURIComponent(p.email)}-${j}`, summary: `🎂 ${p.name || p.email.split('@')[0]} (${j - Number(g.slice(0, 4))})`, start: { date: tag0 }, end: { date: t1 } } as GoogleEvent);
+      }
+    }
+  }
+  const erfolgreich = ergebnisse.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+  if (geburtstage.length) erfolgreich.push({ kalender: { id: 'geburtstage', name: '🎂 Geburtstage' }, events: geburtstage });
   return json({
     ...(nurEigene ? { nurEigene: true } : {}),
-    kalender: ergebnisse.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : [])),
+    kalender: erfolgreich,
     fehler: ergebnisse.flatMap((r, i) => (r.status === 'rejected' ? [`${kalender[i].name}: ${(r.reason as Error).message}`] : [])),
   });
 };

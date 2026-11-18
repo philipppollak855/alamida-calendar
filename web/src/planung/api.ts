@@ -1,4 +1,4 @@
-import type { Konfiguration, KalenderEintrag, Rechte } from '../shared/rechte';
+import type { Benutzer, Konfiguration, KalenderEintrag, Rechte } from '../shared/rechte';
 import type { Einsatz, Zusatztag } from '../shared/bereitschaft';
 import type { EinteilungPerson } from '../shared/einteilung';
 import type { NeuerTermin } from '../shared/neuerTermin';
@@ -229,6 +229,8 @@ export const zusatztagEntfernen = (datum: string, ab?: string) =>
 export interface AbwesenheitDaten {
   ich: { email: string; name?: string };
   darfVerwalten: boolean;
+  /** Admin: darf in der Akte Zugang & Rechte (Hub) bearbeiten. */
+  admin?: boolean;
   personal: Personal[];
   eintraege: Abwesenheit[];
   personen: { email: string; name?: string }[];
@@ -414,3 +416,12 @@ export const telefonplanAustragen = (von: string, id: string) => holen<Telefonpl
 export const telMusterSpeichern = (von: string, m: Partial<TelMuster>) => holen<TelefonplanDaten>(tpAdresse(von, { aktion: 'muster' }), jsonInit('POST', m));
 export const telMusterLoeschen = (von: string, id: string) => holen<TelefonplanDaten>(tpAdresse(von, { aktion: 'muster', id }), { method: 'DELETE' });
 export const telKernSpeichern = (von: string, k: Kernzeiten) => holen<TelefonplanDaten>(tpAdresse(von, { aktion: 'kernzeiten' }), jsonInit('POST', k));
+
+/** Zugang & Rechte aus dem Hub für die Personalakte (nur Admins). */
+export interface Zugang {
+  benutzer: Benutzer | null;
+  gruppen: { id: string; name: string }[];
+  pin: boolean;
+}
+export const zugangLaden = (email: string) => holen<Zugang>(`/api/zugang?email=${encodeURIComponent(email)}`);
+export const zugangSpeichern = (email: string, x: Record<string, unknown>) => holen<Zugang>('/api/zugang', jsonInit('PUT', { ...x, email }));

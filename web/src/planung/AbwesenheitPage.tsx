@@ -13,7 +13,7 @@ export default function AbwesenheitPage() {
 
   useEffect(() => {
     const ticket = new URLSearchParams(location.hash.slice(1)).get('hub_ticket');
-    if (location.hash) history.replaceState(null, '', location.pathname);
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
     (ticket ? hubAnmelden(ticket).catch((e: Error) => setFehler(e.message)) : Promise.resolve())
       .then(() => ichLaden())
       .then(setIch)
