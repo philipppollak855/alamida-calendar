@@ -130,11 +130,10 @@ export function kalenderTage(p: Personal, abw: Abwesenheit[], monat: string): Ka
 /** Ü-Übertrag zu Beginn des Monats: Start-Saldo + (neu − ausbezahlt) aller früheren Monate ab „Überstunden ab“. */
 export function uebertrag(p: Personal, eintraege: MonatsEintrag[], monat: string): number {
   const ab = p.ueAbMonat ?? '0000-01';
-  return runden(
-    eintraege
-      .filter((e) => e.email === p.email && e.monat >= ab && e.monat < monat)
-      .reduce((s, e) => s + e.ue - e.ueAusb, p.ueStartSaldo ?? 0),
-  );
+  const eigene = eintraege.filter((e) => e.email === p.email);
+  // Vor „Überstunden ab“: vom Start-Saldo rückwärts rechnen, damit frühere Monate unverändert bleiben.
+  if (monat < ab) return runden(eigene.filter((e) => e.monat >= monat && e.monat < ab).reduce((s, e) => s - (e.ue - e.ueAusb), p.ueStartSaldo ?? 0));
+  return runden(eigene.filter((e) => e.monat >= ab && e.monat < monat).reduce((s, e) => s + e.ue - e.ueAusb, p.ueStartSaldo ?? 0));
 }
 
 export interface BerichtZeile {
