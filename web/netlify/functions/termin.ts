@@ -35,7 +35,8 @@ export default async (req: Request) => {
     const angelegt = (ev.description ?? '').split('\n\n').find((x) => x.startsWith('Angelegt von '));
     const { checkliste: _c, sichtGruppen: _g, sichtPersonen: _p, ...bleibt } = alt;
     const description = [p.termin.notiz, angelegt, `Geändert von ${a.sitzung.name ?? ich}`].filter(Boolean).join('\n\n');
-    const extendedProperties = { private: { ...bleibt, kategorie: p.termin.kategorie, ...zusatzEigenschaften(p.termin) } };
+    // Leere Werte statt weglassen: PATCH behält fehlende Schlüssel, entfernte Gruppen/Personen sollen wirklich weg sein.
+    const extendedProperties = { private: { ...bleibt, kategorie: p.termin.kategorie, checkliste: '', sichtGruppen: '', sichtPersonen: '', ...zusatzEigenschaften(p.termin) } };
     const body = { ...neu, description, extendedProperties, ...(ev.colorId ? { colorId: ev.colorId } : {}) };
     try {
       if (serie && ev.recurringEventId) {
