@@ -13,6 +13,7 @@ import {
   belegDatei,
   belegEntfernen,
   belegHochladen,
+  personAendern,
   type AbwesenheitDaten,
 } from './api';
 import {
@@ -972,6 +973,74 @@ function zeitraumVorlage(x: string, p: Personal): Zeitraum {
 const endeVon = (e: Abwesenheit) => (e.offen || !gueltigesDatum(e.bis) ? heute() : e.bis);
 
 /** Volle Personalakte: Konto, Abwesenheiten und Zeitkonto einer Person im gewählten Zeitraum. */
+/** Admin: Stammdaten, Telefon und Korrektur von Ü-Übertrag/Saldo und Resturlaub ab Stichtag. */
+function AkteKorrektur({ p, onDaten }: { p: Personal; onDaten: (x: AbwesenheitDaten) => void }) {
+  const [x, setX] = useState<Personal | null>(null);
+  const [fehler, setFehler] = useState('');
+  if (!x)
+    return (
+      <button type="button" className="knopf klein" onClick={() => setX({ ...p })}>
+        ✎ Stammdaten / Korrektur
+      </button>
+    );
+  const zahlFeld = (k: 'urlaubStartSaldo' | 'ueStartSaldo' | 'vordienstjahre' | 'urlaubswochen', label: string, schritt = 0.25) => (
+    <label>
+      {label}
+      <input className="feld" type="number" step={schritt} value={x[k] ?? ''} onChange={(e) => setX({ ...x, [k]: e.target.value === '' ? undefined : Number(e.target.value) })} />
+    </label>
+  );
+  return (
+    <div className="glas admin-block ab-formular">
+      <h3>Stammdaten / Korrektur</h3>
+      <div className="formular-reihe">
+        <label>
+          Telefon (Direktwahl)
+          <input className="feld" type="tel" inputMode="tel" placeholder="+43 …" value={x.telefon ?? ''} onChange={(e) => setX({ ...x, telefon: e.target.value || undefined })} />
+        </label>
+        <label>
+          Eintritt
+          <input className="feld" type="date" value={x.eintritt} onChange={(e) => setX({ ...x, eintritt: e.target.value })} />
+        </label>
+        {zahlFeld('vordienstjahre', 'Vordienstjahre', 1)}
+        {zahlFeld('urlaubswochen', 'Urlaubswochen (leer = gesetzlich 5/6)', 1)}
+      </div>
+      <div className="formular-reihe">
+        <label>
+          Stichtag Resturlaub
+          <input className="feld" type="date" value={x.saldoAb ?? ''} onChange={(e) => setX({ ...x, saldoAb: e.target.value || undefined })} />
+        </label>
+        {zahlFeld('urlaubStartSaldo', 'Resturlaub am Stichtag (Stunden)')}
+        <label>
+          Ü-Übertrag gilt ab Monat
+          <input className="feld" type="month" value={x.ueAbMonat ?? ''} onChange={(e) => setX({ ...x, ueAbMonat: e.target.value || undefined })} />
+        </label>
+        {zahlFeld('ueStartSaldo', 'Ü-Übertrag / Saldo (Stunden)')}
+      </div>
+      <p className="klein">Resturlaub: ab dem Stichtag zählt nur dieser Wert plus neue Ansprüche nach UrlG (Wochenstunden × 5 bzw. 6 Wochen, Urlaubsjahr ab Eintritt). Ü-Übertrag: Saldo zu Beginn des gewählten Monats; ab diesem Monat wird weitergerechnet.</p>
+      {fehler && <div className="banner fehler">{fehler}</div>}
+      <div className="ab-modal-knoepfe">
+        <button
+          type="button"
+          className="knopf primaer"
+          onClick={() =>
+            void personAendern(p.email, x)
+              .then((n) => {
+                onDaten(n);
+                setX(null);
+              })
+              .catch((e: Error) => setFehler(e.message))
+          }
+        >
+          Speichern
+        </button>
+        <button type="button" className="knopf" onClick={() => setX(null)}>
+          Abbrechen
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function PersonalAkte({ d, p, onDaten, schliessen }: { d: AbwesenheitDaten; p: Personal; onDaten: (x: AbwesenheitDaten) => void; schliessen: () => void }) {
   const [z, setZ] = useState<Zeitraum>(() => zeitraumVorlage('jahr', p));
   const [zk, setZk] = useState<ZeitkontoDaten | null>(null);
@@ -1105,6 +1174,7 @@ function PersonalAkte({ d, p, onDaten, schliessen }: { d: AbwesenheitDaten; p: P
           ) : (
             <p className="klein">Keine Monate im Zeitraum</p>
           )}
+          {d.darfVerwalten && <AkteKorrektur p={p} onDaten={onDaten} />}
           <h3>Alle Einträge ({eintraege.length})</h3>
           <EintragListe d={d} eintraege={eintraege} onDaten={onDaten} />
         </div>
@@ -1475,7 +1545,7 @@ export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
       {m === 'alle' && <AlleEintraege d={daten} onDaten={setDaten} />}
       {m === 'dashboard' && <Dashboard d={daten} onDaten={setDaten} />}
       {m === 'belege' && <BelegArchiv d={daten} onDaten={setDaten} />}
-      {m === 'zeitkonto' && <ZeitkontoAnsicht d={daten} />}
+      {m === 'zeitkonto' && <ZeitkontoAnsicht d={daten} onDaten={setDaten} />}
       {m === 'personal' && <PersonalVerwaltung d={daten} onDaten={setDaten} />}
     </section>
   );

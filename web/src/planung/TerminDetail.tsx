@@ -156,7 +156,6 @@ function ZeremonieAuswahl({
       setTraegerOk(false);
       return;
     }
-    if (alsTraeger && !confirm(`${personName(p)} ist kein Arrangeur, sondern Träger.\n\nTrotzdem als Arrangeur eintragen?`)) return;
     setArr(p.email);
     setTraegerOk(alsTraeger);
     setRest((r) => r.filter((e) => e !== p.email));
