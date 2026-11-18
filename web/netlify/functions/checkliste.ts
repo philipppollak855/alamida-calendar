@@ -6,7 +6,9 @@ import { kategorieAus, type GoogleEvent } from '../../src/planung/planungLogic';
 import { angemeldet, googleGet, json, store } from '../lib/server';
 
 type Stand = Record<string, { von: string; zeit: string }>;
-const schluessel = (id: string) => `checkliste/${Buffer.from(id).toString('base64url')}`;
+/** Ein Blob je Punkt, damit gleichzeitiges Abhaken verschiedener Punkte nichts überschreibt. */
+const praefix = (id: string) => `checkliste/${Buffer.from(id).toString('base64url')}/`;
+const schluessel = (id: string, punkt: string) => praefix(id) + Buffer.from(punkt).toString('base64url');
 
 /** Abhak-Stand der Checkliste je Termin (bei Serien je einzelnem Termin). GET ?id=… · PUT { id, punkt, erledigt } */
 export default async (req: Request) => {
@@ -26,13 +28,20 @@ export default async (req: Request) => {
   const p = ev.extendedProperties?.private;
   if (!darfSehen(a.rechte, teile.kalenderId, kategorieAus(ev)) || !terminSichtbar(a.rechte, p)) return json({ fehler: 'Kein Zugriff' }, 403);
   const s = store();
-  const stand = ((await s.get(schluessel(id), { type: 'json' })) as Stand | null) ?? {};
-  if (req.method !== 'PUT') return json({ erledigt: stand });
-  const punkt = String(body.punkt ?? '');
-  if (!checklisteAus(p).includes(punkt)) return json({ fehler: 'Unbekannter Punkt' }, 400);
-  if (body.erledigt) stand[punkt] = { von: a.sitzung.name || a.sitzung.email, zeit: new Date().toISOString() };
-  else delete stand[punkt];
-  await s.setJSON(schluessel(id), stand);
+  const punkte = checklisteAus(p);
+  if (req.method === 'PUT') {
+    const punkt = String(body.punkt ?? '');
+    if (!punkte.includes(punkt)) return json({ fehler: 'Unbekannter Punkt' }, 400);
+    if (body.erledigt) await s.setJSON(schluessel(id, punkt), { von: a.sitzung.name || a.sitzung.email, zeit: new Date().toISOString() });
+    else await s.delete(schluessel(id, punkt));
+  }
+  const stand: Stand = {};
+  await Promise.all(
+    punkte.map(async (x) => {
+      const e = (await s.get(schluessel(id, x), { type: 'json' })) as Stand[string] | null;
+      if (e) stand[x] = e;
+    }),
+  );
   return json({ erledigt: stand });
 };
 
