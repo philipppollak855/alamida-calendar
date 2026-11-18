@@ -40,6 +40,7 @@ import { ausText, datumText, plusTage } from '../shared/bereitschaft';
 import { useBereitschaft } from './BereitschaftAnsicht';
 import { belegVorbereiten, drucken, herunterladen } from './beleg';
 import ZeitkontoAnsicht from './ZeitkontoAnsicht';
+import { AkteHinweise, AkteStammblatt } from './AkteStammblatt';
 import { altEintraegeLesen, berichtZeile, gueltigerMonat, kalenderTage, monatPlus, monatText, runden, zahlText, type BerichtZeile, type ZeitkontoDaten } from '../shared/zeitkonto';
 import { berichtLesen, nameZuordnen, tageZuAbwesenheiten, type BerichtZeile as ImportBerichtZeile, type ImportAbwesenheit } from '../shared/altImport';
 import { excelLesen, pdfZeilen } from './altImport';
@@ -1094,6 +1095,7 @@ function PersonalAkte({ d, p, onDaten, schliessen }: { d: AbwesenheitDaten; p: P
         </div>
         <div className="modal-inhalt">
           {gueltigesDatum(p.eintritt) && <KontoKacheln p={p} eintraege={d.eintraege} />}
+          <AkteStammblatt p={p} darf={d.darfVerwalten} onDaten={onDaten} />
           <div className="ab-akte-filter">
             {ZEITRAEUME.map(([x, l]) => (
               <button key={x} className="knopf klein" onClick={() => setZ(zeitraumVorlage(x, p))}>
@@ -1404,6 +1406,7 @@ function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: 
   return (
     <div className="ab-personal">
       {meldung && <div className={`banner ${meldung.ok ? '' : 'fehler'}`}>{meldung.text}</div>}
+      <AkteHinweise d={d} onOeffnen={setAkte} />
       <section className="glas admin-block bs-block">
         <h3>Personal-Stammdaten</h3>
         <p className="klein">

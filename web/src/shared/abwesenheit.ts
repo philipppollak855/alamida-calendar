@@ -40,6 +40,119 @@ export interface Personal {
   /** Überstunden zählen ab diesem Monat (JJJJ-MM), davor gilt ueStartSaldo. */
   ueAbMonat?: string;
   ueAusbezahlt?: boolean;
+  /** Erweiterte Personalakte (nur Verwalter und die Person selbst sehen sie). */
+  akte?: AkteDaten;
+}
+
+export type Bereich = 'buero' | 'aussen' | 'facility';
+export const BEREICHE: Record<Bereich, string> = { buero: '🗂 Büro', aussen: '🚐 Außenteam', facility: '🧹 Facility' };
+export const VERTRAEGE = { vollzeit: 'Vollzeit', teilzeit: 'Teilzeit', geringfuegig: 'Geringfügig', lehrling: 'Lehrling', aushilfe: 'Aushilfe / auf Abruf' } as const;
+export type Vertrag = keyof typeof VERTRAEGE;
+
+/** Schulung, Berechtigung oder Impfung, optional mit Ablaufdatum. */
+export interface Nachweis {
+  art: string;
+  /** JJJJ-MM-TT gültig bis */
+  bis?: string;
+  notiz?: string;
+}
+
+export interface AkteDaten {
+  bereiche?: Bereich[];
+  funktion?: string;
+  vertrag?: Vertrag;
+  probezeitBis?: string;
+  befristetBis?: string;
+  geburtsdatum?: string;
+  adresse?: string;
+  telefonPrivat?: string;
+  emailPrivat?: string;
+  notfallName?: string;
+  notfallTelefon?: string;
+  fuehrerschein?: string;
+  nachweise?: Nachweis[];
+  /** Dienstkleidung, z. B. „Sakko 52, Hemd 41, Schuhe 43“ */
+  groessen?: string;
+  /** Ausgegebene Schlüssel, Karten, Diensthandy, Dienstwagen … */
+  ausruestung?: string;
+  notiz?: string;
+}
+
+/** Vorschläge für Nachweise je Bereich (frei erweiterbar). */
+export const NACHWEIS_VORSCHLAEGE: string[] = [
+  'Erste-Hilfe-Kurs',
+  'Arbeitssicherheits-Unterweisung',
+  'Datenschutz-Belehrung (DSGVO)',
+  'Hepatitis-B-Impfung',
+  'Tetanus-Impfung',
+  'Führerschein B',
+  'Führerschein C / C1',
+  'Hygiene- / Desinfektionsschulung',
+  'Hebe- und Tragetechnik',
+  'Versorgung Verstorbener / Thanatopraxie',
+  'Befähigungsprüfung Bestatter',
+  'Trauerbegleitung / Gesprächsführung',
+  'Vorsorgeberatung',
+  'Kühlraum-Hygiene',
+  'Staplerschein',
+  'Brandschutzbeauftragter',
+  'Umgang mit Gefahrstoffen / Desinfektionsmitteln',
+];
+
+const AKTE_TEXTE: [keyof AkteDaten, number][] = [
+  ['funktion', 80],
+  ['adresse', 200],
+  ['telefonPrivat', 40],
+  ['emailPrivat', 120],
+  ['notfallName', 120],
+  ['notfallTelefon', 40],
+  ['fuehrerschein', 60],
+  ['groessen', 300],
+  ['ausruestung', 1000],
+  ['notiz', 3000],
+];
+
+export function aktePruefen(x: unknown): AkteDaten | undefined {
+  if (!x || typeof x !== 'object') return undefined;
+  const o = x as Record<string, unknown>;
+  const t = (v: unknown, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const a: AkteDaten = {};
+  const w = a as Record<string, unknown>;
+  const bereiche = Array.isArray(o.bereiche) ? o.bereiche.filter((b): b is Bereich => typeof b === 'string' && b in BEREICHE) : [];
+  if (bereiche.length) a.bereiche = [...new Set(bereiche)];
+  if (t(o.vertrag) in VERTRAEGE) a.vertrag = t(o.vertrag) as Vertrag;
+  for (const k of ['probezeitBis', 'befristetBis', 'geburtsdatum'] as const) if (gueltigesDatum(t(o[k]))) a[k] = t(o[k]);
+  for (const [k, max] of AKTE_TEXTE) if (t(o[k], max)) w[k] = t(o[k], max);
+  const nachweise = (Array.isArray(o.nachweise) ? o.nachweise : [])
+    .map((n: Record<string, unknown>) => ({ art: t(n?.art, 80), ...(gueltigesDatum(t(n?.bis)) ? { bis: t(n?.bis) } : {}), ...(t(n?.notiz) ? { notiz: t(n?.notiz) } : {}) }))
+    .filter((n) => n.art)
+    .slice(0, 50);
+  if (nachweise.length) a.nachweise = nachweise;
+  return Object.keys(a).length ? a : undefined;
+}
+
+export interface AkteWarnung {
+  text: string;
+  /** Tage bis zum Ablauf (negativ = abgelaufen) */
+  tage: number;
+}
+
+/** Ablaufende Nachweise, Probezeit und Befristung (≤ 60 Tage oder abgelaufen). */
+export function akteWarnungen(p: Personal, heute: string, vorlauf = 60): AkteWarnung[] {
+  const a = p.akte;
+  if (!a || (p.austritt && p.austritt < heute)) return [];
+  const tageBis = (d: string) => Math.round((Date.parse(d) - Date.parse(heute)) / 86_400_000);
+  const l: AkteWarnung[] = [];
+  const pruefen = (was: string, bis: string | undefined, ablaufText: string, laeuftText: string, vergangenZeigen = true) => {
+    if (!bis) return;
+    const n = tageBis(bis);
+    if (n < 0 && vergangenZeigen) l.push({ text: `${was} ${ablaufText}`, tage: n });
+    else if (n >= 0 && n <= vorlauf) l.push({ text: `${was} ${laeuftText} ${n === 0 ? 'heute' : `in ${n} Tagen`}`, tage: n });
+  };
+  for (const n of a.nachweise ?? []) pruefen(n.art, n.bis, 'abgelaufen', 'läuft ab');
+  pruefen('Probezeit', a.probezeitBis, '', 'endet', false);
+  pruefen('Befristung', a.befristetBis, 'abgelaufen', 'endet');
+  return l.sort((x, y) => x.tage - y.tage);
 }
 
 export interface Abwesenheit {
@@ -363,6 +476,8 @@ export function personalPruefen(x: unknown): Personal[] {
       if (o?.ueAusbezahlt === true) p.ueAusbezahlt = true;
       if (/^\d{4}-(0[1-9]|1[0-2])$/.test(t(o?.ueAbMonat))) p.ueAbMonat = t(o?.ueAbMonat);
       if (o?.ohneVerfall === true) p.ohneVerfall = true;
+      const akte = aktePruefen(o?.akte);
+      if (akte) p.akte = akte;
       return p;
     })
     .filter((p) => p.email.includes('@') && !gesehen.has(p.email) && gesehen.add(p.email));
