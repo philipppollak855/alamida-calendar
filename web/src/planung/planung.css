@@ -196,8 +196,8 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .planung .rbc-off-range-bg { background: rgba(0, 0, 0, 0.18); }
 .theme-hell .rbc-off-range-bg { background: rgba(60, 45, 20, 0.04); }
 .planung .rbc-today { background: rgba(212, 176, 106, 0.08); }
-.planung .rbc-event, .planung .rbc-day-slot .rbc-background-event { background: color-mix(in srgb, var(--kat) 30%, var(--flaeche-fest)); border: none; border-left: 3px solid var(--kat); border-radius: 8px; color: var(--text); font-size: 0.8rem; padding: 2px 6px; }
-.planung .rbc-event.rbc-selected { background: color-mix(in srgb, var(--kat) 50%, var(--flaeche-fest)); }
+.planung .rbc-event, .planung .rbc-day-slot .rbc-background-event { background: var(--flaeche-textur, linear-gradient(transparent, transparent)), color-mix(in srgb, var(--kat) 30%, var(--flaeche-fest)); border: none; border-left: 3px solid var(--kat); border-radius: 8px; color: var(--text); font-size: 0.8rem; padding: 2px 6px; }
+.planung .rbc-event.rbc-selected { background: var(--flaeche-textur, linear-gradient(transparent, transparent)), color-mix(in srgb, var(--kat) 50%, var(--flaeche-fest)); }
 .planung .rbc-current-time-indicator { background: var(--rot); height: 2px; }
 .planung .rbc-time-gutter, .planung .rbc-label { color: var(--text-3); font-size: 0.78rem; }
 .planung .rbc-show-more { background: transparent; color: var(--akzent); }
@@ -554,7 +554,7 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .termin-personal, .m-personal { color: var(--akzent); }
 
 /* Sterbefall-Karte mit Unter-Karten je Termin */
-.fall-karte { border-radius: 16px; border: 1px solid var(--rand-stark); background: var(--flaeche); overflow: hidden; }
+.fall-karte { border-radius: 16px; border: 1px solid var(--rand-stark); background: var(--flaeche-textur, linear-gradient(transparent, transparent)), var(--flaeche); overflow: hidden; }
 .fall-kopf { display: flex; flex-direction: column; gap: 0.15rem; width: 100%; padding: 0.75rem 0.9rem 0.55rem; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; font: inherit; }
 .fall-name { font-size: 1.05rem; font-weight: 700; }
 .fall-info { font-size: 0.8rem; color: var(--text-2); }
@@ -584,7 +584,7 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 
 /* Kalender: Sterbefälle gebündelt */
 .kal-buendeln { display: inline-flex; gap: 0.4rem; align-items: center; margin: 0 0 0.5rem; font-size: 0.9rem; cursor: pointer; }
-.planung .rbc-event.kal-fall { background: color-mix(in srgb, #8b7cf6 32%, var(--flaeche-fest, #1d2230)); border-left: 4px solid #8b7cf6; color: var(--text); font-weight: 600; }
+.planung .rbc-event.kal-fall { background: var(--flaeche-textur, linear-gradient(transparent, transparent)), color-mix(in srgb, #8b7cf6 32%, var(--flaeche-fest, #1d2230)); border-left: 4px solid #8b7cf6; color: var(--text); font-weight: 600; }
 .fall-modal { position: relative; max-width: 560px; padding: 1rem; }
 .fall-modal .fall-zu { position: absolute; top: 0.6rem; right: 0.6rem; z-index: 1; }
 
@@ -628,9 +628,16 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .zk-kopf { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
 .zk-monat { display: flex; align-items: center; gap: 0.35rem; }
 .zk-monat .feld { width: auto; }
-.zk-scroll { overflow-x: auto; }
+.zk-scroll { overflow-x: auto; scrollbar-width: none; }
+.zk-scroll::-webkit-scrollbar { display: none; }
+.zk-tabelle th, .zk-tabelle td { padding-left: 0.3rem; padding-right: 0.3rem; }
+.zk-tabelle td { white-space: nowrap; }
+.zk-tabelle td:first-child { white-space: normal; }
+.zk-korr { display: inline-flex; gap: 0.2rem; align-items: center; }
+.zk-korr-knopf { all: unset; cursor: pointer; border-bottom: 1px dashed var(--text-3); }
+.zk-korr-knopf:hover { color: var(--akzent); }
 .zk-tabelle td { vertical-align: top; }
-.zk-tabelle .zk-zahl { width: 4.8rem; min-width: 0; margin-right: 0.25rem; }
+.zk-tabelle .zk-zahl { width: 3.9rem; min-width: 0; margin-right: 0.25rem; }
 .zk-tabelle .knopf.klein { margin: 0.15rem 0.15rem 0 0; }
 .zk-tabelle tr.zk-fertig td:first-child b { color: var(--akzent); }
 .zk-status { display: flex; align-items: center; gap: 0.4rem 0.9rem; flex-wrap: wrap; margin: 0.4rem 0 0.6rem; }

@@ -33,6 +33,7 @@ import {
   zeitkontoLaden,
   zeitkontoLoeschen,
   zeitkontoSpeichern,
+  personalSpeichern,
   type AbwesenheitDaten,
 } from './api';
 import { drucken, herunterladen } from './beleg';
@@ -76,7 +77,19 @@ function weiter(ev: KeyboardEvent<HTMLInputElement>) {
 }
 
 /** Überstunden, Auszahlung, Saldo und Fehltage je Monat pflegen; Eingaben werden zwischengespeichert; Monatsbericht und Nachtrag (PDF, CSV). */
-export default function ZeitkontoAnsicht({ d }: { d: AbwesenheitDaten }) {
+export default function ZeitkontoAnsicht({ d, onDaten }: { d: AbwesenheitDaten; onDaten?: (x: AbwesenheitDaten) => void }) {
+  const [korr, setKorr] = useState<{ email: string; wert: string } | null>(null);
+  const uebertragKorrigieren = (p: Personal, wert: string) => {
+    const n = Number(wert.replace(',', '.'));
+    if (!isFinite(n)) return setMeldung({ ok: false, text: 'Ungültige Zahl' });
+    void personalSpeichern(d.personal.map((x) => (x.email === p.email ? { ...x, ueStartSaldo: n, ueAbMonat: monat } : x)))
+      .then((neu) => {
+        onDaten?.(neu);
+        setKorr(null);
+        setMeldung({ ok: true, text: `${p.name}: Ü-Übertrag ab ${monat} auf ${text(n)} h gesetzt` });
+      })
+      .catch((e: Error) => setMeldung({ ok: false, text: e.message }));
+  };
   const [zk, setZk] = useState<ZeitkontoDaten | null>(null);
   const [monat, setMonat] = useState(() => monatPlus(heuteMonat(), -1));
   const [entwurf, setEntwurf] = useState<Eingaben>({});
@@ -325,7 +338,27 @@ export default function ZeitkontoAnsicht({ d }: { d: AbwesenheitDaten }) {
                         {p.gruppe ? ` · ${p.gruppe}` : ''}
                       </div>
                     </td>
-                    <td data-label="Ü-Übertrag">{text(z.uebertrag)} h</td>
+                    <td data-label="Ü-Übertrag">
+                      {korr?.email === p.email ? (
+                        <form
+                          className="zk-korr"
+                          onSubmit={(ev) => {
+                            ev.preventDefault();
+                            uebertragKorrigieren(p, korr.wert);
+                          }}
+                        >
+                          <input className="feld zk-zahl" inputMode="decimal" autoFocus value={korr.wert} onChange={(ev) => setKorr({ ...korr, wert: ev.target.value })} aria-label={`${p.name}: Ü-Übertrag korrigieren`} />
+                          <button type="submit" className="knopf klein" title="Übertrag ab diesem Monat setzen">✓</button>
+                          <button type="button" className="knopf klein" onClick={() => setKorr(null)}>✕</button>
+                        </form>
+                      ) : d.darfVerwalten ? (
+                        <button type="button" className="zk-korr-knopf" title="Ü-Übertrag ab diesem Monat korrigieren" onClick={() => setKorr({ email: p.email, wert: text(z.uebertrag) })}>
+                          {text(z.uebertrag)} h ✎
+                        </button>
+                      ) : (
+                        `${text(z.uebertrag)} h`
+                      )}
+                    </td>
                     <td data-label="Ü-Neu">
                       {feld('ue', 'Neue Überstunden im Monat (h)')}
                       {za > 0 && (
