@@ -1,5 +1,19 @@
 import { useState, type ReactNode } from 'react';
-import { BEREICHE, NACHWEIS_VORSCHLAEGE, VERTRAEGE, akteWarnungen, type AkteDaten, type Bereich, type Nachweis, type Personal, type Vertrag } from '../shared/abwesenheit';
+import {
+  AUSGABE_VORSCHLAEGE,
+  BEREICHE,
+  KLEIDUNG,
+  NACHWEIS_VORSCHLAEGE,
+  VERTRAEGE,
+  akteWarnungen,
+  ausgabeSymbol,
+  type AkteDaten,
+  type Ausgabe,
+  type Bereich,
+  type Nachweis,
+  type Personal,
+  type Vertrag,
+} from '../shared/abwesenheit';
 import { datumText } from '../shared/bereitschaft';
 import { personAendern, type AbwesenheitDaten } from './api';
 
@@ -491,9 +505,195 @@ export function AkteReiter({ tab, p, darf, onDaten, konto }: { tab: AkteTab; p: 
     );
   return (
     <div className="akte-raster">
-      <EditKarte icon="👔" titel="Dienstkleidung" {...k} felder={[af('groessen', 'Größen', 'lang', undefined, 'Sakko 52, Hemd 41, Hose 50, Schuhe 43')]} />
-      <EditKarte icon="🔑" titel="Ausgegeben" {...k} felder={[af('ausruestung', 'Ausrüstung', 'lang', undefined, 'Schlüssel, Karten, Diensthandy, Dienstwagen …')]} />
+      <AusgabeKarte {...k} />
+      <KleidungKarte {...k} />
+      {(a.groessen || a.ausruestung) && (
+        <EditKarte
+          icon="🗂"
+          titel="Frühere Freitexte"
+          {...k}
+          felder={[af('groessen', 'Größen (alt)', 'lang'), af('ausruestung', 'Ausrüstung (alt)', 'lang')]}
+        />
+      )}
       <EditKarte icon="🗒" titel="Notizen" breit {...k} felder={[af('notiz', 'Notiz', 'lang')]} />
+    </div>
+  );
+}
+
+function KleidungKarte({ p, darf, onDaten }: { p: Personal; darf: boolean; onDaten: (x: AbwesenheitDaten) => void }) {
+  const [x, setX] = useState<Record<string, string> | null>(null);
+  const [laeuft, setLaeuft] = useState(false);
+  const [fehler, setFehler] = useState('');
+  const g = p.akte?.kleidung ?? {};
+  const da = KLEIDUNG.filter(([key]) => (x ? true : g[key]));
+  return (
+    <div className={`akte-karte breit ${x ? 'edit' : ''}`}>
+      <div className="akte-karte-kopf">
+        <h4>
+          <span>👔</span> Kleidergrößen
+        </h4>
+        {darf && !x && (
+          <button type="button" className="akte-stift" aria-label="Kleidergrößen bearbeiten" onClick={() => setX({ ...g })}>
+            ✎
+          </button>
+        )}
+      </div>
+      {da.length ? (
+        <div className="akte-groessen">
+          {da.map(([key, label]) => (
+            <label key={key}>
+              <small>{label}</small>
+              {x ? <input className="akte-inline" value={x[key] ?? ''} placeholder="–" onChange={(e) => setX({ ...x, [key]: e.target.value })} /> : <b>{g[key]}</b>}
+            </label>
+          ))}
+        </div>
+      ) : (
+        <p className="akte-leer">{darf ? 'Noch leer – ✎ zum Ergänzen' : 'Keine Angaben'}</p>
+      )}
+      {x && (
+        <div className="akte-karte-fuss">
+          {fehler && <span className="akte-fehler">{fehler}</span>}
+          <button type="button" className="knopf klein" onClick={() => (setX(null), setFehler(''))}>
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            className="knopf klein primaer"
+            disabled={laeuft}
+            onClick={() => {
+              const kleidung = Object.fromEntries(Object.entries(x).filter(([, v]) => v.trim()));
+              setLaeuft(true);
+              setFehler('');
+              speichern(p, { ...p, akte: { ...p.akte, kleidung: Object.keys(kleidung).length ? kleidung : undefined } }, onDaten)
+                .then(() => setX(null))
+                .catch((e: Error) => setFehler(e.message))
+                .finally(() => setLaeuft(false));
+            }}
+          >
+            {laeuft ? '…' : '✓ Speichern'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AusgabeKarte({ p, darf, onDaten }: { p: Personal; darf: boolean; onDaten: (x: AbwesenheitDaten) => void }) {
+  const [l, setL] = useState<Ausgabe[] | null>(null);
+  const [zurueckAuch, setZurueckAuch] = useState(false);
+  const [laeuft, setLaeuft] = useState(false);
+  const [fehler, setFehler] = useState('');
+  const heute = heuteText();
+  const alle = p.akte?.geraete ?? [];
+  const aktiv = alle.filter((g) => !g.zurueck);
+  const zurueck = alle.filter((g) => g.zurueck);
+  const sichern = (neu: Ausgabe[], fertig?: () => void) => {
+    setLaeuft(true);
+    setFehler('');
+    speichern(p, { ...p, akte: { ...p.akte, geraete: neu.filter((g) => g.art.trim()) } }, onDaten)
+      .then(fertig)
+      .catch((e: Error) => setFehler(e.message))
+      .finally(() => setLaeuft(false));
+  };
+  const setG = (i: number, n: Partial<Ausgabe>) => setL(l!.map((y, j) => (j === i ? { ...y, ...n } : y)));
+  const zeile = (g: Ausgabe) => (
+    <div key={alle.indexOf(g)} className={`akte-ausgabe ${g.zurueck ? 'zurueck' : ''}`}>
+      <span className="akte-ausgabe-symbol">{ausgabeSymbol(g.art)}</span>
+      <div>
+        <b>
+          {g.art}
+          {g.anzahl ? ` × ${g.anzahl}` : ''}
+        </b>
+        <small>{[g.nr && `Nr. ${g.nr}`, g.am && `seit ${tt(g.am)}`, g.zurueck && `zurück ${tt(g.zurueck)}`, g.notiz].filter(Boolean).join(' · ')}</small>
+      </div>
+      {darf && !g.zurueck && (
+        <button type="button" className="knopf klein" disabled={laeuft} title="Als zurückgegeben markieren" onClick={() => sichern(alle.map((y) => (y === g ? { ...y, zurueck: heute } : y)))}>
+          ↩ Zurück
+        </button>
+      )}
+    </div>
+  );
+  return (
+    <div className={`akte-karte breit ${l ? 'edit' : ''}`}>
+      <div className="akte-karte-kopf">
+        <h4>
+          <span>🔑</span> Ausgegeben {aktiv.length > 0 && <em className="akte-zahl">{aktiv.length}</em>}
+        </h4>
+        {darf && !l && (
+          <button type="button" className="akte-stift" aria-label="Ausgabeliste bearbeiten" onClick={() => setL(alle.length ? alle.map((g) => ({ ...g })) : [])}>
+            ✎
+          </button>
+        )}
+      </div>
+      {!l ? (
+        <>
+          {aktiv.length ? <div className="akte-ausgaben">{aktiv.map(zeile)}</div> : <p className="akte-leer">{darf ? 'Nichts ausgegeben – ✎ zum Erfassen' : 'Nichts ausgegeben'}</p>}
+          {zurueck.length > 0 && (
+            <button type="button" className="akte-mehr" onClick={() => setZurueckAuch(!zurueckAuch)}>
+              {zurueckAuch ? '▾' : '▸'} Zurückgegeben ({zurueck.length})
+            </button>
+          )}
+          {zurueckAuch && <div className="akte-ausgaben">{zurueck.map(zeile)}</div>}
+          {fehler && <span className="akte-fehler">{fehler}</span>}
+        </>
+      ) : (
+        <>
+          <datalist id="akte-ausgaben">
+            {AUSGABE_VORSCHLAEGE.map(([, n]) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
+          <div className="akte-ausgaben">
+            {l.map((g, i) => (
+              <div key={i} className="akte-ausgabe edit">
+                <span className="akte-ausgabe-symbol">{ausgabeSymbol(g.art)}</span>
+                <div className="akte-ausgabe-felder">
+                  <input className="akte-inline" list="akte-ausgaben" placeholder="Gegenstand" value={g.art} onChange={(e) => setG(i, { art: e.target.value })} />
+                  <label>
+                    Anzahl
+                    <input className="akte-inline" type="number" min={1} max={9999} value={g.anzahl ?? 1} onChange={(e) => setG(i, { anzahl: Number(e.target.value) > 1 ? Number(e.target.value) : undefined })} />
+                  </label>
+                  <label>
+                    Nr. / Kennz.
+                    <input className="akte-inline" value={g.nr ?? ''} onChange={(e) => setG(i, { nr: e.target.value || undefined })} />
+                  </label>
+                  <label>
+                    ausgegeben
+                    <input className="akte-inline" type="date" value={g.am ?? ''} onChange={(e) => setG(i, { am: e.target.value || undefined })} />
+                  </label>
+                  <label>
+                    zurück
+                    <input className="akte-inline" type="date" value={g.zurueck ?? ''} onChange={(e) => setG(i, { zurueck: e.target.value || undefined })} />
+                  </label>
+                  <input className="akte-inline" placeholder="Notiz" value={g.notiz ?? ''} onChange={(e) => setG(i, { notiz: e.target.value || undefined })} />
+                </div>
+                <button type="button" className="akte-stift" aria-label="Entfernen" onClick={() => setL(l.filter((_, j) => j !== i))}>
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="akte-auswahl">
+            {AUSGABE_VORSCHLAEGE.map(([sym, n]) => (
+              <button key={n} type="button" onClick={() => setL([...l, { art: n, am: heute }])}>
+                {sym} {n}
+              </button>
+            ))}
+            <button type="button" onClick={() => setL([...l, { art: '', am: heute }])}>
+              ＋ Eigener
+            </button>
+          </div>
+          <div className="akte-karte-fuss">
+            {fehler && <span className="akte-fehler">{fehler}</span>}
+            <button type="button" className="knopf klein" onClick={() => (setL(null), setFehler(''))}>
+              Abbrechen
+            </button>
+            <button type="button" className="knopf klein primaer" disabled={laeuft} onClick={() => sichern(l, () => setL(null))}>
+              {laeuft ? '…' : '✓ Speichern'}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
