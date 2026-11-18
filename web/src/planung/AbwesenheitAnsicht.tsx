@@ -71,7 +71,9 @@ export function useAbwesenheit(aktiv: boolean) {
 
 const heute = () => datumText(new Date());
 const std = (n: number) => `${n.toLocaleString('de-AT', { maximumFractionDigits: 1 })} h`;
-const tage = tageAnzeige;
+/** Mitarbeiter ohne Verwaltungsrecht sehen Urlaub nur in vollen Tagen. */
+let nurVolleTage = false;
+const tage = (stunden: number, proTag: number) => tageAnzeige(stunden, proTag, nurVolleTage);
 const kurz = (email: string) => email.split('@')[0];
 const artInfo = (e: Abwesenheit) => (e.verdeckt ? { label: 'abwesend', symbol: '•', farbe: '#7f8c8d' } : ARTEN[e.art]);
 const STATUS: Record<Abwesenheit['status'], string> = { beantragt: 'offen', genehmigt: 'genehmigt', abgelehnt: 'abgelehnt', gemeldet: 'gemeldet' };
@@ -1613,6 +1615,7 @@ export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
   }, [akteZiel, daten]);
   if (!aktiv) return <p className="leer">Für Urlaub / Krank brauchst du eine Freigabe.</p>;
   if (!daten) return fehler ? <div className="banner fehler">{fehler}</div> : <p className="leer">Lädt …</p>;
+  nurVolleTage = !daten.darfVerwalten;
   const modi: [Modus, string][] = [
     ['meine', '🙋 Meine'],
     ['team', '▦ Team'],
