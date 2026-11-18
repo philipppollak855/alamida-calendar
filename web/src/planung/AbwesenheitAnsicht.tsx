@@ -1007,7 +1007,7 @@ function KorrekturKarte({ p, icon, titel, felder, onDaten }: { p: Personal; icon
   const eingabeWert = (f: KorrekturFeld) => {
     const v = roh(f);
     if (v === undefined) return '';
-    if (f.typ === 'tage' && typeof v === 'number') return zahlDe(inTagen ? Math.round((v / proTag) * 100) / 100 : v).replace(/\s/g, '');
+    if (f.typ === 'tage' && typeof v === 'number') return String(inTagen ? Math.round((v / proTag) * 100) / 100 : v).replace('.', ',');
     if (typeof v === 'number') return String(v).replace('.', ',');
     return v;
   };
@@ -1016,6 +1016,7 @@ function KorrekturKarte({ p, icon, titel, felder, onDaten }: { p: Personal; icon
     const patch: Partial<Personal> = {};
     for (const f of felder) {
       const s = (x[f.k] ?? '').trim();
+      if (s === eingabeWert(f).trim()) continue;
       if (f.typ === 'zahl' || f.typ === 'tage') {
         if (!s) {
           (patch as Record<string, unknown>)[f.k] = undefined;
@@ -1030,7 +1031,7 @@ function KorrekturKarte({ p, icon, titel, felder, onDaten }: { p: Personal; icon
     }
     setLaeuft(true);
     setFehler('');
-    personAendern(p.email, { ...p, ...patch })
+    personAendern(p.email, patch)
       .then((n) => {
         onDaten(n);
         setX(null);
