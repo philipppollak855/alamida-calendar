@@ -32,7 +32,8 @@ export default async (req: Request) => {
     await emailUmziehen(vorher, p.email);
     personal = await personalLaden();
   }
-  personal = personal.some((x) => x.email === p.email) ? personal.map((x) => (x.email === p.email ? p : x)) : [...personal, p];
+  // Der Hub kennt die erweiterte Akte nicht: fehlt sie, bleibt die gespeicherte erhalten.
+  personal = personal.some((x) => x.email === p.email) ? personal.map((x) => (x.email === p.email ? { ...p, akte: p.akte ?? x.akte } : x)) : [...personal, p];
   await personalSpeichern(personal);
   return json({ personal });
 };

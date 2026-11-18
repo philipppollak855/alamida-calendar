@@ -211,3 +211,26 @@ describe('Personalauswahl: abwesend', () => {
     expect(letzterTag('2026-11-09T08:00')).toBe('2026-11-09');
   });
 });
+
+describe('Personalakte', () => {
+  it('prüft die Akte und warnt vor Ablauf', async () => {
+    const { personalPruefen, akteWarnungen } = await import('./abwesenheit');
+    const [p] = personalPruefen([
+      {
+        email: 'A@x.at',
+        name: 'Anna',
+        eintritt: '2020-01-01',
+        akte: { bereiche: ['aussen', 'gibts', 'aussen'], vertrag: 'teilzeit', funktion: ' Träger ', nachweise: [{ art: 'Erste-Hilfe-Kurs', bis: '2026-12-01' }, { art: 'Führerschein B', bis: '2026-10-01' }, { art: '' }], probezeitBis: '2026-11-20', foo: 1 },
+      },
+    ]);
+    expect(p.akte).toEqual({
+      bereiche: ['aussen'],
+      vertrag: 'teilzeit',
+      funktion: 'Träger',
+      probezeitBis: '2026-11-20',
+      nachweise: [{ art: 'Erste-Hilfe-Kurs', bis: '2026-12-01' }, { art: 'Führerschein B', bis: '2026-10-01' }],
+    });
+    expect(akteWarnungen(p, '2026-11-18').map((w) => w.text)).toEqual(['Führerschein B abgelaufen', 'Probezeit endet in 2 Tagen', 'Erste-Hilfe-Kurs läuft ab in 13 Tagen']);
+    expect(personalPruefen([{ email: 'b@x.at', name: 'B', akte: { foo: 1 } }])[0].akte).toBeUndefined();
+  });
+});
