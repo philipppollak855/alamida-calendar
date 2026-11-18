@@ -326,18 +326,29 @@ function Felder({ e, setE, daten, neu, bloecke }: { e: Entwurf; setE: (e: Entwur
 }
 
 function BereitschaftWahl({ l }: { l: TelefonDaten['bereitschaft'] }) {
-  const mit = l.filter((x) => x.telefon);
-  if (!mit.length) return null;
+  if (!l.length) return null;
   return (
     <div className="tel-direktwahl">
-      {mit.map((x) => (
-        <a key={x.email} className="knopf klein" href={`tel:${x.telefon!.replace(/[^\d+]/g, '')}`} onClick={(ev) => ev.stopPropagation()}>
-          📞 {(x.name || x.email).split(' ')[0]}
-        </a>
-      ))}
+      {l.map((x) =>
+        x.telefon ? (
+          <a key={x.email} className="knopf klein" href={`tel:${x.telefon.replace(/[^\d+]/g, '')}`} onClick={(ev) => ev.stopPropagation()}>
+            📞 {(x.name || x.email).split(' ')[0]}
+          </a>
+        ) : (
+          <span key={x.email} className="knopf klein ohne-nummer" title="Telefonnummer im Hub unter Mitarbeiter oder in der Personalakte eintragen">
+            {(x.name || x.email).split(' ')[0]} · keine Nummer
+          </span>
+        ),
+      )}
     </div>
   );
 }
+
+const naechsteText = (ab: string) => {
+  const d = new Date(`${ab.slice(0, 10)}T12:00:00`);
+  const heute = new Date().toDateString() === d.toDateString();
+  return `${heute ? 'heute' : d.toLocaleDateString('de-AT', { weekday: 'short', day: '2-digit', month: '2-digit' })} ${ab.slice(11, 16)}`;
+};
 
 const telLink = (n: string) => `tel:${n.replace(/[^\d+]/g, '')}`;
 
@@ -438,9 +449,11 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
       el.style.height = `${Math.max(320, Math.floor(h))}px`;
     };
     anpassen();
+    document.documentElement.classList.add('tel-voll');
     window.visualViewport?.addEventListener('resize', anpassen);
     window.addEventListener('resize', anpassen);
     return () => {
+      document.documentElement.classList.remove('tel-voll');
       window.visualViewport?.removeEventListener('resize', anpassen);
       window.removeEventListener('resize', anpassen);
     };
@@ -536,10 +549,16 @@ function NeuFormular({ daten, setDaten, gespeichert }: { daten: TelefonDaten; se
             <span className="tel-held-icon">📞</span>
             <span>
               <b>Neuer Anruf · {e.zeit.slice(11, 16)}</b>
-              <small>🚐 Bereitschaft: {daten.bereitschaft.length ? personText(daten.bereitschaft) : 'niemand eingeteilt'}</small>
+              <small>
+                {daten.bereitschaft.length
+                  ? `🚐 Bereitschaft: ${personText(daten.bereitschaft)}`
+                  : daten.bereitschaftNaechste
+                    ? `🚐 Jetzt niemand · nächste ab ${naechsteText(daten.bereitschaftNaechste.ab)}`
+                    : '🚐 Bereitschaft: niemand eingeteilt'}
+              </small>
             </span>
           </div>
-          <BereitschaftWahl l={daten.bereitschaft} />
+          <BereitschaftWahl l={daten.bereitschaft.length ? daten.bereitschaft : (daten.bereitschaftNaechste?.personen ?? [])} />
           <div className="tel-held-werkzeug">
             {artKnoepfe}
             <Aufnehmen datei={datei} setDatei={setDatei} kompakt />
