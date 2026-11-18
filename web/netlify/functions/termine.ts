@@ -52,7 +52,7 @@ export default async (req: Request) => {
       for (let j = von.getUTCFullYear(); j <= bis.getUTCFullYear(); j++) {
         const tag0 = `${j}${g.slice(4)}`;
         const t0 = Date.parse(tag0);
-        if (Number.isNaN(t0) || new Date(t0).getUTCMonth() + 1 !== Number(g.slice(5, 7)) || t0 + tag <= von.getTime() || t0 >= bis.getTime()) continue;
+        if (Number.isNaN(t0) || new Date(t0).getUTCMonth() + 1 !== Number(g.slice(5, 7)) || t0 + 2 * tag <= von.getTime() || t0 - tag >= bis.getTime()) continue;
         const t1 = new Date(t0 + tag).toISOString().slice(0, 10);
         geburtstage.push({ id: `geb-${n}-${j}`, summary: `🎂 ${p.name || p.email.split('@')[0]}`, start: { date: tag0 }, end: { date: t1 } } as GoogleEvent);
       }
