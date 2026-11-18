@@ -80,4 +80,15 @@ describe('Hub-Verzeichnis als eine Quelle', () => {
     expect(verzeichnisPruefen(null)).toBeNull();
     expect(verzeichnisPruefen({ fehler: 'nicht berechtigt' })).toBeNull();
   });
+  it('Sicht.kategorien schränkt die Gruppenrechte je Person ein', () => {
+    const konfig: Konfiguration = {
+      ...STANDARD_KONFIG,
+      gruppen: [{ id: 'g', name: 'G', kategorien: [ALLE], kalender: [ALLE] }],
+      benutzer: [{ email: 'a@x.at', gruppen: ['g'], admin: false, sicht: { kategorien: ['Abholung'] } }],
+    };
+    const r = rechteFuer('a@x.at', konfig);
+    expect(darfSehen(r, 'k', 'Abholung')).toBe(true);
+    expect(darfSehen(r, 'k', 'Beisetzung')).toBe(false);
+    expect(konfigPruefen({ ...konfig, benutzer: [{ email: 'a@x.at', gruppen: ['g'], sicht: { kategorien: ['Abholung', 'Quatsch'] } }] }).benutzer[0].sicht).toEqual({ kategorien: ['Abholung'] });
+  });
 });
