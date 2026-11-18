@@ -189,7 +189,7 @@ export function aktePruefen(x: unknown): AkteDaten | undefined {
     .map((g: Record<string, unknown>) => {
       const n = Math.round(Number(g?.anzahl));
       const e: Ausgabe = { art: t(g?.art, 80) };
-      if (n > 1 && n < 1000) e.anzahl = n;
+      if (n > 1) e.anzahl = Math.min(n, 9999);
       if (t(g?.nr, 60)) e.nr = t(g?.nr, 60);
       if (datum(g?.am)) e.am = datum(g?.am);
       if (datum(g?.zurueck)) e.zurueck = datum(g?.zurueck);

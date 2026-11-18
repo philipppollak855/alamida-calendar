@@ -651,7 +651,7 @@ function AusgabeKarte({ p, darf, onDaten }: { p: Personal; darf: boolean; onDate
                   <input className="akte-inline" list="akte-ausgaben" placeholder="Gegenstand" value={g.art} onChange={(e) => setG(i, { art: e.target.value })} />
                   <label>
                     Anzahl
-                    <input className="akte-inline" type="number" min={1} value={g.anzahl ?? 1} onChange={(e) => setG(i, { anzahl: Number(e.target.value) > 1 ? Number(e.target.value) : undefined })} />
+                    <input className="akte-inline" type="number" min={1} max={9999} value={g.anzahl ?? 1} onChange={(e) => setG(i, { anzahl: Number(e.target.value) > 1 ? Number(e.target.value) : undefined })} />
                   </label>
                   <label>
                     Nr. / Kennz.
