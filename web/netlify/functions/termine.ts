@@ -1,6 +1,7 @@
 import type { Config } from '@netlify/functions';
 import { darfKalender, darfSehen, sichtFuer } from '../../src/shared/rechte';
 import { terminMeins } from '../../src/shared/heute';
+import { terminSichtbar } from '../../src/shared/neuerTermin';
 import { kategorieAus, type GoogleEvent } from '../../src/planung/planungLogic';
 import { angemeldet, einteilungenLaden, env, googleGet, json } from '../lib/server';
 import { alleKalender } from '../lib/kalender';
@@ -38,7 +39,7 @@ export default async (req: Request) => {
       } while (pageToken);
       return {
         kalender: k,
-        events: events.filter((e) => darfSehen(a.rechte, k.id, kategorieAus(e)) && (!eingeteilt || terminMeins(k.id, e, kategorieAus(e), ich, eingeteilt))),
+        events: events.filter((e) => darfSehen(a.rechte, k.id, kategorieAus(e)) && terminSichtbar(a.rechte, e.extendedProperties?.private) && (!eingeteilt || terminMeins(k.id, e, kategorieAus(e), ich, eingeteilt))),
       };
     }),
   );

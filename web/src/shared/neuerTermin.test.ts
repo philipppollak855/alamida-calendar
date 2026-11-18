@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { darfAnlegen, googleEreignis, neuerTerminPruefen, standardDauer, zielKalender } from './neuerTermin';
+import { darfAnlegen, googleEreignis, neuerTerminPruefen, rrule, standardDauer, terminSichtbar, zielKalender } from './neuerTermin';
 import { KATEGORIE_SCHLUESSEL, STANDARD_KONFIG, type Rechte } from './rechte';
 
 const r = (x: Partial<Rechte>): Rechte => ({ email: 'a@x.at', admin: false, freigeschaltet: true, gruppen: [], kategorien: [], kalender: [], ...x });
@@ -41,5 +41,26 @@ describe('neuer Termin', () => {
     expect(darfAnlegen(r({ admin: true }), k)).toBe(true);
     expect(darfAnlegen(r({ gruppen: ['buero'] }), k)).toBe(true);
     expect(darfAnlegen(r({ gruppen: ['fahrer'] }), k)).toBe(false);
+  });
+
+  it('Serie, Checkliste und Sichtbarkeit', () => {
+    const p = neuerTerminPruefen(
+      { kategorie: 'Sonstiges', titel: 'Reinigung', datum: '2026-11-02', dauer: 0, wiederholung: { art: 'woechentlich', alle: 2, tage: [3, 0, 3], bis: '2026-12-31' }, checkliste: ['Boden', ' Boden ', 'Fenster'], sichtGruppen: ['team'], sichtPersonen: ['B@X.at'] },
+      KATEGORIE_SCHLUESSEL,
+    );
+    if (!('termin' in p)) throw new Error(p.fehler);
+    expect(p.termin.wiederholung).toEqual({ art: 'woechentlich', alle: 2, tage: [0, 3], bis: '2026-12-31' });
+    expect(p.termin.checkliste).toEqual(['Boden', 'Fenster']);
+    const e = googleEreignis(p.termin, { symbol: '📌', label: 'Sonstiges' }, { email: 'a@x.at' });
+    expect(e.recurrence).toEqual(['RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,TH;UNTIL=20261231']);
+    expect(rrule({ art: 'monatlich', alle: 1, bis: '2027-01-01' }, false)).toBe('RRULE:FREQ=MONTHLY;UNTIL=20270101T235959Z');
+    const priv = e.extendedProperties.private;
+    expect(terminSichtbar(r({ email: 'c@x.at' }), priv)).toBe(false);
+    expect(terminSichtbar(r({ email: 'c@x.at', gruppen: ['team'] }), priv)).toBe(true);
+    expect(terminSichtbar(r({ email: 'b@x.at' }), priv)).toBe(true);
+    expect(terminSichtbar(r({ email: 'a@x.at' }), priv)).toBe(true);
+    expect(terminSichtbar(r({ email: 'c@x.at', admin: true }), priv)).toBe(true);
+    expect(terminSichtbar(r({ email: 'c@x.at' }), { kategorie: 'Sonstiges' })).toBe(true);
+    expect('fehler' in neuerTerminPruefen({ kategorie: 'Sonstiges', titel: 'x', datum: '2026-11-02', wiederholung: { art: 'jährlich' } }, KATEGORIE_SCHLUESSEL)).toBe(true);
   });
 });

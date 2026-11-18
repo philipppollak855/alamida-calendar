@@ -2,6 +2,7 @@ import type { Config } from '@netlify/functions';
 import { darfVerwalten, wartet } from '../../src/shared/abwesenheit';
 import { abwesendHeute, bereitschaftHeute, heuteText, ortszeit, termineHeute, type HeuteHinweis } from '../../src/shared/heute';
 import { darfKalender, darfSehen, sichtFuer } from '../../src/shared/rechte';
+import { terminSichtbar } from '../../src/shared/neuerTermin';
 import { KATEGORIEN, kategorieAus, type GoogleEvent } from '../../src/planung/planungLogic';
 import { alleKalender } from '../lib/kalender';
 import { darfAbholen, darfTelefon, fallFuerMich, titel } from '../../src/shared/telefon';
@@ -35,7 +36,7 @@ export default async (req: Request) => {
         });
         return (r.items ?? [])
           .map((event) => ({ kalenderId: k.id, event, kategorie: kategorieAus(event) }))
-          .filter((x) => darfSehen(a.rechte, k.id, x.kategorie));
+          .filter((x) => darfSehen(a.rechte, k.id, x.kategorie) && terminSichtbar(a.rechte, x.event.extendedProperties?.private));
       }),
     ),
     bereitschaftLaden(heute).catch(() => []),
