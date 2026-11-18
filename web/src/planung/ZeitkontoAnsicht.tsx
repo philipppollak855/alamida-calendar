@@ -33,7 +33,7 @@ import {
   zeitkontoLaden,
   zeitkontoLoeschen,
   zeitkontoSpeichern,
-  personalSpeichern,
+  personAendern,
   type AbwesenheitDaten,
 } from './api';
 import { drucken, herunterladen } from './beleg';
@@ -82,7 +82,7 @@ export default function ZeitkontoAnsicht({ d, onDaten }: { d: AbwesenheitDaten; 
   const uebertragKorrigieren = (p: Personal, wert: string) => {
     const n = Number(wert.replace(',', '.'));
     if (!isFinite(n)) return setMeldung({ ok: false, text: 'Ungültige Zahl' });
-    void personalSpeichern(d.personal.map((x) => (x.email === p.email ? { ...x, ueStartSaldo: n, ueAbMonat: monat } : x)))
+    void personAendern(p.email, { ueStartSaldo: n, ueAbMonat: monat })
       .then((neu) => {
         onDaten?.(neu);
         setKorr(null);

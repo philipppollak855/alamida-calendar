@@ -272,6 +272,11 @@ export async function belegDatei(id: string, beleg: string): Promise<Blob> {
   return res.blob();
 }
 export const personalSpeichern = (personal: Personal[]) => holen<AbwesenheitDaten>('/api/abwesenheit?aktion=personal', jsonInit('PUT', { personal }));
+/** Ändert eine Person auf Basis der frisch geladenen Liste (keine veralteten Stände anderer Personen mitschicken). */
+export async function personAendern(email: string, aenderung: Partial<Personal>) {
+  const d = await holen<AbwesenheitDaten>('/api/abwesenheit');
+  return personalSpeichern(d.personal.map((p) => (p.email === email ? { ...p, ...aenderung } : p)));
+}
 export const altdatenImportieren = (daten: { personal: Personal[]; abwesenheiten: (Pick<Abwesenheit, 'email' | 'art' | 'von' | 'bis'> & Partial<Pick<Abwesenheit, 'status' | 'stunden' | 'notiz'>>)[] }) =>
   holen<AbwesenheitDaten>('/api/abwesenheit?aktion=import', jsonInit('POST', daten));
 

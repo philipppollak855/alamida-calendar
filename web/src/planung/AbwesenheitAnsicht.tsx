@@ -13,7 +13,7 @@ import {
   belegDatei,
   belegEntfernen,
   belegHochladen,
-  personalSpeichern,
+  personAendern,
   type AbwesenheitDaten,
 } from './api';
 import {
@@ -974,7 +974,7 @@ const endeVon = (e: Abwesenheit) => (e.offen || !gueltigesDatum(e.bis) ? heute()
 
 /** Volle Personalakte: Konto, Abwesenheiten und Zeitkonto einer Person im gewählten Zeitraum. */
 /** Admin: Stammdaten, Telefon und Korrektur von Ü-Übertrag/Saldo und Resturlaub ab Stichtag. */
-function AkteKorrektur({ d, p, onDaten }: { d: AbwesenheitDaten; p: Personal; onDaten: (x: AbwesenheitDaten) => void }) {
+function AkteKorrektur({ p, onDaten }: { p: Personal; onDaten: (x: AbwesenheitDaten) => void }) {
   const [x, setX] = useState<Personal | null>(null);
   const [fehler, setFehler] = useState('');
   if (!x)
@@ -1023,7 +1023,7 @@ function AkteKorrektur({ d, p, onDaten }: { d: AbwesenheitDaten; p: Personal; on
           type="button"
           className="knopf primaer"
           onClick={() =>
-            void personalSpeichern(d.personal.map((y) => (y.email === p.email ? x : y)))
+            void personAendern(p.email, x)
               .then((n) => {
                 onDaten(n);
                 setX(null);
@@ -1174,7 +1174,7 @@ function PersonalAkte({ d, p, onDaten, schliessen }: { d: AbwesenheitDaten; p: P
           ) : (
             <p className="klein">Keine Monate im Zeitraum</p>
           )}
-          {d.darfVerwalten && <AkteKorrektur d={d} p={p} onDaten={onDaten} />}
+          {d.darfVerwalten && <AkteKorrektur p={p} onDaten={onDaten} />}
           <h3>Alle Einträge ({eintraege.length})</h3>
           <EintragListe d={d} eintraege={eintraege} onDaten={onDaten} />
         </div>
