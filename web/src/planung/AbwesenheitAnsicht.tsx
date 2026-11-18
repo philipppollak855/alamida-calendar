@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { standText } from './offlineCache';
+import { AkteZugang } from './AkteZugang';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import {
@@ -1087,6 +1088,7 @@ function PersonalAkte({ d, p, onDaten, schliessen }: { d: AbwesenheitDaten; p: P
     ['zeit', '⏱', 'Zeitkonto'],
     ['abw', '🌴', 'Abwesenheiten'],
     ...(d.darfVerwalten ? ([['verw', '⚙', 'Verwaltung']] as [string, string, string][]) : []),
+    ...(d.admin ? ([['zugang', '🔐', 'Zugang & Rechte']] as [string, string, string][]) : []),
   ];
   const [tab, setTab] = useState('uebersicht');
   return (
@@ -1193,6 +1195,8 @@ function PersonalAkte({ d, p, onDaten, schliessen }: { d: AbwesenheitDaten; p: P
                 </>
               )}
             </>
+          ) : tab === 'zugang' ? (
+            <AkteZugang email={p.email} />
           ) : tab === 'verw' ? (
             <AkteKorrektur p={p} onDaten={onDaten} />
           ) : (
@@ -1382,11 +1386,11 @@ function AltImport({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: Abwesenhe
   );
 }
 
-function PersonalVerwaltung({ d, onDaten }: { d: AbwesenheitDaten; onDaten: (x: AbwesenheitDaten) => void }) {
+function PersonalVerwaltung({ d, onDaten, start }: { d: AbwesenheitDaten; onDaten: (x: AbwesenheitDaten) => void; start?: string | null }) {
   const liste = d.personal;
   const [imp, setImp] = useState<{ alt: AltMitarbeiter[]; zuordnung: Record<string, string>; roh: unknown } | null>(null);
   const [meldung, setMeldung] = useState<{ ok: boolean; text: string } | null>(null);
-  const [akte, setAkte] = useState<Personal | null>(null);
+  const [akte, setAkte] = useState<Personal | null>(() => (start ? (liste.find((x) => x.email === start) ?? null) : null));
   const fehlend = d.personen.filter((p) => !liste.some((x) => x.email === p.email));
   const fertig = (x: AbwesenheitDaten, text: string) => {
     onDaten(x);
@@ -1527,7 +1531,18 @@ export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
   const setModus = (m: Modus) => {
     setModusRoh(m);
     localStorage.setItem(LS_MODUS, m);
+    setAkteZiel(null);
   };
+  // Aus dem Hub (Apps & Rechte → Mitarbeiter): ?akte=<E-Mail> öffnet direkt die Personalakte.
+  const [akteZiel, setAkteZiel] = useState(() => new URLSearchParams(location.search).get('akte')?.toLowerCase() ?? null);
+  const akteErledigt = useRef(false);
+  useEffect(() => {
+    if (!akteZiel || !daten || akteErledigt.current) return;
+    akteErledigt.current = true;
+    history.replaceState(null, '', location.pathname);
+    if (daten.darfVerwalten) setModusRoh('personal');
+    else setAkteZiel(null);
+  }, [akteZiel, daten]);
   if (!aktiv) return <p className="leer">Für Urlaub / Krank brauchst du eine Freigabe.</p>;
   if (!daten) return fehler ? <div className="banner fehler">{fehler}</div> : <p className="leer">Lädt …</p>;
   const modi: [Modus, string][] = [
@@ -1574,7 +1589,7 @@ export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
       {m === 'dashboard' && <Dashboard d={daten} onDaten={setDaten} />}
       {m === 'belege' && <BelegArchiv d={daten} onDaten={setDaten} />}
       {m === 'zeitkonto' && <ZeitkontoAnsicht d={daten} onDaten={setDaten} />}
-      {m === 'personal' && <PersonalVerwaltung d={daten} onDaten={setDaten} />}
+      {m === 'personal' && <PersonalVerwaltung d={daten} onDaten={setDaten} start={akteZiel} />}
     </section>
   );
 }

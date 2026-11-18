@@ -274,6 +274,7 @@ export default async (req: Request) => {
   return json({
     ich: { email: ich, name: a.sitzung.name },
     darfVerwalten: verwalter,
+    admin: !!a.rechte.admin,
     personal: verwalter ? personal : personal.filter((p) => p.email === ich),
     eintraege,
     personen,
