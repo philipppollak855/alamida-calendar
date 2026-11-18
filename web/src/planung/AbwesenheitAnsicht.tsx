@@ -976,69 +976,137 @@ const endeVon = (e: Abwesenheit) => (e.offen || !gueltigesDatum(e.bis) ? heute()
 
 /** Volle Personalakte: Konto, Abwesenheiten und Zeitkonto einer Person im gewählten Zeitraum. */
 /** Admin: Stammdaten, Telefon und Korrektur von Ü-Übertrag/Saldo und Resturlaub ab Stichtag. */
-function AkteKorrektur({ p, onDaten }: { p: Personal; onDaten: (x: AbwesenheitDaten) => void }) {
-  const [x, setX] = useState<Personal | null>(null);
+type KorrekturFeld = { k: 'telefon' | 'eintritt' | 'vordienstjahre' | 'urlaubswochen' | 'saldoAb' | 'urlaubStartSaldo' | 'ueAbMonat' | 'ueStartSaldo'; label: string; typ: 'tel' | 'date' | 'month' | 'zahl' | 'tage'; einheit?: string; hinweis?: string };
+
+const zahlDe = (n: number) => n.toLocaleString('de-AT', { maximumFractionDigits: 2 });
+
+/** Eine Kachel der Stammdaten-Korrektur; ✎ bearbeitet nur ihre eigenen Felder. Resturlaub wird in Tagen erfasst und in Stunden gespeichert. */
+function KorrekturKarte({ p, icon, titel, felder, onDaten }: { p: Personal; icon: string; titel: string; felder: KorrekturFeld[]; onDaten: (x: AbwesenheitDaten) => void }) {
+  const proTag = stundenJeTag(p);
+  const inTagen = proTag > 0;
+  const [x, setX] = useState<Record<string, string> | null>(null);
   const [fehler, setFehler] = useState('');
-  if (!x)
-    return (
-      <button type="button" className="knopf klein" onClick={() => setX({ ...p })}>
-        ✎ Stammdaten / Korrektur
-      </button>
-    );
-  const zahlFeld = (k: 'urlaubStartSaldo' | 'ueStartSaldo' | 'vordienstjahre' | 'urlaubswochen', label: string, schritt = 0.25) => (
-    <label>
-      {label}
-      <input className="feld" type="number" step={schritt} value={x[k] ?? ''} onChange={(e) => setX({ ...x, [k]: e.target.value === '' ? undefined : Number(e.target.value) })} />
-    </label>
-  );
+  const [laeuft, setLaeuft] = useState(false);
+  const roh = (f: KorrekturFeld) => p[f.k] as string | number | undefined;
+  const anzeige = (f: KorrekturFeld) => {
+    const v = roh(f);
+    if (v === undefined || v === '') return <span className="akte-leer">{f.hinweis ?? '—'}</span>;
+    if (f.typ === 'tage' && typeof v === 'number')
+      return inTagen ? (
+        <>
+          {zahlDe(v / proTag)} Tage <small className="klein">({zahlDe(v)} h)</small>
+        </>
+      ) : (
+        `${zahlDe(v)} h`
+      );
+    if (f.typ === 'zahl' && typeof v === 'number') return `${zahlDe(v)}${f.einheit ? ` ${f.einheit}` : ''}`;
+    if (f.typ === 'date') return new Date(`${v}T12:00`).toLocaleDateString('de-AT');
+    if (f.typ === 'month') return new Date(`${v}-15T12:00`).toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
+    return String(v);
+  };
+  const eingabeWert = (f: KorrekturFeld) => {
+    const v = roh(f);
+    if (v === undefined) return '';
+    if (f.typ === 'tage' && typeof v === 'number') return String(inTagen ? Math.round((v / proTag) * 100) / 100 : v).replace('.', ',');
+    if (typeof v === 'number') return String(v).replace('.', ',');
+    return v;
+  };
+  function speichern() {
+    if (!x) return;
+    const patch: Partial<Personal> = {};
+    for (const f of felder) {
+      const s = (x[f.k] ?? '').trim();
+      if (s === eingabeWert(f).trim()) continue;
+      if (f.typ === 'zahl' || f.typ === 'tage') {
+        if (!s) {
+          (patch as Record<string, unknown>)[f.k] = undefined;
+          continue;
+        }
+        const n = Number(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s);
+        if (!Number.isFinite(n)) return setFehler(`${f.label}: bitte eine Zahl eingeben`);
+        (patch as Record<string, unknown>)[f.k] = f.typ === 'tage' && inTagen ? Math.round(n * proTag * 100) / 100 : n;
+      } else if (f.k === 'eintritt') {
+        if (s) patch.eintritt = s;
+      } else (patch as Record<string, unknown>)[f.k] = s || undefined;
+    }
+    setLaeuft(true);
+    setFehler('');
+    personAendern(p.email, patch)
+      .then((n) => {
+        onDaten(n);
+        setX(null);
+      })
+      .catch((e: Error) => setFehler(e.message))
+      .finally(() => setLaeuft(false));
+  }
   return (
-    <div className="glas admin-block ab-formular">
-      <h3>Stammdaten / Korrektur</h3>
-      <div className="formular-reihe">
-        <label>
-          Telefon (Direktwahl)
-          <input className="feld" type="tel" inputMode="tel" placeholder="+43 …" value={x.telefon ?? ''} onChange={(e) => setX({ ...x, telefon: e.target.value || undefined })} />
-        </label>
-        <label>
-          Eintritt
-          <input className="feld" type="date" value={x.eintritt} onChange={(e) => setX({ ...x, eintritt: e.target.value })} />
-        </label>
-        {zahlFeld('vordienstjahre', 'Vordienstjahre', 1)}
-        {zahlFeld('urlaubswochen', 'Urlaubswochen (leer = gesetzlich 5/6)', 1)}
+    <div className={`akte-karte ${x ? 'edit' : ''}`}>
+      <div className="akte-karte-kopf">
+        <h4>
+          <span>{icon}</span> {titel}
+        </h4>
+        {!x && (
+          <button type="button" className="akte-stift" aria-label={`${titel} bearbeiten`} onClick={() => setX(Object.fromEntries(felder.map((f) => [f.k, eingabeWert(f)])))}>
+            ✎
+          </button>
+        )}
       </div>
-      <div className="formular-reihe">
-        <label>
-          Stichtag Resturlaub
-          <input className="feld" type="date" value={x.saldoAb ?? ''} onChange={(e) => setX({ ...x, saldoAb: e.target.value || undefined })} />
-        </label>
-        {zahlFeld('urlaubStartSaldo', 'Resturlaub am Stichtag (Stunden)')}
-        <label>
-          Ü-Übertrag gilt ab Monat
-          <input className="feld" type="month" value={x.ueAbMonat ?? ''} onChange={(e) => setX({ ...x, ueAbMonat: e.target.value || undefined })} />
-        </label>
-        {zahlFeld('ueStartSaldo', 'Ü-Übertrag / Saldo (Stunden)')}
-      </div>
-      <p className="klein">Resturlaub: ab dem Stichtag zählt nur dieser Wert plus neue Ansprüche nach UrlG (Wochenstunden × 5 bzw. 6 Wochen, Urlaubsjahr ab Eintritt). Ü-Übertrag: Saldo zu Beginn des gewählten Monats; ab diesem Monat wird weitergerechnet.</p>
-      {fehler && <div className="banner fehler">{fehler}</div>}
-      <div className="ab-modal-knoepfe">
-        <button
-          type="button"
-          className="knopf primaer"
-          onClick={() =>
-            void personAendern(p.email, x)
-              .then((n) => {
-                onDaten(n);
-                setX(null);
-              })
-              .catch((e: Error) => setFehler(e.message))
-          }
-        >
-          Speichern
-        </button>
-        <button type="button" className="knopf" onClick={() => setX(null)}>
-          Abbrechen
-        </button>
-      </div>
+      <dl>
+        {felder.map((f) => (
+          <div key={f.k}>
+            <dt>{f.typ === 'tage' ? (inTagen ? `${f.label} (Tage)` : `${f.label} (Stunden)`) : f.label}</dt>
+            <dd>
+              {x ? (
+                <input
+                  className="akte-inline"
+                  type={f.typ === 'zahl' || f.typ === 'tage' ? 'text' : f.typ}
+                  inputMode={f.typ === 'zahl' || f.typ === 'tage' ? 'decimal' : f.typ === 'tel' ? 'tel' : undefined}
+                  placeholder={f.typ === 'tage' ? 'z. B. 19,58' : f.hinweis}
+                  value={x[f.k] ?? ''}
+                  onChange={(e) => setX({ ...x, [f.k]: e.target.value })}
+                />
+              ) : (
+                anzeige(f)
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {x && (
+        <div className="akte-karte-fuss">
+          {fehler && <span className="akte-fehler">{fehler}</span>}
+          <button type="button" className="knopf klein" onClick={() => (setX(null), setFehler(''))}>
+            Abbrechen
+          </button>
+          <button type="button" className="knopf klein primaer" disabled={laeuft} onClick={speichern}>
+            {laeuft ? '…' : '✓ Speichern'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AkteKorrektur({ p, onDaten }: { p: Personal; onDaten: (x: AbwesenheitDaten) => void }) {
+  return (
+    <div className="akte-raster">
+      <KorrekturKarte p={p} onDaten={onDaten} icon="📅" titel="Urlaubsanspruch" felder={[
+        { k: 'eintritt', label: 'Eintritt', typ: 'date' },
+        { k: 'vordienstjahre', label: 'Vordienstjahre', typ: 'zahl', einheit: 'Jahre' },
+        { k: 'urlaubswochen', label: 'Urlaubswochen', typ: 'zahl', einheit: 'Wochen', hinweis: 'gesetzlich 5 / 6' },
+      ]} />
+      <KorrekturKarte p={p} onDaten={onDaten} icon="🌴" titel="Resturlaub ab Stichtag" felder={[
+        { k: 'saldoAb', label: 'Stichtag', typ: 'date' },
+        { k: 'urlaubStartSaldo', label: 'Resturlaub', typ: 'tage' },
+      ]} />
+      <KorrekturKarte p={p} onDaten={onDaten} icon="⏱" titel="Ü-Übertrag" felder={[
+        { k: 'ueAbMonat', label: 'Gilt ab', typ: 'month' },
+        { k: 'ueStartSaldo', label: 'Saldo', typ: 'zahl', einheit: 'h' },
+      ]} />
+      <KorrekturKarte p={p} onDaten={onDaten} icon="📞" titel="Direktwahl im Einsatz" felder={[{ k: 'telefon', label: 'Telefon', typ: 'tel', hinweis: '+43 …' }]} />
+      <p className="klein akte-karte breit">
+        Ab dem Stichtag zählt nur der eingetragene Resturlaub plus neue Ansprüche nach UrlG (Wochenstunden × 5 bzw. 6 Wochen, Urlaubsjahr ab Eintritt). Der Ü-Übertrag ist der Saldo zu Beginn des gewählten Monats, ab dann wird weitergerechnet.
+      </p>
     </div>
   );
 }
