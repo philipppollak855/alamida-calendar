@@ -46,14 +46,15 @@ export default async (req: Request) => {
   // Geburtstage aus der Personalakte, jedes Jahr ganztägig (nicht in Google gespeichert).
   const geburtstage: GoogleEvent[] = [];
   if (!nurEigene) {
-    for (const p of await personalLaden().catch(() => [])) {
+    for (const [n, p] of (await personalLaden().catch(() => [])).entries()) {
       const g = p.akte?.geburtsdatum;
       if (!g) continue;
       for (let j = von.getUTCFullYear(); j <= bis.getUTCFullYear(); j++) {
         const tag0 = `${j}${g.slice(4)}`;
-        if (Number.isNaN(Date.parse(tag0)) || new Date(tag0).getUTCMonth() + 1 !== Number(g.slice(5, 7))) continue;
-        const t1 = new Date(Date.parse(tag0) + tag).toISOString().slice(0, 10);
-        geburtstage.push({ id: `geb-${encodeURIComponent(p.email)}-${j}`, summary: `🎂 ${p.name || p.email.split('@')[0]} (${j - Number(g.slice(0, 4))})`, start: { date: tag0 }, end: { date: t1 } } as GoogleEvent);
+        const t0 = Date.parse(tag0);
+        if (Number.isNaN(t0) || new Date(t0).getUTCMonth() + 1 !== Number(g.slice(5, 7)) || t0 + tag <= von.getTime() || t0 >= bis.getTime()) continue;
+        const t1 = new Date(t0 + tag).toISOString().slice(0, 10);
+        geburtstage.push({ id: `geb-${n}-${j}`, summary: `🎂 ${p.name || p.email.split('@')[0]}`, start: { date: tag0 }, end: { date: t1 } } as GoogleEvent);
       }
     }
   }
