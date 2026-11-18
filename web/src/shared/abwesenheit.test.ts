@@ -81,6 +81,7 @@ describe('Urlaub in Tagen', () => {
     expect(tageAnzeige(-4, 8)).toBe('-0,5 Tage');
     expect(tageAnzeige(156.64, 8, true)).toBe('19 Tage');
     expect(tageAnzeige(8, 8, true)).toBe('1 Tag');
+    expect(tageAnzeige(100, 6.67, true)).toBe('15 Tage');
   });
 });
 

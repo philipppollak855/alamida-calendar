@@ -311,7 +311,7 @@ export const stundenJeTag = (p: Pick<Personal, 'tage'>) => Math.round((wochenstu
 /** Stunden als Arbeitstage, z. B. „12,5 Tage“ / „1 Tag“; `volle` rundet auf ganze Tage ab. */
 export function tageAnzeige(stunden: number, proTag: number, volle = false): string {
   if (!(proTag > 0)) return `${stunden.toLocaleString('de-AT', { maximumFractionDigits: volle ? 0 : 1 })} h`;
-  const t = volle ? Math.floor(stunden / proTag + 1e-9) : Math.round((stunden / proTag) * 10) / 10;
+  const t = volle ? Math.floor(Math.round((stunden / proTag) * 20) / 20) : Math.round((stunden / proTag) * 10) / 10;
   return `${t.toLocaleString('de-AT', { maximumFractionDigits: 1 })} ${Math.abs(t) === 1 ? 'Tag' : 'Tage'}`;
 }
 export const zaehlt = (a: Pick<Abwesenheit, 'status'>) => a.status === 'genehmigt' || a.status === 'gemeldet';
