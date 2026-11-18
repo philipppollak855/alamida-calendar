@@ -1531,11 +1531,14 @@ export default function AbwesenheitAnsicht({ aktiv }: { aktiv: boolean }) {
   const setModus = (m: Modus) => {
     setModusRoh(m);
     localStorage.setItem(LS_MODUS, m);
+    setAkteZiel(null);
   };
   // Aus dem Hub (Apps & Rechte → Mitarbeiter): ?akte=<E-Mail> öffnet direkt die Personalakte.
   const [akteZiel, setAkteZiel] = useState(() => new URLSearchParams(location.search).get('akte')?.toLowerCase() ?? null);
+  const akteErledigt = useRef(false);
   useEffect(() => {
-    if (!akteZiel || !daten) return;
+    if (!akteZiel || !daten || akteErledigt.current) return;
+    akteErledigt.current = true;
     history.replaceState(null, '', location.pathname);
     if (daten.darfVerwalten) setModusRoh('personal');
     else setAkteZiel(null);
