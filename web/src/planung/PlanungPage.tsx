@@ -320,10 +320,10 @@ export default function PlanungPage() {
   const [bearbeite, setBearbeite] = useState<Termin | null>(null);
   const eigenerTermin = (t: Termin) =>
     echteDaten && t.details.quelle === 'web' && (t.details.angelegtVon === ich?.benutzer?.email?.toLowerCase() || !!ich?.rechte?.admin);
-  const loeschen = useCallback(async (t: Termin) => {
-    if (!confirm(`Termin „${t.titel}“ wirklich löschen?`)) return;
-    await terminLoeschen(t.id);
-    setTermine((l) => l.filter((x) => x.id !== t.id));
+  const loeschen = useCallback(async (t: Termin, serie = false) => {
+    if (!confirm(serie ? `Alle Termine der Serie „${t.titel}“ wirklich löschen?` : `Termin „${t.titel}“ wirklich löschen?`)) return;
+    await terminLoeschen(t.id, serie);
+    setTermine((l) => l.filter((x) => x.id !== t.id && !(serie && x.serie === t.serie)));
     setOffen(null);
   }, []);
 
@@ -455,10 +455,17 @@ export default function PlanungPage() {
   const bearbeitenDialog = bearbeite && (
     <NeuerTerminDialog
       vorlage={bearbeite}
+      auswahl={ich?.anlegen}
       datum={format(bearbeite.start, 'yyyy-MM-dd')}
       dauer={ich?.anlegen?.dauer ?? {}}
       onSchliessen={() => setBearbeite(null)}
-      onAngelegt={(t) => {
+      onAngelegt={(t, neuLaden) => {
+        if (neuLaden) {
+          setBearbeite(null);
+          setOffen(null);
+          void laden();
+          return;
+        }
         const neu = { ...t, personal: bearbeite.personal };
         setTermine((l) => l.map((x) => (x.id === bearbeite.id ? neu : x)));
         setBearbeite(null);
@@ -471,8 +478,14 @@ export default function PlanungPage() {
       datum={neu.datum}
       zeit={neu.zeit}
       dauer={ich.anlegen.dauer}
+      auswahl={ich.anlegen}
       onSchliessen={() => setNeu(null)}
-      onAngelegt={(t) => {
+      onAngelegt={(t, neuLaden) => {
+        if (neuLaden) {
+          setNeu(null);
+          void laden();
+          return;
+        }
         setTermine((l) => [...l, t]);
         setNeu(null);
         setOffen(t);

@@ -3,7 +3,8 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { KATEGORIEN, ablaufGeeignet, ablaufTermine, checkliste, fallDaten, fallSchluessel, mapsLink, type Termin, type Warnung } from './planungLogic';
 import { maxPersonen, personName, tagWien } from '../shared/einteilung';
-import type { EinteilungRecht } from './api';
+import { checklisteLaden, checklistePunkt, type ChecklistenStand, type EinteilungRecht } from './api';
+import { checklisteAus } from '../shared/neuerTermin';
 import { abwesendFuer, useAbwesenheiten } from './abwesend';
 import { auswahlFuer, bedarf as bedarfVon, hatRolle, rolleVergeben, zeremonieFehler, zeremonieMax, type Bedarf } from '../shared/rollen';
 
@@ -382,6 +383,56 @@ function PersonalBlock({
   );
 }
 
+/** Abhakbare Checkliste (z. B. Reinigungsplan), Stand je einzelnem Termin. */
+function TerminCheckliste({ termin }: { termin: Termin }) {
+  const punkte = checklisteAus(termin.details);
+  const [stand, setStand] = useState<ChecklistenStand | null>(null);
+  const [fehler, setFehler] = useState('');
+  const hat = punkte.length > 0;
+  useEffect(() => {
+    if (!hat) return;
+    setStand(null);
+    checklisteLaden(termin.id)
+      .then((r) => setStand(r.erledigt))
+      .catch((e: Error) => setFehler(e.message));
+  }, [termin.id, hat]);
+  if (!hat) return null;
+  const abhaken = (p: string, an: boolean) => {
+    setFehler('');
+    setStand((s) => {
+      const n = { ...s };
+      if (an) n[p] = { von: 'du', zeit: new Date().toISOString() };
+      else delete n[p];
+      return n;
+    });
+    checklistePunkt(termin.id, p, an)
+      .then((r) => setStand(r.erledigt))
+      .catch((e: Error) => setFehler(e.message));
+  };
+  return (
+    <section className="modal-block">
+      <h3>
+        Checkliste {stand && `· ${punkte.filter((p) => stand[p]).length}/${punkte.length}`}
+      </h3>
+      <ul className="abhak">
+        {punkte.map((p) => {
+          const e = stand?.[p];
+          return (
+            <li key={p}>
+              <label className={e ? 'ok' : ''}>
+                <input type="checkbox" disabled={!stand} checked={!!e} onChange={(x) => abhaken(p, x.target.checked)} />
+                <span>{p}</span>
+                {e && <small>{e.von} · {format(new Date(e.zeit), 'd.M. HH:mm')}</small>}
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+      {fehler && <div className="warnung">{fehler}</div>}
+    </section>
+  );
+}
+
 export default function TerminDetail({
   termin,
   alle,
@@ -400,7 +451,7 @@ export default function TerminDetail({
   einteilung?: EinteilungRecht | null;
   onEinteilen?: (t: Termin, emails: string[]) => Promise<void>;
   onAblauf?: (fall: string, tag: string, emails: string[]) => Promise<void>;
-  onLoeschen?: (t: Termin) => Promise<void>;
+  onLoeschen?: (t: Termin, serie?: boolean) => Promise<void>;
   onBearbeiten?: (t: Termin) => void;
   onWaehlen: (t: Termin) => void;
   onSchliessen: () => void;
@@ -445,6 +496,12 @@ export default function TerminDetail({
               <div>
                 {zeitText(termin)}
                 {daten.imAnschluss && <div className="klein">im Anschluss an die Trauerfeier</div>}
+                {(termin.serie || daten.sichtGruppen || daten.sichtPersonen) && (
+                  <div className="klein">
+                    {termin.serie && '🔁 wiederkehrender Termin '}
+                    {(daten.sichtGruppen || daten.sichtPersonen) && '👁 nur für ausgewählte Gruppen/Personen sichtbar'}
+                  </div>
+                )}
               </div>
             </div>
             {daten.route ? (
@@ -475,6 +532,8 @@ export default function TerminDetail({
               )}
             </div>
           </section>
+
+          <TerminCheckliste termin={termin} />
 
           {onEinteilen && <PersonalBlock termin={termin} alle={alle} einteilung={einteilung} onEinteilen={onEinteilen} onAblauf={onAblauf} />}
 
@@ -556,8 +615,13 @@ export default function TerminDetail({
                 </button>
               )}
               {onLoeschen && <button className="knopf rot" onClick={() => void onLoeschen(termin).catch((e: Error) => alert(e.message))}>
-                Termin löschen
+                {termin.serie ? 'Nur diesen Termin löschen' : 'Termin löschen'}
               </button>}
+              {onLoeschen && termin.serie && (
+                <button className="knopf rot" onClick={() => void onLoeschen(termin, true).catch((e: Error) => alert(e.message))}>
+                  Ganze Serie löschen
+                </button>
+              )}
             </div>
           )}
           <p className="klein modal-fuss">Kalender: {termin.kalenderName}</p>

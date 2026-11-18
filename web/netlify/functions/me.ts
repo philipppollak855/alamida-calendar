@@ -13,7 +13,15 @@ export default async (req: Request) => {
     rechte,
     ...(sitzung.kiosk ? { kiosk: true } : {}),
     gruppenNamen: konfig.gruppen.filter((g) => rechte.gruppen.includes(g.id)).map((g) => g.name),
-    anlegen: darfAnlegen(rechte, konfig) ? { darf: true, dauer: Object.fromEntries(KATEGORIE_SCHLUESSEL.map((k) => [k, standardDauer(konfig, k)])) } : { darf: false, dauer: {} },
+    anlegen: darfAnlegen(rechte, konfig)
+      ? {
+          darf: true,
+          dauer: Object.fromEntries(KATEGORIE_SCHLUESSEL.map((k) => [k, standardDauer(konfig, k)])),
+          // Auswahl für „Sichtbar für“ (mehrere Gruppen und Personen).
+          gruppen: konfig.gruppen.map((g) => ({ id: g.id, name: g.name })),
+          personen: konfig.benutzer.map((b) => ({ email: b.email.toLowerCase(), name: b.name || b.email })).sort((x, y) => x.name.localeCompare(y.name, 'de')),
+        }
+      : { darf: false, dauer: {} },
   });
 };
 

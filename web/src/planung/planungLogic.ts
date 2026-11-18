@@ -47,6 +47,8 @@ export interface Termin {
   personal?: { email: string; name?: string }[];
   /** Woher das Personal kommt: eigene (abweichende) Einteilung oder Ablauf des Falls an diesem Tag. */
   personalQuelle?: 'termin' | 'fall';
+  /** ID des Serien-Ereignisses (kalenderId/eventId), wenn der Termin zu einer Serie gehört. */
+  serie?: string;
   /** Personal des Ablaufs (Fall + Tag), auch wenn dieser Termin abweichend eingeteilt ist. */
   ablaufPersonal?: { email: string; name?: string }[];
 }
@@ -64,6 +66,9 @@ export interface GoogleEvent {
   start?: { date?: string; dateTime?: string };
   end?: { date?: string; dateTime?: string };
   extendedProperties?: { private?: Record<string, string> };
+  /** Gesetzt bei einem Termin einer Serie (ID des Serien-Ereignisses). */
+  recurringEventId?: string;
+  recurrence?: string[];
 }
 
 const STICHWORTE: [RegExp, Kategorie][] = [
@@ -149,6 +154,7 @@ export function ausGoogleEvent(ev: GoogleEvent, kalenderId: string, kalenderName
     beschreibung,
     link: ev.htmlLink,
     details,
+    ...(ev.recurringEventId ? { serie: `${kalenderId}/${ev.recurringEventId}` } : ev.recurrence?.length ? { serie: `${kalenderId}/${ev.id}` } : {}),
   };
 }
 

@@ -14,7 +14,7 @@ export interface Ich {
   benutzer?: { email: string; name?: string; bild?: string };
   rechte?: Rechte;
   gruppenNamen?: string[];
-  anlegen?: { darf: boolean; dauer: Record<string, number> };
+  anlegen?: { darf: boolean; dauer: Record<string, number>; gruppen?: { id: string; name: string }[]; personen?: { email: string; name: string }[] };
   kiosk?: boolean;
   /** Gesetzt, wenn ohne Verbindung der zuletzt gespeicherte Stand verwendet wird. */
   offline?: boolean;
@@ -293,14 +293,18 @@ export async function terminAnlegen(t: NeuerTermin): Promise<Termin> {
   return termin;
 }
 
-export async function terminAendern(id: string, t: NeuerTermin): Promise<Termin> {
-  const r = await holen<{ kalender: KalenderEintrag; event: GoogleEvent }>(`/api/termin?id=${encodeURIComponent(id)}`, jsonInit('PUT', t));
+export async function terminAendern(id: string, t: NeuerTermin, serie = false): Promise<Termin> {
+  const r = await holen<{ kalender: KalenderEintrag; event: GoogleEvent }>(`/api/termin?id=${encodeURIComponent(id)}${serie ? '&serie=1' : ''}`, jsonInit('PUT', t));
   const termin = ausGoogleEvent(r.event, r.kalender.id, r.kalender.name);
   if (!termin) throw new Error('Termin konnte nicht gelesen werden');
   return termin;
 }
 
-export const terminLoeschen = (id: string) => holen<{ ok: boolean }>(`/api/termin?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+export const terminLoeschen = (id: string, serie = false) => holen<{ ok: boolean }>(`/api/termin?id=${encodeURIComponent(id)}${serie ? '&serie=1' : ''}`, { method: 'DELETE' });
+
+export type ChecklistenStand = Record<string, { von: string; zeit: string }>;
+export const checklisteLaden = (id: string) => holen<{ erledigt: ChecklistenStand }>(`/api/checkliste?id=${encodeURIComponent(id)}`);
+export const checklistePunkt = (id: string, punkt: string, erledigt: boolean) => holen<{ erledigt: ChecklistenStand }>('/api/checkliste', jsonInit('PUT', { id, punkt, erledigt }));
 
 /* Zeitkonten (Überstunden, Auszahlung, Fehltage je Monat) für die Buchhaltung. */
 export const zeitkontoLaden = () => mitCache('zeitkonto', () => holen<ZeitkontoDaten>('/api/zeitkonto'));
