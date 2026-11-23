@@ -89,7 +89,15 @@ export function berichtPdf(gruppen: { gruppe: string; zeilen: BerichtZeile[] }[]
   return aufbauen(
     `Monatsbericht ${monatText(monat)}`,
     berichtHinweis(monat, e),
-    gruppen.map((g) => ({ gruppe: g.gruppe, body: g.zeilen.map(berichtWerte), fett: g.zeilen.map(fett) })),
+    gruppen.map((g) => ({
+      gruppe: g.gruppe,
+      body: g.zeilen.map((z) => {
+        const w = berichtWerte(z);
+        if (z.andauernd) w[0] = `${w[0]}\n${z.andauernd}`;
+        return w;
+      }),
+      fett: g.zeilen.map(fett),
+    })),
   );
 }
 

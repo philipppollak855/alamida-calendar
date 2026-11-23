@@ -337,6 +337,7 @@ export default function ZeitkontoAnsicht({ d, onDaten }: { d: AbwesenheitDaten; 
                         {entw ? (z.abgeschlossen ? ' · ✎ Änderung nicht übernommen' : ' · ✎ Entwurf') : ''}
                         {p.gruppe ? ` · ${p.gruppe}` : ''}
                       </div>
+                      {z.andauernd && <div className="klein zk-andauernd">ⓘ {z.andauernd}</div>}
                     </td>
                     <td data-label="Ü-Übertrag">
                       {korr?.email === p.email ? (
