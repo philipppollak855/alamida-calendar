@@ -79,8 +79,10 @@ async function aufbauen(titel: string, hinweis: string, tabellen: Tabelle[]): Pr
         let gr = 5.5;
         doc.setFontSize(gr);
         while (gr > 4 && doc.getTextWidth(info) > breite) doc.setFontSize((gr -= 0.25));
+        let text = info;
+        while (text.length > 1 && doc.getTextWidth(text) > breite) text = text.slice(0, -2) + '…';
         doc.setTextColor(90);
-        doc.text(info, c.cell.x + c.cell.padding('left'), c.cell.y + c.cell.height - 0.6);
+        doc.text(text, c.cell.x + c.cell.padding('left'), c.cell.y + c.cell.height - 0.6);
         doc.setTextColor(0);
       },
     });
