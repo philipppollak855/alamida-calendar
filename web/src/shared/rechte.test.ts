@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ALLE, STANDARD_KONFIG, darfSehen, konfigPruefen, rechteFuer, verzeichnisAnwenden, verzeichnisPruefen, type Konfiguration } from './rechte';
+import { ALLE, STANDARD_KONFIG, darfFaelleAbschliessen, darfSehen, konfigPruefen, rechteFuer, verzeichnisAnwenden, verzeichnisPruefen, type Konfiguration, type Rechte } from './rechte';
 
 const konfig: Konfiguration = {
   ...STANDARD_KONFIG,
@@ -90,5 +90,17 @@ describe('Hub-Verzeichnis als eine Quelle', () => {
     expect(darfSehen(r, 'k', 'Abholung')).toBe(true);
     expect(darfSehen(r, 'k', 'Beisetzung')).toBe(false);
     expect(konfigPruefen({ ...konfig, benutzer: [{ email: 'a@x.at', gruppen: ['g'], sicht: { kategorien: ['Abholung', 'Quatsch'] } }] }).benutzer[0].sicht).toEqual({ kategorien: ['Abholung'] });
+  });
+});
+
+describe('darfFaelleAbschliessen', () => {
+  const r = (x: Partial<Rechte>): Rechte => ({ email: 'a@b.at', admin: false, freigeschaltet: true, gruppen: [], kategorien: [], kalender: [], ...x });
+  const k = { gruppen: [...STANDARD_KONFIG.gruppen, { id: 'g2', name: 'Büro Ternitz', kategorien: [], kalender: [] }] };
+  it('Admin und Büro ja, andere nein', () => {
+    expect(darfFaelleAbschliessen(r({ admin: true }), k)).toBe(true);
+    expect(darfFaelleAbschliessen(r({ gruppen: ['buero'] }), k)).toBe(true);
+    expect(darfFaelleAbschliessen(r({ gruppen: ['g2'] }), k)).toBe(true);
+    expect(darfFaelleAbschliessen(r({ gruppen: ['fahrer'] }), k)).toBe(false);
+    expect(darfFaelleAbschliessen(r({ gruppen: ['buero'], freigeschaltet: false }), k)).toBe(false);
   });
 });

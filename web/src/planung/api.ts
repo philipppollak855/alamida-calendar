@@ -16,6 +16,8 @@ export interface Ich {
   gruppenNamen?: string[];
   anlegen?: { darf: boolean; dauer: Record<string, number>; gruppen?: { id: string; name: string }[]; personen?: { email: string; name: string }[] };
   kiosk?: boolean;
+  /** Admin/Büro: Sterbefälle manuell abschließen. */
+  faelleAbschliessen?: boolean;
   /** Gesetzt, wenn ohne Verbindung der zuletzt gespeicherte Stand verwendet wird. */
   offline?: boolean;
 }
@@ -305,6 +307,9 @@ export async function terminAendern(id: string, t: NeuerTermin, serie = false): 
 export const terminLoeschen = (id: string, serie = false) => holen<{ ok: boolean }>(`/api/termin?id=${encodeURIComponent(id)}${serie ? '&serie=1' : ''}`, { method: 'DELETE' });
 
 export type ChecklistenStand = Record<string, { von: string; zeit: string }>;
+export type FallAbschluesse = Record<string, { von: string; zeit: string }>;
+export const fallAbschluesseLaden = () => mitCache('fall-abschluss', () => holen<{ abgeschlossen: FallAbschluesse }>('/api/fall-abschluss'));
+export const fallAbschliessen = (fall: string, abgeschlossen: boolean) => holen<{ abgeschlossen: FallAbschluesse }>('/api/fall-abschluss', jsonInit('PUT', { fall, abgeschlossen }));
 export const checklisteLaden = (id: string) => holen<{ erledigt: ChecklistenStand }>(`/api/checkliste?id=${encodeURIComponent(id)}`);
 export const checklistePunkt = (id: string, punkt: string, erledigt: boolean) => holen<{ erledigt: ChecklistenStand }>('/api/checkliste', jsonInit('PUT', { id, punkt, erledigt }));
 
