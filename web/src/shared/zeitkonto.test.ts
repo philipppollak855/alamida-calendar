@@ -123,6 +123,9 @@ describe('andauerndText', () => {
     expect(andauerndText({ email: 'a@x.at' }, [a({ offen: true })], '2026-11')).toBe('Krankenstand dauert an (seit 17.11.)');
     expect(andauerndText({ email: 'a@x.at' }, [a({ art: 'urlaub', status: 'genehmigt', bis: '2026-12-05' })], '2026-11')).toBe('Urlaub dauert an bis 5.12.');
     expect(andauerndText({ email: 'a@x.at' }, [a({})], '2026-11')).toBeUndefined();
+    expect(andauerndText({ email: 'a@x.at' }, [a({ art: 'urlaub', status: 'genehmigt', von: '2026-11-25', bis: '2026-12-05' }), a({ offen: true })], '2026-11')).toBe(
+      'Krankenstand dauert an (seit 17.11.) · Urlaub dauert an bis 5.12.',
+    );
     expect(andauerndText({ email: 'a@x.at' }, [a({ art: 'urlaub', status: 'beantragt', bis: '2026-12-05' })], '2026-11')).toBeUndefined();
   });
 });

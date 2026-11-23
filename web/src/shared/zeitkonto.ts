@@ -178,10 +178,14 @@ const tagMonat = (d: string) => `${Number(d.slice(8, 10))}.${Number(d.slice(5, 7
 /** Urlaub/Krankenstand, der über das Ende des Fehltage-Monats hinaus andauert, z. B. „Krankenstand dauert an (seit 17.11.)“. */
 export function andauerndText(p: Pick<Personal, 'email'>, abw: Abwesenheit[], monat: string): string | undefined {
   const ende = `${monat}-31`;
-  const a = abw.find((x) => x.email === p.email && (x.art === 'krank' || x.art === 'urlaub') && zaehlt(x) && x.von <= ende && (x.offen || x.bis > ende));
-  if (!a) return undefined;
-  const art = a.art === 'krank' ? 'Krankenstand' : 'Urlaub';
-  return a.offen ? `${art} dauert an (seit ${tagMonat(a.von)})` : `${art} dauert an bis ${tagMonat(a.bis)}`;
+  const texte = abw
+    .filter((x) => x.email === p.email && (x.art === 'krank' || x.art === 'urlaub') && zaehlt(x) && x.von <= ende && (x.offen || x.bis > ende))
+    .sort((x, y) => x.von.localeCompare(y.von))
+    .map((a) => {
+      const art = a.art === 'krank' ? 'Krankenstand' : 'Urlaub';
+      return a.offen ? `${art} dauert an (seit ${tagMonat(a.von)})` : `${art} dauert an bis ${tagMonat(a.bis)}`;
+    });
+  return texte.length ? [...new Set(texte)].join(' · ') : undefined;
 }
 
 /** Zeile je Mitarbeiter für den Berichtsmonat (Werte wie gespeichert bzw. Vorschlag aus dem Kalender). */
