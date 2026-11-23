@@ -11,7 +11,8 @@ import {
 } from '../shared/zeitkonto';
 import { briefpapierDatei } from './api';
 
-type Tabelle = { gruppe: string; body: string[][]; fett?: boolean[][] };
+/** `info`: kleiner Zusatz unter dem Namen im unteren Zellrand, ohne die Zeile zu erhöhen. */
+type Tabelle = { gruppe: string; body: string[][]; fett?: boolean[][]; info?: (string | undefined)[] };
 
 /** Ränder wie im alten Programm (Briefpapier: oben 45 mm, Fußzeile des Briefpapiers frei lassen). */
 export const PDF_RAND = { links: 15, obenBrief: 52, untenBrief: 48, oben: 20, unten: 15 };
@@ -70,6 +71,18 @@ async function aufbauen(titel: string, hinweis: string, tabellen: Tabelle[]): Pr
       didParseCell: (c) => {
         if (c.section === 'body' && g.fett?.[c.row.index]?.[c.column.index]) c.cell.styles.fontStyle = 'bold';
       },
+      didDrawCell: (c) => {
+        const info = c.section === 'body' && c.column.index === 0 ? g.info?.[c.row.index] : undefined;
+        if (!info) return;
+        const breite = c.cell.width - 2 * c.cell.padding('left');
+        doc.setFont('helvetica', 'italic');
+        let gr = 5.5;
+        doc.setFontSize(gr);
+        while (gr > 4 && doc.getTextWidth(info) > breite) doc.setFontSize((gr -= 0.25));
+        doc.setTextColor(90);
+        doc.text(info, c.cell.x + c.cell.padding('left'), c.cell.y + c.cell.height - 0.6);
+        doc.setTextColor(0);
+      },
     });
     y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y + 20) + 12;
   }
@@ -91,12 +104,9 @@ export function berichtPdf(gruppen: { gruppe: string; zeilen: BerichtZeile[] }[]
     berichtHinweis(monat, e),
     gruppen.map((g) => ({
       gruppe: g.gruppe,
-      body: g.zeilen.map((z) => {
-        const w = berichtWerte(z);
-        if (z.andauernd) w[0] = `${w[0]}\n${z.andauernd}`;
-        return w;
-      }),
+      body: g.zeilen.map(berichtWerte),
       fett: g.zeilen.map(fett),
+      info: g.zeilen.map((z) => z.andauernd),
     })),
   );
 }
