@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Abwesenheit, Personal } from './abwesenheit';
-import { altEintraegeLesen, berichtCsv, berichtNachtrag, entwurfPruefen, nachtragCsv, nachtragText, nachtragWerte, berichtGleich, berichtHinweis, kalenderTage, monatPlus, monatsbericht, uebertrag, zeitkontoPruefen, type ZeitkontoDaten } from './zeitkonto';
+import { altEintraegeLesen, berichtCsv, berichtNachtrag, entwurfPruefen, nachtragCsv, nachtragText, nachtragWerte, berichtGleich, berichtHinweis, andauerndText, kalenderTage, monatPlus, monatsbericht, uebertrag, zeitkontoPruefen, type ZeitkontoDaten } from './zeitkonto';
 
 const p = (email: string, name: string, gruppe?: string, x: Partial<Personal> = {}): Personal => ({ email, name, gruppe, eintritt: '2024-01-01', tage: [8, 8, 8, 8, 8, 0, 0], ...x });
 const abw = (email: string, art: Abwesenheit['art'], von: string, bis: string, x: Partial<Abwesenheit> = {}): Abwesenheit => ({ id: von + art, email, art, von, bis, status: art === 'krank' ? 'gemeldet' : 'genehmigt', ...x });
@@ -116,3 +116,16 @@ describe('Berichtsarchiv', () => {
   });
 });
 
+
+describe('andauerndText', () => {
+  const a = (x: Partial<Abwesenheit>): Abwesenheit => ({ id: '1', email: 'a@x.at', art: 'krank', von: '2026-11-17', bis: '2026-11-20', status: 'gemeldet', erstellt: 0, ...x }) as Abwesenheit;
+  it('meldet Krankenstand bis auf Weiteres und Urlaub über das Monatsende', () => {
+    expect(andauerndText({ email: 'a@x.at' }, [a({ offen: true })], '2026-11')).toBe('Krankenstand dauert an (seit 17.11.)');
+    expect(andauerndText({ email: 'a@x.at' }, [a({ art: 'urlaub', status: 'genehmigt', bis: '2026-12-05' })], '2026-11')).toBe('Urlaub dauert an bis 5.12.');
+    expect(andauerndText({ email: 'a@x.at' }, [a({})], '2026-11')).toBeUndefined();
+    expect(andauerndText({ email: 'a@x.at' }, [a({ art: 'urlaub', status: 'genehmigt', von: '2026-11-25', bis: '2026-12-05' }), a({ offen: true })], '2026-11')).toBe(
+      'Krankenstand dauert an (seit 17.11.) · Urlaub dauert an bis 5.12.',
+    );
+    expect(andauerndText({ email: 'a@x.at' }, [a({ art: 'urlaub', status: 'beantragt', bis: '2026-12-05' })], '2026-11')).toBeUndefined();
+  });
+});

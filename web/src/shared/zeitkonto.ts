@@ -149,6 +149,8 @@ export interface BerichtZeile {
   ur: number;
   so: number;
   abgeschlossen: boolean;
+  /** Info, wenn Urlaub oder Krankenstand über das Monatsende hinaus andauert. */
+  andauernd?: string;
 }
 
 export const OHNE_GRUPPE = 'Standard';
@@ -167,7 +169,24 @@ export interface BerichtArchiv {
 
 /** Gleicher Inhalt wie der letzte archivierte Stand des Monats? Dann kein neuer Eintrag. */
 export const berichtGleich = (a: Pick<BerichtArchiv, 'einstellungen' | 'gruppen'>, b: Pick<BerichtArchiv, 'einstellungen' | 'gruppen'>) =>
-  JSON.stringify([a.einstellungen, a.gruppen]) === JSON.stringify([b.einstellungen, b.gruppen]);
+  JSON.stringify([a.einstellungen, a.gruppen], ohneInfo) === JSON.stringify([b.einstellungen, b.gruppen], ohneInfo);
+/** Die Andauern-Info ist nur ein Hinweis und macht einen Bericht nicht „geändert“. */
+const ohneInfo = (k: string, v: unknown) => (k === 'andauernd' ? undefined : v);
+
+const tagMonat = (d: string) => `${Number(d.slice(8, 10))}.${Number(d.slice(5, 7))}.`;
+
+/** Urlaub/Krankenstand, der über das Ende des Fehltage-Monats hinaus andauert, z. B. „Krankenstand dauert an (seit 17.11.)“. */
+export function andauerndText(p: Pick<Personal, 'email'>, abw: Abwesenheit[], monat: string): string | undefined {
+  const ende = `${monat}-31`;
+  const texte = abw
+    .filter((x) => x.email === p.email && (x.art === 'krank' || x.art === 'urlaub') && zaehlt(x) && x.von <= ende && (x.offen || x.bis > ende))
+    .sort((x, y) => x.von.localeCompare(y.von))
+    .map((a) => {
+      const art = a.art === 'krank' ? 'Krankenstand' : 'Urlaub';
+      return a.offen ? `${art} dauert an (seit ${tagMonat(a.von)})` : `${art} dauert an bis ${tagMonat(a.bis)}`;
+    });
+  return texte.length ? [...new Set(texte)].join(' · ') : undefined;
+}
 
 /** Zeile je Mitarbeiter für den Berichtsmonat (Werte wie gespeichert bzw. Vorschlag aus dem Kalender). */
 export function berichtZeile(p: Personal, abw: Abwesenheit[], d: ZeitkontoDaten, monat: string): BerichtZeile {
@@ -189,6 +208,7 @@ export function berichtZeile(p: Personal, abw: Abwesenheit[], d: ZeitkontoDaten,
     ur: runden(k.ur + (e?.ur ?? 0)),
     so: runden(k.so + (e?.so ?? 0)),
     abgeschlossen: !!e,
+    andauernd: andauerndText(p, abw, monatPlus(monat, d.einstellungen.verschiebungAbw)),
   };
 }
 

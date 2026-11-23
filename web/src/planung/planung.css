@@ -1243,3 +1243,5 @@ html.tel-voll::-webkit-scrollbar, html.tel-voll body::-webkit-scrollbar { displa
   .akte-raster { grid-template-columns: 1fr; }
   .akte-stift { opacity: 1; }
 }
+
+.zk-andauernd { color: var(--warn, #e4a700); }
