@@ -225,14 +225,14 @@ export default function PlanungPage() {
   const laden = useCallback(async () => {
     if (!freigeschaltet) return;
     setLaedt(true);
+    fallAbschluesseLaden()
+      .then((x) => setAbschluesse(x.abgeschlossen))
+      .catch(() => undefined);
     try {
       const r = await termineLaden();
       setTermine(r.termine);
       setEinteilung(r.einteilung);
       setEchteDaten(true);
-      fallAbschluesseLaden()
-        .then((x) => setAbschluesse(x.abgeschlossen))
-        .catch(() => undefined);
       setStand(new Date());
       setFehler(r.fehler.length ? r.fehler.join(' · ') : null);
     } catch (e) {

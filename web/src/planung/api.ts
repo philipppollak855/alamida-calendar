@@ -308,7 +308,7 @@ export const terminLoeschen = (id: string, serie = false) => holen<{ ok: boolean
 
 export type ChecklistenStand = Record<string, { von: string; zeit: string }>;
 export type FallAbschluesse = Record<string, { von: string; zeit: string }>;
-export const fallAbschluesseLaden = () => holen<{ abgeschlossen: FallAbschluesse }>('/api/fall-abschluss');
+export const fallAbschluesseLaden = () => mitCache('fall-abschluss', () => holen<{ abgeschlossen: FallAbschluesse }>('/api/fall-abschluss'));
 export const fallAbschliessen = (fall: string, abgeschlossen: boolean) => holen<{ abgeschlossen: FallAbschluesse }>('/api/fall-abschluss', jsonInit('PUT', { fall, abgeschlossen }));
 export const checklisteLaden = (id: string) => holen<{ erledigt: ChecklistenStand }>(`/api/checkliste?id=${encodeURIComponent(id)}`);
 export const checklistePunkt = (id: string, punkt: string, erledigt: boolean) => holen<{ erledigt: ChecklistenStand }>('/api/checkliste', jsonInit('PUT', { id, punkt, erledigt }));
