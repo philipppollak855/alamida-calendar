@@ -97,6 +97,10 @@ export interface AgentEinstellungen {
 export const AGENT_KATEGORIEN = KATEGORIE_SCHLUESSEL.filter((k) => k !== 'Sonstiges');
 export const AGENT_STANDARD_DAUER: Record<string, number> = { Ueberfuehrung: 120 };
 
+/** Admins und Mitglieder der Gruppe „Büro“ schließen Sterbefälle manuell ab. */
+export const darfFaelleAbschliessen = (r: Rechte, k: Pick<Konfiguration, 'gruppen'>) =>
+  r.admin || (r.freigeschaltet && k.gruppen.some((g) => r.gruppen.includes(g.id) && (g.id === 'buero' || /b(ü|ue)ro/i.test(g.name))));
+
 export interface Konfiguration {
   kalender: KalenderEintrag[];
   gruppen: Gruppe[];

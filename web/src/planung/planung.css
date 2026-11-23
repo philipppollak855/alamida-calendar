@@ -209,6 +209,9 @@ button.kachel:hover { transform: translateY(-2px); border-color: var(--akzent); 
 .raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 1rem; align-items: start; }
 .fall { padding: 1.1rem; }
 .fall.erledigt { opacity: 0.55; }
+.faelle-leiste { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; color: var(--text-2); font-size: 0.9rem; }
+.faelle-schalter { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+.fall-abschluss { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem; margin-top: 0.6rem; }
 .fall-kopf { display: flex; align-items: center; gap: 0.8rem; }
 .fall-kopf h3 { margin: 0; font-size: 1.05rem; }
 .avatar { width: 42px; height: 42px; flex: none; border-radius: 50%; display: grid; place-items: center; font-weight: 600; font-family: 'Instrument Sans', sans-serif; background: linear-gradient(135deg, rgba(212,176,106,0.35), rgba(212,176,106,0.08)); border: 1px solid rgba(212,176,106,0.4); color: var(--akzent-2); }

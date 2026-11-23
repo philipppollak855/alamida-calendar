@@ -1,6 +1,6 @@
 import type { Config } from '@netlify/functions';
 import { angemeldet, json } from '../lib/server';
-import { KATEGORIE_SCHLUESSEL } from '../../src/shared/rechte';
+import { KATEGORIE_SCHLUESSEL, darfFaelleAbschliessen } from '../../src/shared/rechte';
 import { darfAnlegen, standardDauer } from '../../src/shared/neuerTermin';
 
 export default async (req: Request) => {
@@ -12,6 +12,7 @@ export default async (req: Request) => {
     benutzer: { email: sitzung.email, name: sitzung.name, bild: sitzung.bild },
     rechte,
     ...(sitzung.kiosk ? { kiosk: true } : {}),
+    faelleAbschliessen: darfFaelleAbschliessen(rechte, konfig),
     gruppenNamen: konfig.gruppen.filter((g) => rechte.gruppen.includes(g.id)).map((g) => g.name),
     anlegen: darfAnlegen(rechte, konfig)
       ? {

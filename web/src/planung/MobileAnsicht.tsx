@@ -23,6 +23,8 @@ type MTab = 'heute' | 'fahrten' | 'faelle' | 'suche' | 'mehr';
 interface Props {
   termine: Termin[];
   alle: Termin[];
+  /** Manuell abgeschlossene Sterbefälle (ausgeblendet). */
+  abgeschlossen?: Record<string, unknown>;
   hinweise: Warnung[];
   onQuittieren?: (w: Warnung) => void;
   ich: Ich | null;
@@ -89,7 +91,7 @@ export default function MobileAnsicht(p: Props) {
   const tagBloecke = bloecke(tagListe);
   const jetztIndex = isSameDay(tag, jetzt) ? tagBloecke.findIndex((b) => !blockStart(b).ganztaegig && blockStart(b).start > jetzt) : -1;
   const fahrtenListe = fahrten(p.termine, jetzt);
-  const faelle = sterbefaelle(p.termine, jetzt).filter((f) => f.naechster);
+  const faelle = sterbefaelle(p.termine, jetzt).filter((f) => f.naechster && !p.abgeschlossen?.[f.sterbefallId]);
   const treffer = q.trim() ? suche(p.alle, q).sort((a, b) => a.start.getTime() - b.start.getTime()).slice(0, 50) : [];
 
   const wischen = {

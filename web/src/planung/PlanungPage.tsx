@@ -9,7 +9,7 @@ import './planung.css';
 import { useTheme } from './theme';
 import NeuerTerminDialog from './NeuerTerminDialog';
 import { istOffline } from './offlineCache';
-import { abmelden, ablaufSpeichern, anmeldungAbschliessen, einteilungSpeichern, terminLoeschen, hubAnmelden, ichLaden, termineAusCache, termineLaden, type EinteilungRecht, type Ich } from './api';
+import { abmelden, ablaufSpeichern, fallAbschluesseLaden, fallAbschliessen, type FallAbschluesse, anmeldungAbschliessen, einteilungSpeichern, terminLoeschen, hubAnmelden, ichLaden, termineAusCache, termineLaden, type EinteilungRecht, type Ich } from './api';
 import AdminAnsicht from './AdminAnsicht';
 import AbwesenheitAnsicht, { AbwesenheitZeile, abwesendAm, useAbwesenheit } from './AbwesenheitAnsicht';
 import BereitschaftAnsicht, { BereitschaftZeile, NACH_ANMELDUNG, bereitschaftAm, useBereitschaft } from './BereitschaftAnsicht';
@@ -182,6 +182,8 @@ export default function PlanungPage() {
   const [einteilung, setEinteilung] = useState<EinteilungRecht | null>(null);
   const [neu, setNeu] = useState<{ datum: string; zeit?: string } | null>(null);
   const [fall, setFall] = useState<FallEintrag | null>(null);
+  const [abschluesse, setAbschluesse] = useState<FallAbschluesse>({});
+  const [mitAbgeschlossenen, setMitAbgeschlossenen] = useState(false);
   const [buendeln, setBuendelnRoh] = useState(() => localStorage.getItem(LS_BUENDELN) !== 'nein');
   const setBuendeln = (an: boolean) => {
     setBuendelnRoh(an);
@@ -228,6 +230,9 @@ export default function PlanungPage() {
       setTermine(r.termine);
       setEinteilung(r.einteilung);
       setEchteDaten(true);
+      fallAbschluesseLaden()
+        .then((x) => setAbschluesse(x.abgeschlossen))
+        .catch(() => undefined);
       setStand(new Date());
       setFehler(r.fehler.length ? r.fehler.join(' · ') : null);
     } catch (e) {
@@ -386,7 +391,10 @@ export default function PlanungPage() {
   const tagBloecke = bloecke(tagTermine);
   const tagFaelle = tagBloecke.filter((b) => b.art === 'fall');
   const tagSammel = tagBloecke.filter((b) => b.art === 'sammel');
-  const tagGruppen = nachGruppe(tagBloecke.flatMap((b) => (b.art === 'einzel' ? [b.termin] : [])));
+  // Gespräche eines zusammengefassten Falls stehen zusätzlich in der Spalte „Gespräche“.
+  const tagGruppen = nachGruppe(
+    tagBloecke.flatMap((b) => (b.art === 'einzel' ? [b.termin] : b.art === 'fall' ? b.termine.filter((t) => KATEGORIEN[t.kategorie].gruppe === 'Gespräche') : [])),
+  );
   const spalten: Gruppe[] = [...GRUPPEN, ...(tagGruppen.Sonstiges.length ? (['Sonstiges'] as Gruppe[]) : [])];
   const istHeute = isSameDay(tag, jetzt);
   const heute = termineAmTag(gefiltert, jetzt);
@@ -394,11 +402,14 @@ export default function PlanungPage() {
     .filter((t) => !t.ganztaegig && t.start > jetzt)
     .sort((a, b) => a.start.getTime() - b.start.getTime())[0];
   const fahrtenListe = fahrten(gefiltert, jetzt);
-  const faelle = sterbefaelle(gefiltert, jetzt);
+  const alleFaelle = sterbefaelle(gefiltert, jetzt);
+  const aktiveFaelle = alleFaelle.filter((f) => !abschluesse[f.sterbefallId]);
+  const faelle = mitAbgeschlossenen ? alleFaelle : aktiveFaelle;
+  const abgeschlosseneAnzahl = alleFaelle.length - aktiveFaelle.length;
   const orteListe = orte(gefiltert, jetzt);
   const zaehler: Partial<Record<Tab, number>> = {
     tag: heute.length,
-    faelle: faelle.filter((f) => f.naechster).length,
+    faelle: aktiveFaelle.filter((f) => f.naechster).length,
     fahrten: fahrtenListe.length,
     hinweise: hinweise.length,
   };
@@ -531,6 +542,7 @@ export default function PlanungPage() {
         <MobileAnsicht
           termine={gefiltert}
           alle={termine}
+          abgeschlossen={abschluesse}
           hinweise={hinweise}
           onQuittieren={(w) => quittieren(w, true)}
           ich={ich}
@@ -883,11 +895,24 @@ export default function PlanungPage() {
 
         {tab === 'faelle' && (
           <section className="ansicht raster">
+            <div className="faelle-leiste">
+              <span>
+                {aktiveFaelle.length} aktiv{abgeschlosseneAnzahl ? ` · ${abgeschlosseneAnzahl} abgeschlossen` : ''}
+              </span>
+              <label className="faelle-schalter">
+                <input type="checkbox" checked={mitAbgeschlossenen} onChange={() => setMitAbgeschlossenen(!mitAbgeschlossenen)} /> Abgeschlossene anzeigen
+              </label>
+            </div>
             {faelle.map((f) => {
               const punkte = checkliste(f.termine);
               const fertig = punkte.filter((p) => p.erledigt).length;
+              const abschluss = abschluesse[f.sterbefallId];
+              const umschalten = () =>
+                fallAbschliessen(f.sterbefallId, !abschluss)
+                  .then((x) => setAbschluesse(x.abgeschlossen))
+                  .catch((e: Error) => setFehler(e.message));
               return (
-                <article key={f.sterbefallId} className={`fall glas ${f.naechster ? '' : 'erledigt'}`}>
+                <article key={f.sterbefallId} className={`fall glas ${f.naechster && !abschluss ? '' : 'erledigt'}`}>
                   <div className="fall-kopf">
                     <div className="avatar">{f.name.split(' ').map((w) => w[0]).slice(0, 2).join('')}</div>
                     <div>
@@ -903,6 +928,20 @@ export default function PlanungPage() {
                       </span>
                     </div>
                   </div>
+                  {(abschluss || (echteDaten && ich?.faelleAbschliessen)) && (
+                    <div className="fall-abschluss">
+                      {abschluss && (
+                        <span className="klein">
+                          ✓ Abgeschlossen von {abschluss.von} am {format(new Date(abschluss.zeit), 'd.M.yyyy', { locale: de })}
+                        </span>
+                      )}
+                      {echteDaten && ich?.faelleAbschliessen && (
+                        <button type="button" className="knopf klein" onClick={() => void umschalten()}>
+                          {abschluss ? '↺ Wieder öffnen' : '✓ Fall abschließen'}
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {f.naechster && (
                     <p className="naechster-text">
                       Nächster: {f.naechster.details.art ?? KATEGORIEN[f.naechster.kategorie].label},{' '}
@@ -927,7 +966,7 @@ export default function PlanungPage() {
                 </article>
               );
             })}
-            {faelle.length === 0 && <p className="leer">Keine Sterbefälle</p>}
+            {faelle.length === 0 && <p className="leer">{abgeschlosseneAnzahl ? 'Keine aktiven Sterbefälle' : 'Keine Sterbefälle'}</p>}
           </section>
         )}
 
