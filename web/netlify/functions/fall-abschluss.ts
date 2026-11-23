@@ -12,8 +12,9 @@ export default async (req: Request) => {
   if (!a) return json({ fehler: 'nicht angemeldet' }, 401);
   if (!a.rechte.freigeschaltet) return json({ fehler: 'kein Zugriff' }, 403);
   const s = store();
+  const darf = darfFaelleAbschliessen(a.rechte, a.konfig);
   if (req.method === 'PUT') {
-    if (!darfFaelleAbschliessen(a.rechte, a.konfig)) return json({ fehler: 'Nur Admin oder Büro dürfen Fälle abschließen' }, 403);
+    if (!darf) return json({ fehler: 'Nur Admin oder Büro dürfen Fälle abschließen' }, 403);
     const body = (await req.json().catch(() => ({}))) as { fall?: unknown; abgeschlossen?: unknown };
     const fall = typeof body.fall === 'string' ? body.fall.trim() : '';
     if (!fall || fall.length > 100) return json({ fehler: 'Fall fehlt' }, 400);
@@ -22,7 +23,8 @@ export default async (req: Request) => {
   }
   const { blobs } = await s.list({ prefix: PRAEFIX });
   const liste = await Promise.all(blobs.map((b) => s.get(b.key, { type: 'json' }) as Promise<Abschluss | null>));
-  return json({ abgeschlossen: Object.fromEntries(liste.filter((x): x is Abschluss => !!x).map((x) => [x.fall, { von: x.von, zeit: x.zeit }])) });
+  // Wer nicht abschließen darf, erfährt nur, welche Fälle abgeschlossen sind (nicht wer und wann).
+  return json({ abgeschlossen: Object.fromEntries(liste.filter((x): x is Abschluss => !!x).map((x) => [x.fall, darf ? { von: x.von, zeit: x.zeit } : { von: '', zeit: '' }])) });
 };
 
 export const config: Config = { path: '/api/fall-abschluss', method: ['GET', 'PUT'] };

@@ -932,7 +932,8 @@ export default function PlanungPage() {
                     <div className="fall-abschluss">
                       {abschluss && (
                         <span className="klein">
-                          ✓ Abgeschlossen von {abschluss.von} am {format(new Date(abschluss.zeit), 'd.M.yyyy', { locale: de })}
+                          ✓ Abgeschlossen{abschluss.von && ` von ${abschluss.von}`}
+                          {abschluss.zeit && ` am ${format(new Date(abschluss.zeit), 'd.M.yyyy', { locale: de })}`}
                         </span>
                       )}
                       {echteDaten && ich?.faelleAbschliessen && (
